@@ -6,7 +6,7 @@ from scrapy import FormRequest
 from scrapy.http.request import Request
 from string import ascii_uppercase as uppercase
 from time import time
-from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, TLCPrdItem, NicpbpItem, DaltonItem
+from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, ProductItem
 
 
 class myBaseSpider(scrapy.Spider):
@@ -178,16 +178,17 @@ class CDNPrdSpider(myBaseSpider):
     def parse(self, response):
         tables = response.xpath("//table[contains(@class,'list')][position()>1]")
         for table in tables:
-            cat_no = table.xpath('.//td[@class="listpno"]/a/text()').extract_first(default="").replace('\xa0'," ")
+            cat_no = table.xpath('.//td[@class="listpno"]/a/text()').extract_first(default="").replace('\xa0', " ")
             name = ''.join(table.xpath('.//div[@class="listcomp"]/a//text()').extract())
-            name = name[:name.find('Show ')].replace('\xa0'," ")
-            purity = table.xpath('.//div[@class="listiso"]/text()').extract_first(default="").replace('\xa0'," ")
-            cas = table.xpath('.//div[@class="listcas"]/text()').extract_first(default="").replace('\xa0'," ")
+            name = name[:name.find('Show ')].replace('\xa0', " ")
+            purity = table.xpath('.//div[@class="listiso"]/text()').extract_first(default="").replace('\xa0', " ")
+            cas = table.xpath('.//div[@class="listcas"]/text()').extract_first(default="").replace('\xa0', " ")
             trs = table.xpath(".//tr")
             for tr in trs:
-                unit = tr.xpath("./*[contains(@class,'listqty')]/text()").extract_first(default="").replace('\xa0'," ")
-                stock = tr.xpath("./td[@class='liststk']/text()").extract_first(default="").replace('\xa0'," ")
-                price = tr.xpath('./td[@class="listprc"]/descendant-or-self::text()[last()]').extract_first(default="").replace('\xa0'," ")
+                unit = tr.xpath("./*[contains(@class,'listqty')]/text()").extract_first(default="").replace('\xa0', " ")
+                stock = tr.xpath("./td[@class='liststk']/text()").extract_first(default="").replace('\xa0', " ")
+                price = tr.xpath('./td[@class="listprc"]/descendant-or-self::text()[last()]').extract_first(
+                    default="").replace('\xa0', " ")
                 d = {
                     'cat_no': cat_no,
                     'name': name,
@@ -198,7 +199,7 @@ class CDNPrdSpider(myBaseSpider):
                     'cas': cas,
                 }
                 yield CDNPrdItem(**d)
-                #print(cat_no, name, purity, cas, unit, stock, price)
+                # print(cat_no, name, purity, cas, unit, stock, price)
         next_page_url = response.xpath('//span[@class="pgntn"]/following-sibling::a[1]/@href').extract_first()
         if next_page_url:
             url = next_page_url.replace("../../../../../", self.base_url)
@@ -270,16 +271,16 @@ class TLCSpider(myBaseSpider):
             else:
                 mf = ""
             d = {
-                'name': prd_td.xpath('.//b[1]/text()').extract_first(default=""),
+                'en_name': prd_td.xpath('.//b[1]/text()').extract_first(default=""),
                 'cat_no': prd_td.xpath('.//b[2]/text()').extract_first(default=""),
                 'img_url': self.base_url + prd_td.xpath('.//img/@src').extract_first(default=""),
                 'cas': ' '.join(self.pattern_cas.findall(info)),
                 'wm': ' '.join(self.pattern_mw.findall(info)),
                 'mf': mf,
-                'info': info,
-                'api_name': response.meta.get("api_name", "")
+                'info1': info,
+                'parent': response.meta.get("api_name", "")
             }
-            yield TLCPrdItem(**d)
+            yield ProductItem(**d)
 
 
 class NicpbpSpider(scrapy.Spider):
@@ -298,14 +299,14 @@ class NicpbpSpider(scrapy.Spider):
         for row in prd_rows:
             d = {
                 'cat_no': row.xpath(".//td[1]/input/@value").extract_first(default=""),
-                'name': row.xpath(".//td[2]/input/@value").extract_first(default=""),
-                'lot': row.xpath(".//td[3]/input/@value").extract_first(default=""),
-                'unit': row.xpath(".//td[4]/input/@value").extract_first(default=""),
-                'usage': row.xpath(".//td[5]/input/@value").extract_first(default=""),
-                'storage': row.xpath(".//td[6]/input/@value").extract_first(default=""),
-                'in_stock': row.xpath(".//td[1]/font/text()").extract_first(default=""),
+                'chs_name': row.xpath(".//td[2]/input/@value").extract_first(default=""),
+                'info2': row.xpath(".//td[3]/input/@value").extract_first(default=""),
+                'info1': row.xpath(".//td[4]/input/@value").extract_first(default=""),  # 规格
+                'info3': row.xpath(".//td[5]/input/@value").extract_first(default=""),  # 批号
+                'info4': row.xpath(".//td[6]/input/@value").extract_first(default=""),  # 保存条件
+                'stock_info': row.xpath(".//td[1]/font/text()").extract_first(default=""),
             }
-            yield NicpbpItem(**d)
+            yield ProductItem(**d)
         pager_script = response.xpath("//div[@class='page']/script/text()").re(r"(\d+),(\d+),(\d+)")
         if pager_script:
             cur_page, page_size, total_items = map(int, pager_script)
@@ -335,43 +336,45 @@ class MolcanPrdSpider(myBaseSpider):
     pattern_mf = re.compile("(?P<tmf>(?P<mf>(?P<p>[A-Za-z]+\d+)+([A-Z]+[a-z])?)\.?(?P=mf)?)")
 
     def parse(self, response):
-        urls = response.xpath('//ul[@class="categories"]/li/a/@href')
-        api_names = response.xpath('//ul[@class="categories"]/li/a/text()')
+        urls = response.xpath('//ul[@class="categories"]/li/a/@href').extract()
+        api_names = response.xpath('//ul[@class="categories"]/li/a/text()').extract()
         for url, api_name in zip(urls, api_names):
-            url = url.replace("./", self.base_url)
+            url = url.replace("../", self.base_url)
             yield Request(url, headers=self.headers, meta={'api_name': api_name}, callback=self.parent_parse)
-            break
 
     def parent_parse(self, response):
         detail_urls = response.xpath('//div[@class="product_wrapper"]//a[@class="readmore"]/@href').extract()
         for detail_url in detail_urls:
             url = detail_url.replace("../", self.base_url)
             yield Request(url, headers=self.headers, meta=response.meta, callback=self.detail_parse)
-            break
 
     def detail_parse(self, response):
-        info = " ".join(response.xpath('//div[@id="description"]/*/text()'))
+        info = " ".join(response.xpath('//div[@id="description"]/*/text()').extract())
         l = self.pattern_mf.findall(info)
         if l:
             mf = "".join(map(lambda x: x[0], l))
         else:
             mf = ""
         d = {
-            'name': response.xpath('//p[@class="product_name"]/text()').extract_first().split(' ; ')[0],
+            'brand': "Molcan",
+            'en_name': response.xpath('//p[@class="product_name"]/text()').extract_first().split(' ; ')[0],
             'cat_no': response.xpath('//span[@class="productNo"]/text()').extract_first().split('-')[0],
             'img_url': response.xpath('//a[@class="product_image lightbox"]/img/@src').extract_first(),
             'cas': ' '.join(self.pattern_cas.findall(info)),
             'mw': ' '.join(self.pattern_mw.findall(info)),
             'mf': mf,
+            'prd_url' : response.request.url,
+            'info1' : "".join(response.xpath('//div[@id="description"]/descendant::*/text()').extract()),
+            'parent' : response.meta.get('api_name'),
         }
-        print(d.items())
+        yield ProductItem(**d)
         # TODO Finish the spider
 
 
 class DaltonSpider(myBaseSpider):
     name = "dalton_prds"
     allowed_domains = ["daltonresearchmolecules.com"]
-    start_urls = ["https://www.daltonresearchmolecules.com/chemical-compounds-catalog",]
+    start_urls = ["https://www.daltonresearchmolecules.com/chemical-compounds-catalog", ]
     base_url = "https://www.daltonresearchmolecules.com"
 
     def parse(self, response):
@@ -379,15 +382,15 @@ class DaltonSpider(myBaseSpider):
         for cat in l_cat:
             url_cat = cat.xpath('./@href').extract_first()
             catalog = cat.xpath('./text()').extract_first()
-            tmp_url = self.base_url+url_cat
+            tmp_url = self.base_url + url_cat
 
             yield Request(tmp_url,
                           callback=self.cat_parse,
                           method="GET",
-                          meta={'catalog':catalog}
+                          meta={'catalog': catalog}
                           )
 
-    def cat_parse(self,response):
+    def cat_parse(self, response):
         rows = response.xpath('//form/div[@class="row"]/div')
         catalog = response.meta.get('catalog')
         print len(rows)
@@ -405,16 +408,14 @@ class DaltonSpider(myBaseSpider):
                 mol_text = mol_text.decode('string_escape')
 
             d = {
-                'name':name,
-                'url_prd':url_prd,
-                'mol_text':mol_text,
-                'purity':purity,
-                'cat_no':cat_no,
-                'cas':cas,
-                'stock':stock,
-                'mol':mol,
-                'catalog':catalog,
+                'en_name': name,
+                'prd_url': url_prd,  # 产品详细连接
+                'mol_text': mol_text,
+                'purity': purity,
+                'cat_no': cat_no,
+                'cas': cas,
+                'stock_info': stock,
+                'mf': mol,
+                'parent': catalog,
             }
-            yield DaltonItem(**d)
-
-
+            yield ProductItem(**d)

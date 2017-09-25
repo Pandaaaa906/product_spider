@@ -4,10 +4,11 @@
 #
 # See documentation in:
 # http://doc.scrapy.org/en/latest/topics/items.html
-import scrapy
+# import scrapy
+import scrapyautodb as scrapy
 
 
-class JkItem(scrapy.Item):
+class JkItem(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     en_name = scrapy.Field()
     chs_name = scrapy.Field()
@@ -19,11 +20,11 @@ class JkItem(scrapy.Item):
 
     class Meta:
         indexes = (
-            (("cat_no",),True),
+            (("cat_no",), True),
         )
 
 
-class AccPrdItem(scrapy.Item):
+class AccPrdItem(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     catalog = scrapy.Field()
     name = scrapy.Field()
@@ -39,7 +40,7 @@ class AccPrdItem(scrapy.Item):
         )
 
 
-class AccPrdDetail(scrapy.Item):
+class AccPrdDetail(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     n_components = scrapy.Field()
     unit = scrapy.Field()
@@ -60,7 +61,7 @@ class AccPrdDetail(scrapy.Item):
         )
 
 
-class ChemServItem(scrapy.Item):
+class ChemServItem(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     name = scrapy.Field()
     synonyms = scrapy.Field()
@@ -81,7 +82,7 @@ class ChemServItem(scrapy.Item):
         )
 
 
-class CDNPrdItem(scrapy.Item):
+class CDNPrdItem(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     name = scrapy.Field()
     unit = scrapy.Field()
@@ -96,7 +97,7 @@ class CDNPrdItem(scrapy.Item):
         )
 
 
-class BestownPrdItem(scrapy.Item):
+class BestownPrdItem(scrapy.OrderedItem):
     chs_name = scrapy.Field()
     en_name = scrapy.Field()
     country = scrapy.Field()
@@ -114,7 +115,7 @@ class BestownPrdItem(scrapy.Item):
         )
 
 
-class TLCPrdItem(scrapy.Item):
+class TLCPrdItem(scrapy.OrderedItem):
     name = scrapy.Field()
     cat_no = scrapy.Field()
     img_url = scrapy.Field()
@@ -130,7 +131,7 @@ class TLCPrdItem(scrapy.Item):
         )
 
 
-class NicpbpItem(scrapy.Item):
+class NicpbpItem(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     name = scrapy.Field()
     lot = scrapy.Field()
@@ -145,7 +146,7 @@ class NicpbpItem(scrapy.Item):
         )
 
 
-class DaltonItem(scrapy.Item):
+class DaltonItem(scrapy.OrderedItem):
     name = scrapy.Field()
     url_prd = scrapy.Field()
     mol_text = scrapy.Field()
@@ -160,3 +161,37 @@ class DaltonItem(scrapy.Item):
         indexes = (
             (('cat_no',), True),
         )
+
+
+class ProductItem(scrapy.OrderedItem):
+    brand = scrapy.Field()
+    parent = scrapy.Field()
+    cat_no = scrapy.Field()
+    en_name = scrapy.Field()
+    chs_name = scrapy.Field()
+    cas = scrapy.Field()
+    smiles = scrapy.Field()
+    mf = scrapy.Field()
+    mw = scrapy.Field()
+    stock_info = scrapy.Field()
+    purity = scrapy.Field()
+    img_url = scrapy.Field()
+    info1 = scrapy.Field()
+    info2 = scrapy.Field()
+    info3 = scrapy.Field()
+    info4 = scrapy.Field()
+    mol_text = scrapy.Field()
+    prd_url = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('brand', 'cat_no',), True),
+        )
+
+
+class ProductUnitItem(scrapy.OrderedItem):
+    cat_no = scrapy.Field()
+    cat_no_unit = scrapy.Field()
+    unit = scrapy.Field()
+    price = scrapy.Field()
+    currency = scrapy.Field()
