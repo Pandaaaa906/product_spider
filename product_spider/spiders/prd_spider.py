@@ -484,7 +484,7 @@ class LGCSpider(myBaseSpider):
     def detail_parse(self, response):
         analyte = response.xpath('//span[text()="Analyte:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(default="").strip()
         synonyms = response.xpath('//span[text()="Synonyms:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(default="").strip()
-        related_categories = response.xpath('//td[@class="RelatedproductTd2"]//a/text()').extract_first(default="").strip()
+        related_categories = response.xpath('//td[contains(@class,"RelatedproductTd2")]//a/text()').extract_first(default="").strip()
         parent = response.xpath('//h3[@class="summarysection-paragraph"]/a[@class="summarysection"]/text()').extract_first(default="").strip()
         d = {
             "brand": "LGC",
