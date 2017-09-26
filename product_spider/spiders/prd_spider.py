@@ -275,10 +275,11 @@ class TLCSpider(myBaseSpider):
                 'cat_no': prd_td.xpath('.//b[2]/text()').extract_first(default=""),
                 'img_url': self.base_url + prd_td.xpath('.//img/@src').extract_first(default=""),
                 'cas': ' '.join(self.pattern_cas.findall(info)),
-                'wm': ' '.join(self.pattern_mw.findall(info)),
+                'mw': ' '.join(self.pattern_mw.findall(info)),
                 'mf': mf,
                 'info1': info,
-                'parent': response.meta.get("api_name", "")
+                'parent': response.meta.get("api_name", ""),
+                'brand': 'TLC',
             }
             yield ProductItem(**d)
 
