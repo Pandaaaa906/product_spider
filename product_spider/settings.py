@@ -32,6 +32,17 @@ DATABASE = {
         "port":5432,
     }
 }
+
+DATABASE = {
+    "engine":"postgresql",
+    "params":{
+        "database":"chemhost",
+        "user":"postgres",
+        "password":"catochem",
+        "host":"192.168.1.29",
+        "port": 5432,
+    }
+}
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'product_spider (+http://www.yourdomain.com)'
 USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"

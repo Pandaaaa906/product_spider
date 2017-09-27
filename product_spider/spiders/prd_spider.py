@@ -6,7 +6,7 @@ from scrapy import FormRequest
 from scrapy.http.request import Request
 from string import ascii_uppercase as uppercase, lowercase
 from time import time
-from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, ProductItem
+from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, RawData
 
 
 class myBaseSpider(scrapy.Spider):
@@ -281,7 +281,7 @@ class TLCSpider(myBaseSpider):
                 'parent': response.meta.get("api_name", ""),
                 'brand': 'TLC',
             }
-            yield ProductItem(**d)
+            yield RawData(**d)
 
 
 class NicpbpSpider(scrapy.Spider):
@@ -307,7 +307,7 @@ class NicpbpSpider(scrapy.Spider):
                 'info4': row.xpath(".//td[6]/input/@value").extract_first(default=""),  # 保存条件
                 'stock_info': row.xpath(".//td[1]/font/text()").extract_first(default=""),
             }
-            yield ProductItem(**d)
+            yield RawData(**d)
         pager_script = response.xpath("//div[@class='page']/script/text()").re(r"(\d+),(\d+),(\d+)")
         if pager_script:
             cur_page, page_size, total_items = map(int, pager_script)
@@ -330,7 +330,7 @@ class NicpbpSpider(scrapy.Spider):
 
 class MolcanPrdSpider(myBaseSpider):
     name = 'molcanprd'
-    base_url = 'http://molcan.com/'
+    base_url = 'http://molcan.com'
     start_urls = map(lambda x: "http://molcan.com/product_categories/" + x, uppercase)
     pattern_cas = re.compile("\d+-\d{2}-\d(?!\d)")
     pattern_mw = re.compile('\d+\.\d+')
@@ -340,13 +340,13 @@ class MolcanPrdSpider(myBaseSpider):
         urls = response.xpath('//ul[@class="categories"]/li/a/@href').extract()
         api_names = response.xpath('//ul[@class="categories"]/li/a/text()').extract()
         for url, api_name in zip(urls, api_names):
-            url = url.replace("../", self.base_url)
+            url = url.replace("..", self.base_url)
             yield Request(url, headers=self.headers, meta={'api_name': api_name}, callback=self.parent_parse)
 
     def parent_parse(self, response):
         detail_urls = response.xpath('//div[@class="product_wrapper"]//a[@class="readmore"]/@href').extract()
         for detail_url in detail_urls:
-            url = detail_url.replace("../", self.base_url)
+            url = detail_url.replace("..", self.base_url)
             yield Request(url, headers=self.headers, meta=response.meta, callback=self.detail_parse)
 
     def detail_parse(self, response):
@@ -356,19 +356,20 @@ class MolcanPrdSpider(myBaseSpider):
             mf = "".join(map(lambda x: x[0], l))
         else:
             mf = ""
+        relate_img_url = response.xpath('//a[@class="product_image lightbox"]/img/@src').extract_first()
         d = {
             'brand': "Molcan",
             'en_name': response.xpath('//p[@class="product_name"]/text()').extract_first().split(' ; ')[0],
             'cat_no': response.xpath('//span[@class="productNo"]/text()').extract_first().split('-')[0],
-            'img_url': response.xpath('//a[@class="product_image lightbox"]/img/@src').extract_first(),
+            'img_url': relate_img_url and self.base_url+relate_img_url,
             'cas': ' '.join(self.pattern_cas.findall(info)),
             'mw': ' '.join(self.pattern_mw.findall(info)),
             'mf': mf,
-            'prd_url' : response.request.url,
-            'info1' : "".join(response.xpath('//div[@id="description"]/descendant::*/text()').extract()),
-            'parent' : response.meta.get('api_name'),
+            'prd_url': response.request.url,
+            'info1': "".join(response.xpath('//div[@id="description"]/descendant::*/text()').extract()),
+            'parent': response.meta.get('api_name'),
         }
-        yield ProductItem(**d)
+        yield RawData(**d)
         # TODO Finish the spider
 
 
@@ -407,7 +408,7 @@ class SimsonSpider(myBaseSpider):
                 "info2": j_obj.get("product_synonyms"),
                 "info3": j_obj.get("status"),
             }
-            yield ProductItem(**d)
+            yield RawData(**d)
 
 
 class DaltonSpider(myBaseSpider):
@@ -457,13 +458,13 @@ class DaltonSpider(myBaseSpider):
                 'mf': mol,
                 'parent': catalog,
             }
-            yield ProductItem(**d)
+            yield RawData(**d)
 
 
 class LGCSpider(myBaseSpider):
     name = "lgc_prds"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = ["https://www.lgcstandards.com/CN/en/LGC-impurity-and-API-standards/cat/154584",]
+    start_urls = ["https://www.lgcstandards.com/CN/en/LGC-impurity-and-API-standards/cat/154584", ]
     base_url = "https://www.lgcstandards.com"
 
     def parse(self, response):
@@ -499,6 +500,6 @@ class LGCSpider(myBaseSpider):
             "info1": analyte + ";" + synonyms,
             "prd_url": response.request.url,
         }
-        yield ProductItem(**d)
+        yield RawData(**d)
 
 

@@ -115,22 +115,6 @@ class BestownPrdItem(scrapy.OrderedItem):
         )
 
 
-class TLCPrdItem(scrapy.OrderedItem):
-    name = scrapy.Field()
-    cat_no = scrapy.Field()
-    img_url = scrapy.Field()
-    cas = scrapy.Field()
-    wm = scrapy.Field()
-    mf = scrapy.Field()
-    info = scrapy.Field()
-    api_name = scrapy.Field()
-
-    class Meta:
-        indexes = (
-            (("cat_no",),True),
-        )
-
-
 class NicpbpItem(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     name = scrapy.Field()
@@ -163,7 +147,7 @@ class DaltonItem(scrapy.OrderedItem):
         )
 
 
-class ProductItem(scrapy.OrderedItem):
+class RawData(scrapy.OrderedItem):
     brand = scrapy.Field()
     parent = scrapy.Field()
     cat_no = scrapy.Field()
