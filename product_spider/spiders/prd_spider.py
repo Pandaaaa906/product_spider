@@ -246,12 +246,10 @@ class BestownSpider(myBaseSpider):
 
 
 class TLCSpider(myBaseSpider):
-    name = "tlcprd"
+    name = "tlc_prds"
     base_url = "http://tlcstandards.com/"
     start_urls = ["http://tlcstandards.com/ProdNameList.aspx"]
-    pattern_cas = re.compile("\d+-\d{2}-\d(?!\d)")
-    pattern_mf = re.compile("(?P<tmf>(?P<mf>(?P<p>[A-Za-z]+\d+)+([A-Z]+[a-z])?)\.?(?P=mf)?)")
-    pattern_mw = re.compile('\d+\.\d+')
+    x_template = './child::br[contains(following-sibling::text(),"{0}")]/following-sibling::font[1]/text()'
 
     def parse(self, response):
         l_a = response.xpath('//td[@class="namebody"]/a')
@@ -267,38 +265,19 @@ class TLCSpider(myBaseSpider):
             yield Request(url, headers=self.headers, callback=self.detail_parse, meta=response.meta)
 
     def detail_parse(self, response):
+        td = response.xpath('//td[@height="195px"]')
         d = {
-            'en_name': response.xpath('//font[@class="sectionHeading1"]/text()').extract_first(),
-            'cat_no': prd_td.xpath('.//b[2]/text()').extract_first(default=""),
-            'img_url': self.base_url + response.xpath('//td[@style="border: solid #CCCCCC 1px; background-color: #ffffff"]//img/@src').extract_first(),
-            'cas': ' '.join(self.pattern_cas.findall(info)),
-            'mw': ' '.join(self.pattern_mw.findall(info)),
-            'mf': mf,
+            'en_name': td.xpath('./b/font/text()').extract_first(),
+            'cat_no': td.xpath(self.x_template.format("TLC No.")).extract_first(),
+            'img_url': self.base_url + response.xpath('//td[@align="center"]/a/img/@src').extract_first(default=""),
+            'cas': td.xpath(self.x_template.format("CAS")).extract_first(),
+            'mw': td.xpath(self.x_template.format("Molecular Weight")).extract_first(),
+            'mf': td.xpath(self.x_template.format("Molecular Formula")).extract_first(),
             'parent': response.meta.get("api_name", ""),
             'brand': 'TLC',
+            'prd_url': response.request.url,
         }
-
-    def list_parse(self, response):
-        prd_tds = response.xpath('//table[@class="image_text"]//td[@valign="top"]')
-        for prd_td in prd_tds:
-            info = u'\t'.join(prd_td.xpath('./text()').extract()).replace(u'\xa0', u' ')
-            l = self.pattern_mf.findall(info)
-            if l:
-                mf = "".join(map(lambda x: x[0], l))
-            else:
-                mf = ""
-            d = {
-                'en_name': prd_td.xpath('.//b[1]/text()').extract_first(default=""),
-                'cat_no': prd_td.xpath('.//b[2]/text()').extract_first(default=""),
-                'img_url': self.base_url + prd_td.xpath('.//img/@src').extract_first(default=""),
-                'cas': ' '.join(self.pattern_cas.findall(info)),
-                'mw': ' '.join(self.pattern_mw.findall(info)),
-                'mf': mf,
-                'info1': info,
-                'parent': response.meta.get("api_name", ""),
-                'brand': 'TLC',
-            }
-            yield RawData(**d)
+        yield RawData(**d)
 
 
 class NicpbpSpider(scrapy.Spider):
