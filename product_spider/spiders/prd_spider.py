@@ -254,12 +254,29 @@ class TLCSpider(myBaseSpider):
     pattern_mw = re.compile('\d+\.\d+')
 
     def parse(self, response):
-        name_urls = response.xpath('//td[@class="namebody"]/a/@href').extract()
-        api_names = response.xpath('//td[@class="namebody"]/a/text()').extract()
-        for url, api_name in zip(name_urls, api_names):
-            url = self.base_url + url
-            api_name = api_name.title()
+        l_a = response.xpath('//td[@class="namebody"]/a')
+        for a in l_a:
+            url = self.base_url + a.xpath('./@href').extract_first()
+            api_name = a.xpath('./text()').extract_first().title()
             yield Request(url, headers=self.headers, callback=self.list_parse, meta={'api_name': api_name})
+
+    def list_parse(self,response):
+        l_r_url = response.xpath('//table[@class="image_text"]//td[@valign="top"]/a/@href').extract()
+        for r_url in l_r_url:
+            url = self.base_url + r_url
+            yield Request(url, headers=self.headers, callback=self.detail_parse, meta=response.meta)
+
+    def detail_parse(self, response):
+        d = {
+            'en_name': response.xpath('//font[@class="sectionHeading1"]/text()').extract_first(),
+            'cat_no': prd_td.xpath('.//b[2]/text()').extract_first(default=""),
+            'img_url': self.base_url + response.xpath('//td[@style="border: solid #CCCCCC 1px; background-color: #ffffff"]//img/@src').extract_first(),
+            'cas': ' '.join(self.pattern_cas.findall(info)),
+            'mw': ' '.join(self.pattern_mw.findall(info)),
+            'mf': mf,
+            'parent': response.meta.get("api_name", ""),
+            'brand': 'TLC',
+        }
 
     def list_parse(self, response):
         prd_tds = response.xpath('//table[@class="image_text"]//td[@valign="top"]')
