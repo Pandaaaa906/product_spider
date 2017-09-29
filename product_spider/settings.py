@@ -13,7 +13,7 @@ BOT_NAME = 'product_spider'
 
 SPIDER_MODULES = ['product_spider.spiders']
 NEWSPIDER_MODULE = 'product_spider.spiders'
-
+'''
 DATABASE = {
    "engine": "sqlite",
    "params": {
@@ -43,7 +43,7 @@ DATABASE = {
         "port": 5432,
     }
 }
-'''
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'product_spider (+http://www.yourdomain.com)'
 USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
@@ -52,15 +52,15 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, lik
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 2
 
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 #DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 32
-CONCURRENT_REQUESTS_PER_IP = 32
+CONCURRENT_REQUESTS_PER_DOMAIN = 2
+CONCURRENT_REQUESTS_PER_IP = 2
 
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
