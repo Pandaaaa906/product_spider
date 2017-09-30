@@ -7,6 +7,7 @@ from scrapy.http.request import Request
 from string import ascii_uppercase as uppercase, lowercase
 from time import time
 from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, RawData
+from product_spider.utils.maketrans import formular_trans
 
 
 class myBaseSpider(scrapy.Spider):
@@ -555,21 +556,19 @@ class AnantSpider(myBaseSpider):
 
     def detail_parse(self, response):
         div = response.xpath('//div[contains(@class,"heading")]')
+        tmp_xpath = './h6[contains(text(),"{0}")]/parent::*/following-sibling::*/h5/descendant-or-self::*/text()'
+        tmp_xpath_2 = './h6[contains(text(),"{0}")]/parent::*/following-sibling::*/h5/text()'
+        # TODO untested
+        mf = ''.join(div.xpath(tmp_xpath.format("Molecular Formula")).extract()).strip()
         d = {
             'brand': "Anant",
             'en_name': response.xpath('//div[contains(@class,"prod-details")]//h1/text()').extract_first(),
             'prd_url': response.request.url,  # 产品详细连接
             'cat_no': response.xpath('//h5[@class="prod-cat"]/text()').extract_first(default="").strip(),
-            'cas': div.xpath('./h6[contains(text(),"CAS")]/parent::*/following-sibling::*/h5/text()').extract_first(
-                default="").strip(),
-            'stock_info': div.xpath(
-                './h6[contains(text(),"Stock Status")]/parent::*/following-sibling::*/h5/text()').extract_first(
-                default="").strip(),
-            'mf': ''.join(div.xpath(
-                './h6[contains(text(),"Molecular Formula")]/parent::*/following-sibling::*/h5/descendant-or-self::*/text()').extract()).strip(),
-            'mw': div.xpath(
-                './h6[contains(text(),"Molecular Weight")]/parent::*/following-sibling::*/h5/text()').extract_first(
-                default="").strip(),
+            'cas': div.xpath(tmp_xpath_2.format("CAS")).extract_first(default="").strip(),
+            'stock_info': div.xpath(tmp_xpath_2.format("Stock Status")).extract_first(default="").strip(),
+            'mf': formular_trans(mf),
+            'mw': div.xpath(tmp_xpath_2.format("Molecular Weight")).extract_first(default="").strip(),
             'info1': response.xpath('//b[contains(text(),"Synonyms : ")]/following-sibling::text()').extract_first(
                 default="").strip(),
             'parent': response.meta.get('parent'),
