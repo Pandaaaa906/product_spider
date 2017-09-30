@@ -577,3 +577,38 @@ class AnantSpider(myBaseSpider):
             'img_url': response.xpath('//div[contains(@class,"entry-thumb")]/a/img/@src').extract_first(),
         }
         yield RawData(**d)
+
+
+class AcanthusSpider(myBaseSpider):
+    name = "acanthus_prds"
+    allowd_domains = ["acanthusresearch.com"]
+    start_urls = map(lambda x: "http://www.acanthusresearch.com/product_catalogue.asp?alp="+x, uppercase)
+    base_url = "http://www.acanthusresearch.com/"
+
+    def parse(self, response):
+        l_a = response.xpath('//td[@align="left"]/a[@class="rightNavLink"]')
+        for a in l_a:
+            r_url = a.xpath('./@href').extract_first().strip()
+            parent = a.xpath('./span/text()').extract_first()
+            meta = {'parent':parent}
+            yield Request(self.base_url+r_url, callback=self.list_parse, meta=meta)
+
+    def list_parse(self, response):
+        products = response.xpath('//div[@id="ContainerTCell2"]/table//tr')
+        tmp_xpath = './/strong[contains(text(),"{0}")]/following-sibling::text()'
+        for product in products:
+            raw_mf = product.xpath('.//strong[contains(text(),"Molecular Formula")]/following-sibling::span/text()').extract()
+            d = {
+                'brand': "Acanthus",
+                'cat_no': product.xpath(tmp_xpath.format("Catalogue Number")).extract_first(default="").strip(),
+                'en_name': product.xpath(tmp_xpath.format("Name")).extract_first(default="").strip(),
+                'prd_url': response.request.url,  # 产品详细连接
+                'cas': product.xpath(tmp_xpath.format("CAS Number")).extract_first(default="").strip(),
+                'mf': ''.join(raw_mf),
+                'mw': None,
+                'info1': product.xpath(tmp_xpath.format("Synonyms")).extract_first(default="").strip(),
+                'parent': product.xpath(tmp_xpath.format("Parent Drug")).extract_first(default="").strip(),
+                'img_url': self.base_url + product.xpath('.//p/img/@src').extract_first(),
+            }
+            yield RawData(**d)
+
