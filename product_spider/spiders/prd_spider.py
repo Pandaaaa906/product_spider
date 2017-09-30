@@ -479,6 +479,7 @@ class LGCSpider(myBaseSpider):
             yield Request(url=self.base_url + url, callback=self.detail_parse)
 
     def detail_parse(self, response):
+
         analyte = response.xpath(
             '//span[text()="Analyte:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(
             default="").strip()
@@ -532,6 +533,7 @@ class AozealSpider(myBaseSpider):
             pass
 
 
+# TODO CONCURRENT should be lowered to 2
 class AnantSpider(myBaseSpider):
     name = "anant_prds"
     allowd_domains = ["anantlabs.com"]
