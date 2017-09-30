@@ -565,9 +565,8 @@ class AnantSpider(myBaseSpider):
             'stock_info': div.xpath(
                 './h6[contains(text(),"Stock Status")]/parent::*/following-sibling::*/h5/text()').extract_first(
                 default="").strip(),
-            'mf': div.xpath(
-                './h6[contains(text(),"Molecular Formula")]/parent::*/following-sibling::*/h5/text()').extract_first(
-                default="").strip(),
+            'mf': ''.join(div.xpath(
+                './h6[contains(text(),"Molecular Formula")]/parent::*/following-sibling::*/h5/descendant-or-self::*/text()').extract()).strip(),
             'mw': div.xpath(
                 './h6[contains(text(),"Molecular Weight")]/parent::*/following-sibling::*/h5/text()').extract_first(
                 default="").strip(),
