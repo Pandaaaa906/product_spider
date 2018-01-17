@@ -477,9 +477,11 @@ class LGCSpider(myBaseSpider):
         urls = response.xpath('//table[@class="subCategoryTable"]//a/@href').extract()
         for url in urls:
             yield Request(url=self.base_url + url, callback=self.detail_parse)
+        np_url = response.xpath('//div[@class="pagination"]/strong/following-sibling::a/@href').extract_first(default="")
+        if np_url:
+            yield Request(url=self.base_url + np_url, callback=self.product_list_parse)
 
     def detail_parse(self, response):
-
         analyte = response.xpath(
             '//span[text()="Analyte:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(
             default="").strip()
@@ -569,7 +571,7 @@ class AnantSpider(myBaseSpider):
             'cat_no': response.xpath('//h5[@class="prod-cat"]/text()').extract_first(default="").strip(),
             'cas': div.xpath(tmp_xpath_2.format("CAS")).extract_first(default="").strip(),
             'stock_info': div.xpath(tmp_xpath_2.format("Stock Status")).extract_first(default="").strip(),
-            'mf': formular_trans(mf),
+            'mf': formular_trans(unicode(mf,'u8')),
             'mw': div.xpath(tmp_xpath_2.format("Molecular Weight")).extract_first(default="").strip(),
             'info1': response.xpath('//b[contains(text(),"Synonyms : ")]/following-sibling::text()').extract_first(
                 default="").strip(),

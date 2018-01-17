@@ -7,7 +7,7 @@ def maketrans(from_text,to_text):
 
 
 def formular_trans(mf):
-    if mf is None:
+    if not isinstance(mf,basestring):
         return None
     from_t = u"₀₁₂₃₄₅₆₇₈₉"
     to_t = u'0123456789'
