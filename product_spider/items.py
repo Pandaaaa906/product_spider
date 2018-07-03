@@ -36,7 +36,7 @@ class AccPrdItem(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (("cat_no",),True),
+            (("cat_no",), True),
         )
 
 
@@ -57,7 +57,7 @@ class AccPrdDetail(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (("cat_no",),True),
+            (("cat_no",), True),
         )
 
 
@@ -78,7 +78,7 @@ class ChemServItem(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (("cat_no",),True),
+            (("cat_no",), True),
         )
 
 
@@ -111,7 +111,7 @@ class BestownPrdItem(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (('cat_no_unit',),True),
+            (('cat_no_unit',), True),
         )
 
 
@@ -126,7 +126,7 @@ class NicpbpItem(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (("cat_no",),True),
+            (("cat_no",), True),
         )
 
 

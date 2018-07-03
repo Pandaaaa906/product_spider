@@ -4,7 +4,7 @@ import json
 import scrapy
 from scrapy import FormRequest
 from scrapy.http.request import Request
-from string import ascii_uppercase as uppercase, lowercase
+from string import ascii_uppercase as uppercase, ascii_lowercase as lowercase, ascii_uppercase
 from time import time
 from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, RawData
 from product_spider.utils.maketrans import formular_trans
@@ -614,3 +614,40 @@ class AcanthusSpider(myBaseSpider):
             }
             yield RawData(**d)
 
+
+class SynzealSpider(myBaseSpider):
+    name = "synzeal_prds"
+    allowd_domains = ["synzeal.com"]
+    base_url = "https://www.synzeal.com"
+
+    @property
+    def start_urls(self):
+        for char in ascii_uppercase:
+            yield f"https://www.synzeal.com/category/{char}"
+
+    def parse(self, response):
+        l_url = response.xpath("//h4[@class='title']/a/@href").extract()
+        for rel_url in l_url:
+            yield Request(self.base_url+rel_url, callback=self.list_parse, meta=response.meta, headers=self.headers)
+
+    def list_parse(self, response):
+        urls = response.xpath('//div[@class="product-item"]//h2/a/@href').extract()
+        for rel_url in urls:
+            yield Request(self.base_url+rel_url, callback=self.detail_parse, meta=response.meta, headers=self.headers)
+
+    def detail_parse(self, response):
+        d = {
+            'brand': "SynZeal",
+            'en_name': response.xpath('//h1[@class="titleproduct"]/text()').extract_first(),
+            'prd_url': response.request.url,  # 产品详细连接
+            'cat_no': response.xpath('//span[contains(@id,"sku")]/text()').extract_first(default=""),
+            'cas': response.xpath('//span[contains(@id,"mpn")]/text()').extract_first(default=""),
+            'stock_info': response.xpath('//span[contains(@id,"ProductInstockStatus")]/text()').extract_first(default=""),
+            'mf': response.xpath('//span[contains(text(),"Molecular Formula")]/following-sibling::span/text()').extract_first(default=""),
+            'mw': response.xpath('//span[contains(text(),"Molecular Weight")]/following-sibling::span/text()').extract_first(default=""),
+            'info1': response.xpath('//b[contains(text(),"Synonyms")]/following-sibling::span/text()').extract_first(
+                default="").strip(),
+            'parent': response.xpath('//div[contains(@class, "cath1title")]/h1/text()').extract_first(default=""),
+            'img_url': response.xpath('//div[@class="maindiv-productdetails"]//div[@class="picture"]//img/@src').extract_first(),
+        }
+        yield RawData(**d)
