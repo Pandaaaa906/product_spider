@@ -130,23 +130,6 @@ class NicpbpItem(scrapy.OrderedItem):
         )
 
 
-class DaltonItem(scrapy.OrderedItem):
-    name = scrapy.Field()
-    url_prd = scrapy.Field()
-    mol_text = scrapy.Field()
-    purity = scrapy.Field()
-    cat_no = scrapy.Field()
-    cas = scrapy.Field()
-    stock = scrapy.Field()
-    mol = scrapy.Field()
-    catalog = scrapy.Field()
-
-    class Meta:
-        indexes = (
-            (('cat_no',), True),
-        )
-
-
 class RawData(scrapy.OrderedItem):
     brand = scrapy.Field()
     parent = scrapy.Field()
