@@ -1,7 +1,9 @@
 # coding=utf-8
-import re
 import json
+import re
 import string
+from string import ascii_uppercase as uppercase, ascii_lowercase as lowercase, ascii_uppercase
+from time import time
 from urllib.parse import urljoin
 
 import requests
@@ -9,9 +11,8 @@ import scrapy
 import xlrd
 from scrapy import FormRequest
 from scrapy.http.request import Request
-from string import ascii_uppercase as uppercase, ascii_lowercase as lowercase, ascii_uppercase
-from time import time
-from product_spider.items import JkItem, AccPrdItem, CDNPrdItem, BestownPrdItem, RawData
+
+from product_spider.items import JkItem, AccPrdItem, BestownPrdItem, RawData
 from product_spider.utils.drug_list import drug_pattern
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formular_trans
@@ -179,45 +180,39 @@ class ChemServicePrdSpider(myBaseSpider):
 
 
 class CDNPrdSpider(myBaseSpider):
-    name = "cdnprd"
-    base_url = "https://www.cdnisotopes.com/"
+    name = "cdn_prds"
+    base_url = "https://cdnisotopes.com/"
     start_urls = [
-        "https://www.cdnisotopes.com/ca/en/products/alphalistings/cdn_alphabeticallistings_a1.php?ei=nqKhfnmBjZ1/fnIS/ae0mU5Zi1jMBqtHvAe70Xf5+CipOqayXPFhemT5Xu/aOmT5eG1e8C1acd1x2rf55Tn6ermyb950Z3fmce/a6Y=y", ]
+        "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50", ]
 
     def parse(self, response):
-        tables = response.xpath("//table[contains(@class,'list')][position()>1]")
-        for table in tables:
-            cat_no = table.xpath('.//td[@class="listpno"]/a/text()').extract_first(default="").replace('\xa0', " ")
-            name = ''.join(table.xpath('.//div[@class="listcomp"]/a//text()').extract())
-            name = name[:name.find('Show ')].replace('\xa0', " ")
-            purity = table.xpath('.//div[@class="listiso"]/text()').extract_first(default="").replace('\xa0', " ")
-            cas = table.xpath('.//div[@class="listcas"]/text()').extract_first(default="").replace('\xa0', " ")
-            trs = table.xpath(".//tr")
-            for tr in trs:
-                unit = tr.xpath("./*[contains(@class,'listqty')]/text()").extract_first(default="").replace('\xa0', " ")
-                stock = tr.xpath("./td[@class='liststk']/text()").extract_first(default="").replace('\xa0', " ")
-                price = tr.xpath('./td[@class="listprc"]/descendant-or-self::text()[last()]').extract_first(
-                    default="").replace('\xa0', " ")
-                d = {
-                    'cat_no': cat_no,
-                    'name': name,
-                    'unit': unit,
-                    'price': price,
-                    'stock': stock,
-                    'purity': purity,
-                    'cas': cas,
-                }
-                yield CDNPrdItem(**d)
-                # print(cat_no, name, purity, cas, unit, stock, price)
-        next_page_url = response.xpath('//span[@class="pgntn"]/following-sibling::a[1]/@href').extract_first()
-        if next_page_url:
-            url = next_page_url.replace("../../../../../", self.base_url)
-            yield Request(url, headers=self.headers)
-        else:
-            next_albt = response.xpath('//span[@class="alphalnks"]/following-sibling::a[1]/@href').extract_first()
-            if next_albt:
-                url = next_albt.replace("../../../../../", self.base_url)
-                yield Request(url, headers=self.headers)
+        urls = response.xpath('//ol[@id="products-list"]/li/div[@class="col-11"]/a/@href').extract()
+        for url in urls:
+            yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
+        next_page = response.xpath('//div[@class="pages"]//li[last()]/a/@href').extract_first()
+        if next_page:
+            yield Request(urljoin(self.base_url, next_page), callback=self.parse)
+
+    # TODO Stock information (actually all product info) is described in the page js var matrixChildrenProducts
+    def detail_parse(self, response):
+        tmp = '//th[contains(text(),{0!r})]/following-sibling::td/descendant-or-self::text()'
+        img_url = response.xpath('//th[contains(text(),"Structure")]/following-sibling::td/img/@src').extract_first()
+        d = {
+            "brand": "CDN",
+            "cat_no": response.xpath(tmp.format("Product No.")).extract_first(),
+            "parent": response.xpath(tmp.format("Category")).extract_first(),
+            "info1": "".join(response.xpath(tmp.format("Synonym(s)")).extract()),
+            "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
+            "mf": "".join(response.xpath(tmp.format("Formula")).extract()),
+            "cas": response.xpath(tmp.format("CAS Number")).extract_first(),
+            "en_name": strip(
+                "".join(response.xpath('//div[@class="product-name"]/span/descendant-or-self::text()').extract())),
+            "img_url": img_url and urljoin(self.base_url, img_url),
+            "stock_info": response.xpath(
+                '//table[@id="product-matrix"]//td[@class="unit-price"]/text()').extract_first(),
+            "prd_url": response.url,
+        }
+        yield RawData(**d)
 
 
 class BestownSpider(myBaseSpider):
@@ -793,7 +788,6 @@ class TRCSpider(myBaseSpider):
             'stock_info': response.xpath('//div[@class="InventoryStatus"]/strong/text()').extract_first(),
             'info1': response.xpath(tmp_format.format('Synonyms:')).extract_first(),
         }
-
         yield RawData(**item)
 
 
@@ -1095,7 +1089,7 @@ class CPRDSpider(myBaseSpider):
         a_nodes = response.xpath('//ul[@class="categories"]//a')
         for a in a_nodes:
             yield Request(urljoin(self.base_url, a.xpath('./@href').extract_first()),
-                          meta={"parent":a.xpath('./text()')},
+                          meta={"parent": a.xpath('./text()')},
                           callback=self.list_parse)
 
     def list_parse(self, response):
@@ -1108,11 +1102,16 @@ class CPRDSpider(myBaseSpider):
             "brand": "CPRD",
             "parent": response.xpath('//p[@class="catalogue_number"]/a/text()').extract_first(),
             "cat_no": response.xpath('//span[@class="productNo"]/text()').extract_first(),
-            "cas": response.xpath('//b[contains(text(), "CAS Number:")]/parent::p/child::text()[last()]').extract_first(),
-            "en_name": response.xpath('//b[contains(text(), "Product Name:")]/parent::p/child::text()[last()]').extract_first(),
-            "img_url": urljoin(self.base_url, response.xpath('//div[@id="left_description"]//img/@src').extract_first()),
-            "mf": response.xpath('//b[contains(text(), "Molecular formula")]/parent::p/child::text()[last()]').extract_first(),
-            "mw": response.xpath('//b[contains(text(), "Molecular formula")]/parent::p/child::text()[last()]').extract_first(),
+            "cas": response.xpath(
+                '//b[contains(text(), "CAS Number:")]/parent::p/child::text()[last()]').extract_first(),
+            "en_name": response.xpath(
+                '//b[contains(text(), "Product Name:")]/parent::p/child::text()[last()]').extract_first(),
+            "img_url": urljoin(self.base_url,
+                               response.xpath('//div[@id="left_description"]//img/@src').extract_first()),
+            "mf": response.xpath(
+                '//b[contains(text(), "Molecular formula")]/parent::p/child::text()[last()]').extract_first(),
+            "mw": response.xpath(
+                '//b[contains(text(), "Molecular formula")]/parent::p/child::text()[last()]').extract_first(),
             "prd_url": response.url,
         }
         yield RawData(**d)
@@ -1142,7 +1141,8 @@ class ECOSpicer(myBaseSpider):
             "cat_no": response.xpath(tmp.format("Catalogue number")).extract_first(),
             "cas": response.xpath(tmp.format("CAS Number")).extract_first(),
             "en_name": response.xpath('//div[@class="p_vtitle"]/text()').extract_first(),
-            "img_url": urljoin(self.base_url, response.xpath('//div[@class="p_viewimg pcshow"]//img/@src').extract_first()),
+            "img_url": urljoin(self.base_url,
+                               response.xpath('//div[@class="p_viewimg pcshow"]//img/@src').extract_first()),
             "mf": response.xpath(tmp.format("Molecular Formula")).extract_first(),
             "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
             "prd_url": response.url,
@@ -1180,5 +1180,78 @@ class HICSpider(myBaseSpider):
             "mw": response.xpath(tmp.format("Mol. Weight:")).extract_first(),
             "prd_url": response.url,
             "stock_info": response.xpath('//div[@class="InventoryStatus"]/strong/text()').extract_first(),
+        }
+        yield RawData(**d)
+
+
+class WitegaSpider(myBaseSpider):
+    name = "witega_prds"
+    base_url = "https://auftragssynthese.com/"
+    start_urls = ["https://auftragssynthese.com/katalog_e.php", ]
+
+    def parse(self, response):
+        rel_urls = response.xpath('//div[@class="blue3"]//a[not(@target)]/@href').extract()
+        for rel_url in rel_urls:
+            yield Request(urljoin(self.base_url, rel_url), callback=self.list_parse)
+
+    def list_parse(self, response):
+        rows = response.xpath('//table[@class="tabelle-chemikalien"]//tr')
+        for row in rows:
+            d = {
+                "brand": "Witega",
+                "cat_no": row.xpath('./td[3]/text()').extract_first(),
+                "en_name": row.xpath('./td[1]/text()').extract_first(),
+                "cas": row.xpath('./td[2]/text()').extract_first(),
+            }
+            yield RawData(**d)
+
+
+class CILSpider(myBaseSpider):
+    name = "cil_prds"
+    base_url = "https://shop.isotope.com/"
+    start_urls = ["https://shop.isotope.com/category.aspx", ]
+
+    def parse(self, response):
+        urls = response.xpath('//div[@class="tcat"]//a/@href').extract()
+        for url in urls:
+            yield Request(url, callback=self.list_parse)
+
+    def list_parse(self, response):
+        urls = response.xpath('//td[@class="itemnotk"]/a/@href').extract()
+        for url in urls:
+            yield Request(url, callback=self.detail_parse)
+        x_query = '//form[@name="aspnetForm"]/div/input[@id="{0}"]/@value'
+        next_page = response.xpath('//input[@class="pageon"]/following-sibling::input[1]/@value').extract_first()
+        if not next_page:
+            return
+        d = {
+            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).extract_first(),
+            "__EVENTTARGET": response.xpath(x_query.format("__EVENTTARGET")).extract_first(),
+            "__EVENTARGUMENT": response.xpath(x_query.format("__EVENTARGUMENT")).extract_first(),
+            "__LASTFOCUS": response.xpath(x_query.format("__LASTFOCUS")).extract_first(),
+            "__VIEWSTATE": response.xpath(x_query.format("__VIEWSTATE")).extract_first(),
+            "__VIEWSTATEENCRYPTED": response.xpath(x_query.format("__VIEWSTATEENCRYPTED")).extract_first(),
+            "__EVENTVALIDATION": response.xpath(x_query.format("__EVENTVALIDATION")).extract_first(),
+            "addtocartconfirmresult": "",
+            "ctl00$topSectionctl$SearchBar1$txtkeyword": "Product Search...",
+            "ctl00$cpholder$ctl00$ItemList1$SortByCtl$dbsort": "Name",
+            "ctl00$cpholder$ctl00$ItemList1$ctlPaging$btn2": next_page,
+            "ctl00$cpholder$ctl00$ItemList1$PageSizectl$dlPageSize": 20,
+        }
+        yield FormRequest(response.url, formdata=d, callback=self.list_parse)
+
+    def detail_parse(self, response):
+        tmp = '//td[@class="dleft" and contains(./p/text(), "{}")]/following-sibling::td/p/text()'
+        d = {
+            "brand": "CIL",
+            "parent": None,
+            "cat_no": response.xpath(tmp.format("Item Number")).extract_first(),
+            "cas": response.xpath(tmp.format("Labeled CAS#")).extract_first(),
+            "en_name": response.xpath('//h1[@class="ldescription"]').extract_first(),
+            "info1": response.xpath(tmp.format("Unlabeled CAS#")).extract_first(),
+            "img_url": response.xpath('//div[@class="image-section"]/p//img/@src').extract_first(),
+            "mf": formular_trans(response.xpath(tmp.format("Chemical Formula")).extract_first()),
+            "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
+            "prd_url": response.url,
         }
         yield RawData(**d)
