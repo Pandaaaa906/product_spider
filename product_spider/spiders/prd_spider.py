@@ -1214,18 +1214,13 @@ class CILSpider(myBaseSpider):
     def parse(self, response):
         urls = response.xpath('//div[@class="tcat"]//a/@href').extract()
         for url in urls:
-            yield Request(url, callback=self.list_parse)
+            yield Request(url, callback=self.get_all_list)
 
-    def list_parse(self, response):
-        urls = response.xpath('//td[@class="itemnotk"]/a/@href').extract()
-        for url in urls:
-            yield Request(url, callback=self.detail_parse)
+    def get_all_list(self, response):
         x_query = '//form[@name="aspnetForm"]/div/input[@id="{0}"]/@value'
-        next_page = response.xpath('//input[@class="pageon"]/following-sibling::input[1]/@value').extract_first()
-        if not next_page:
-            return
         d = {
-            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).extract_first(),
+            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(
+                x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).extract_first(),
             "__EVENTTARGET": response.xpath(x_query.format("__EVENTTARGET")).extract_first(),
             "__EVENTARGUMENT": response.xpath(x_query.format("__EVENTARGUMENT")).extract_first(),
             "__LASTFOCUS": response.xpath(x_query.format("__LASTFOCUS")).extract_first(),
@@ -1235,21 +1230,28 @@ class CILSpider(myBaseSpider):
             "addtocartconfirmresult": "",
             "ctl00$topSectionctl$SearchBar1$txtkeyword": "Product Search...",
             "ctl00$cpholder$ctl00$ItemList1$SortByCtl$dbsort": "Name",
-            "ctl00$cpholder$ctl00$ItemList1$ctlPaging$btn2": next_page,
-            "ctl00$cpholder$ctl00$ItemList1$PageSizectl$dlPageSize": 20,
+            "ctl00$cpholder$ctl00$ItemList1$PageSizectl$dlPageSize": "9999",
         }
         yield FormRequest(response.url, formdata=d, callback=self.list_parse)
 
+    def list_parse(self, response):
+        urls = response.xpath('//td[@class="itemnotk"]/a/@href').extract()
+        meta = {"parent": response.xpath('//td[@class="product_text"]/h3/text()').extract_first()}
+        for url in urls:
+            yield Request(url, callback=self.detail_parse, meta=meta)
+
     def detail_parse(self, response):
         tmp = '//td[@class="dleft" and contains(./p/text(), "{}")]/following-sibling::td/p/text()'
+        cas = response.xpath(tmp.format("Labeled CAS#")).extract_first()
+        unlabeled_cas = response.xpath(tmp.format("Unlabeled CAS#")).extract_first()
+        r_img_url = response.xpath('//div[@class="image-section"]/p//img/@src').extract_first()
         d = {
             "brand": "CIL",
-            "parent": None,
+            "parent": response.meta.get("parent"),
             "cat_no": response.xpath(tmp.format("Item Number")).extract_first(),
-            "cas": response.xpath(tmp.format("Labeled CAS#")).extract_first(),
-            "en_name": response.xpath('//h1[@class="ldescription"]').extract_first(),
-            "info1": response.xpath(tmp.format("Unlabeled CAS#")).extract_first(),
-            "img_url": response.xpath('//div[@class="image-section"]/p//img/@src').extract_first(),
+            "cas": f"{cas}; Unlabeled Cas:{unlabeled_cas}",
+            "en_name": response.xpath('//h1[@class="ldescription"]/text()').extract_first(),
+            "img_url": urljoin(response.url, r_img_url),
             "mf": formular_trans(response.xpath(tmp.format("Chemical Formula")).extract_first()),
             "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
             "prd_url": response.url,
