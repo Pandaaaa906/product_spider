@@ -500,17 +500,17 @@ class LGCSpider(myBaseSpider):
     base_url = "https://www.lgcstandards.com"
 
     def parse(self, response):
-        urls = response.xpath('//table[@class="subCategoryTable"]//a/@href').extract()
+        urls = response.xpath('//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
         for url in urls:
             yield Request(url=self.base_url + url, callback=self.drug_list_parse)
 
     def drug_list_parse(self, response):
-        urls = response.xpath('//table[@class="subCategoryTable"]//a/@href').extract()
+        urls = response.xpath('//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
         for url in urls:
             yield Request(url=self.base_url + url, callback=self.product_list_parse)
 
     def product_list_parse(self, response):
-        urls = response.xpath('//table[@class="subCategoryTable"]//a/@href').extract()
+        urls = response.xpath('//table[@class="subCategoryTable"]//td[1]/a/@href').extract()
         for url in urls:
             yield Request(url=self.base_url + url, callback=self.detail_parse)
         np_url = response.xpath('//div[@class="pagination"]/strong/following-sibling::a/@href').extract_first(
@@ -519,38 +519,24 @@ class LGCSpider(myBaseSpider):
             yield Request(url=self.base_url + np_url, callback=self.product_list_parse)
 
     def detail_parse(self, response):
-        analyte = response.xpath(
-            '//span[text()="Analyte:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(
-            default="").strip()
-        synonyms = response.xpath(
-            '//span[text()="Synonyms:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(
-            default="").strip()
-        related_categories = response.xpath('//td[contains(@class,"RelatedproductTd2")]//a/text()').extract_first(
-            default="").strip()
-        parent = response.xpath(
-            '//h3[@class="summarysection-paragraph"]/a[@class="summarysection"]/text()').extract_first(
-            default="").strip()
+        tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
+        parents = response.xpath('//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
+        parent = "".join(parents)
+        related_categories = response.xpath('//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').extract_first(default="").strip()
         d = {
             "brand": "LGC",
             "parent": parent or related_categories,
-            "cat_no": response.xpath('//span[@itemprop="sku"]/text()').extract_first(default="").replace('-', ""),
-            "en_name": response.xpath('//span[@itemprop="name"]/text()').extract_first(default="").strip(),
-            "cas": response.xpath(
-                '//span[text()="CAS no"]/parent::*/parent::*/following-sibling::td/h2/text()').extract_first(
-                default=""),
-            "mf": response.xpath(
-                '//span[text()="Mol for:"]/parent::*/parent::*/following-sibling::td//a/text()').extract_first(
-                default=""),
-            "mw": response.xpath(
-                '//span[text()="Txtleft outline"]/parent::*/parent::*/following-sibling::td/h3/text()').extract_first(
-                default=""),
-            "stock_info": response.xpath(
-                '//div[contains(@class,"rmAvailabilityInnerWrap")]/span[contains(@class,"rmStatusFlagText")]/text()').extract_first(
-                default="").strip(),
-            "img_url": response.xpath('//img[@itemprop="image"]/@src').extract_first(default=""),
-            "info1": analyte + ";" + synonyms,
+            "cat_no": response.xpath(tmp.format("Product Code")).extract_first(),
+            "en_name": response.xpath('//h1[@class="product__title"]/text()').extract_first(default="").strip(),
+            "cas": response.xpath(tmp.format("CAS Number")).extract_first(default="").strip() or None,
+            "mf": response.xpath(tmp.format("Molecular Formula")).extract_first("").replace(" ", "") or None,
+            "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
+            "stock_info": response.xpath('//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').extract_first("").strip() or None,
+            "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').extract_first(),
+            "info1": response.xpath(tmp.format("IUPAC")).extract_first(default="").strip(),
             "prd_url": response.request.url,
         }
+
         yield RawData(**d)
 
 
@@ -1214,8 +1200,11 @@ class CILSpider(myBaseSpider):
     def parse(self, response):
         urls = response.xpath('//div[@class="tcat"]//a/@href').extract()
         for url in urls:
+            if "10032191" not in url:
+                continue
             yield Request(url, callback=self.get_all_list)
 
+    # There is one category having too much products, fetching all of them will cause timeout
     def get_all_list(self, response):
         x_query = '//form[@name="aspnetForm"]/div/input[@id="{0}"]/@value'
         d = {
@@ -1239,6 +1228,25 @@ class CILSpider(myBaseSpider):
         meta = {"parent": response.xpath('//td[@class="product_text"]/h3/text()').extract_first()}
         for url in urls:
             yield Request(url, callback=self.detail_parse, meta=meta)
+        x_query = '//form[@name="aspnetForm"]/div/input[@id="{0}"]/@value'
+        next_page = response.xpath('//input[@class="pageon"]/following-sibling::input[1]/@value').extract_first()
+        if not next_page:
+            return
+        d = {
+            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).extract_first(),
+            "__EVENTTARGET": response.xpath(x_query.format("__EVENTTARGET")).extract_first(),
+            "__EVENTARGUMENT": response.xpath(x_query.format("__EVENTARGUMENT")).extract_first(),
+            "__LASTFOCUS": response.xpath(x_query.format("__LASTFOCUS")).extract_first(),
+            "__VIEWSTATE": response.xpath(x_query.format("__VIEWSTATE")).extract_first(),
+            "__VIEWSTATEENCRYPTED": response.xpath(x_query.format("__VIEWSTATEENCRYPTED")).extract_first(),
+            "__EVENTVALIDATION": response.xpath(x_query.format("__EVENTVALIDATION")).extract_first(),
+            "addtocartconfirmresult": "",
+            "ctl00$topSectionctl$SearchBar1$txtkeyword": "Product Search...",
+            "ctl00$cpholder$ctl00$ItemList1$SortByCtl$dbsort": "Name",
+            "ctl00$cpholder$ctl00$ItemList1$ctlPaging$btn2": next_page,
+            "ctl00$cpholder$ctl00$ItemList1$PageSizectl$dlPageSize": "20",
+        }
+        yield FormRequest(response.url, formdata=d, callback=self.list_parse)
 
     def detail_parse(self, response):
         tmp = '//td[@class="dleft" and contains(./p/text(), "{}")]/following-sibling::td/p/text()'
