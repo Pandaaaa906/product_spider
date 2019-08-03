@@ -162,3 +162,21 @@ class ProductUnitItem(scrapy.OrderedItem):
     unit = scrapy.Field()
     price = scrapy.Field()
     currency = scrapy.Field()
+
+
+class TanmoItem(scrapy.OrderedItem):
+    cat_no = scrapy.Field()
+    name = scrapy.Field()
+    standard = scrapy.Field()
+    cas = scrapy.Field()
+    unit = scrapy.Field()
+    price = scrapy.Field()
+    stock = scrapy.Field()
+    delivery = scrapy.Field()
+    expiry_date = scrapy.Field()
+    company = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('cat_no','name'),True),
+            )

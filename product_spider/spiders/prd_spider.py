@@ -4,7 +4,7 @@ import re
 import string
 from string import ascii_uppercase as uppercase, ascii_lowercase as lowercase, ascii_uppercase
 from time import time
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 
 import requests
 import scrapy
@@ -500,12 +500,14 @@ class LGCSpider(myBaseSpider):
     base_url = "https://www.lgcstandards.com"
 
     def parse(self, response):
-        urls = response.xpath('//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
+        urls = response.xpath(
+            '//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
         for url in urls:
             yield Request(url=self.base_url + url, callback=self.drug_list_parse)
 
     def drug_list_parse(self, response):
-        urls = response.xpath('//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
+        urls = response.xpath(
+            '//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
         for url in urls:
             yield Request(url=self.base_url + url, callback=self.product_list_parse)
 
@@ -520,9 +522,11 @@ class LGCSpider(myBaseSpider):
 
     def detail_parse(self, response):
         tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
-        parents = response.xpath('//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
+        parents = response.xpath(
+            '//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
         parent = "".join(parents)
-        related_categories = response.xpath('//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').extract_first(default="").strip()
+        related_categories = response.xpath(
+            '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').extract_first(default="").strip()
         d = {
             "brand": "LGC",
             "parent": parent or related_categories,
@@ -531,7 +535,9 @@ class LGCSpider(myBaseSpider):
             "cas": response.xpath(tmp.format("CAS Number")).extract_first(default="").strip() or None,
             "mf": response.xpath(tmp.format("Molecular Formula")).extract_first("").replace(" ", "") or None,
             "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
-            "stock_info": response.xpath('//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').extract_first("").strip() or None,
+            "stock_info": response.xpath(
+                '//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').extract_first(
+                "").strip() or None,
             "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').extract_first(),
             "info1": response.xpath(tmp.format("IUPAC")).extract_first(default="").strip(),
             "prd_url": response.request.url,
@@ -1233,7 +1239,8 @@ class CILSpider(myBaseSpider):
         if not next_page:
             return
         d = {
-            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).extract_first(),
+            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(
+                x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).extract_first(),
             "__EVENTTARGET": response.xpath(x_query.format("__EVENTTARGET")).extract_first(),
             "__EVENTARGUMENT": response.xpath(x_query.format("__EVENTARGUMENT")).extract_first(),
             "__LASTFOCUS": response.xpath(x_query.format("__LASTFOCUS")).extract_first(),
@@ -1264,4 +1271,68 @@ class CILSpider(myBaseSpider):
             "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
             "prd_url": response.url,
         }
+        yield RawData(**d)
+
+
+class DRESpider(myBaseSpider):
+    name = "dre_prds"
+    allowd_domains = ["lgcstandards.com"]
+    start_urls = [
+        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?currentPage=1&q=DRE&sort=relevance&pageSize=100&country=CN&lang=en&fields=FULL", ]
+    base_url = "https://www.lgcstandards.com/CN/en"
+    search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?"
+
+    def parse(self, response):
+        total_page = int(response.xpath('//pagination/totalPages/text()').extract_first())
+        cur_page = int(response.xpath('//pagination/currentPage/text()').extract_first())
+        per_page = int(response.xpath('//pagination/pageSize/text()').extract_first())
+        next_page = cur_page + 1
+
+        produts = response.xpath('//products')
+
+        for product in produts:
+            url = product.xpath('./url/text()').extract_first()
+            yield Request(url=self.base_url + url, callback=self.detail_parse)
+
+        if next_page <= total_page:
+            data = {
+                "currentPage": next_page,
+                "q": "DRE",
+                "sort": "relevance",
+                "pageSize": per_page,
+                "country": "CN",
+                "lang": "en",
+                "fields": "FULL",
+            }
+            yield Request(self.search_url + urlencode(data), callback=self.parse)
+
+    def detail_parse(self, response):
+        tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
+        parents = response.xpath(
+            '//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
+        parent = "".join(parents)
+        related_categories = response.xpath(
+            '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').extract_first(default="").strip()
+
+        color = response.xpath('//h2[text()="Color"]/following-sibling::p/text()').extract_first("")
+        appearance = response.xpath('//h2[text()="Appearance/Form"]/following-sibling::p/text()').extract_first("")
+        d = {
+            "brand": "DRE",
+            "parent": parent or related_categories,
+            "cat_no": response.xpath(tmp.format("Product Code")).extract_first(),
+            "en_name": response.xpath('//h1[@class="product__title"]/text()').extract_first(default="").strip(),
+            "cas": response.xpath(tmp.format("CAS Number")).extract_first(default="").strip() or None,
+            "mf": response.xpath(tmp.format("Molecular Formula")).extract_first("").replace(" ", "") or None,
+            "mw": response.xpath(tmp.format("Molecular Weight")).extract_first(),
+            "stock_info": response.xpath(
+                '//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').extract_first(
+                "").strip() or None,
+            "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').extract_first(),
+            "info1": response.xpath(tmp.format("IUPAC")).extract_first(default="").strip(),
+            "info2": response.xpath('//h2[text()="Storage Temperature"]/following-sibling::p/text()').extract_first(),
+            "info3": response.xpath('//h2[text()="Shipping Temperature"]/following-sibling::p/text()').extract_first(),
+            "info4": ' '.join((color, appearance)),
+            "prd_url": response.request.url,
+        }
+
         yield RawData(**d)
