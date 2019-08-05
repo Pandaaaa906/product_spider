@@ -885,48 +885,41 @@ class SynPharmatechSpider(myBaseSpider):
 
 class ChromaDexSpider(myBaseSpider):
     name = "chromadex_prds"
-    xls_url = "https://rs.chromadex.com/n/a/clkn/https/standards.chromadex.com/CDXCat/ChromaDexReferenceStandardsListing.xls"
-    sheet_offset = 7
-
-    def start_requests(self):
-        r = requests.get(self.xls_url)
-        wb = xlrd.open_workbook(file_contents=r.content)
-        sheet = wb.sheet_by_index(0)
-        s = set()
-        for rowx in range(self.sheet_offset, sheet.nrows):
-            row = sheet.row(rowx)
-            part_number = row[0].value
-            cat_no = part_number[:part_number.rfind('-')]
-            if cat_no in s:
-                continue
-            href_url = getattr(sheet.hyperlink_map[(rowx, 0)], 'url_or_path')
-            href_url = href_url.replace("chromadex", "standards.chromadex")
-            s.add(cat_no)
-            data = {"productId": part_number}
-            yield FormRequest("https://standards.chromadex.com/umbraco/Surface/Product/GetProductItem",
-                              formdata=data,
-                              meta={"cat_no": cat_no, "prd_url": href_url},
-                              callback=self.parse)
+    start_urls = map(lambda x: "https://standards.chromadex.com/search?type=product&q={}".format(x), ("ASB", "KIT"))
+    base_url = "https://standards.chromadex.com/"
 
     def parse(self, response):
-        j_obj = json.loads(response.body_as_unicode())
-        main_info = j_obj and j_obj[0] and j_obj[0][0] or {}
-        synonmous = j_obj and j_obj[2]
-        info1 = "; ".join(map(lambda x: x.get("InventoryOtherName") or "", synonmous))
+        rel_urls = response.xpath('//h2[@itemprop="name"]/a/@href').extract()
+        for url in rel_urls:
+            yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
+        next_url = response.xpath('//a[@title="Next »"]/@href').extract_first()
+        if next_url:
+            yield Request(urljoin(self.base_url, next_url), callback=self.parse)
+
+    @staticmethod
+    def extract_value(response, title):
+        ret = response.xpath(f'//p[contains(text(), {title!r})]/text()').extract_first()
+        return ret.replace(title, '').strip() or None
+
+    def detail_parse(self, response):
+        cat_no = response.xpath('//h1[@itemprop="name"][2]/text()').extract_first("")
+        m = re.match('[A-Z]{3}-\d+', cat_no)
+        if m:
+            cat_no = m.group(0)
         d = {
             "brand": "ChromaDex",
-            "parent": main_info.get('ChemicalFamily'),
-            "cat_no": response.meta.get("cat_no"),
-            "en_name": main_info.get('itemdesc'),
-            "cas": main_info.get('CASNumber'),
-            "info1": info1,
-            "mf": main_info.get('ChemicalFormula'),
-            "mw": main_info.get('FormulaWeight'),
-            "purity": main_info.get('Grade') and main_info.get('Grade').strip(),
-            "prd_url": response.meta.get("prd_url"),
-            "img_url": main_info.get(
-                'StructureImagePath') and f"https://standards.chromadex.com/Structure/{main_info.get('StructureImagePath')}",
+            "parent": self.extract_value(response, "Chemical Family: "),
+            "cat_no": cat_no,
+            "en_name": response.xpath('//h1[@itemprop="name"][1]/text()').extract_first("").title().rsplit(' - ', 1)[0],
+            "cas": self.extract_value(response, "CAS: "),
+            "mf": self.extract_value(response, "Chemical Formula: "),
+            "mw": self.extract_value(response, "Formula Weight: "),
+            "info2": self.extract_value(response, "Long Term Storage: "),
+            "info4": self.extract_value(response, "Appearance: "),
+            "purity": self.extract_value(response, "Purity: "),
+            "prd_url": response.url,
         }
+        pass
         yield RawData(**d)
 
 
@@ -1297,7 +1290,7 @@ class DRESpider(myBaseSpider):
         if next_page <= total_page:
             data = {
                 "currentPage": next_page,
-                "q": "DRE",
+                "q": "DRE", # TODO hardcoding
                 "sort": "relevance",
                 "pageSize": per_page,
                 "country": "CN",
