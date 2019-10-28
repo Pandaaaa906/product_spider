@@ -1,9 +1,8 @@
 # coding=utf-8
 
 
-def maketrans(from_text,to_text):
-    d = dict((ord(i), n) for i, n in zip(from_text, to_text))
-    return d
+def maketrans(from_text, to_text):
+    return dict((ord(i), n) for i, n in zip(from_text, to_text))
 
 
 def formular_trans(mf):
