@@ -2,7 +2,7 @@
 import json
 import re
 import string
-from string import ascii_uppercase as uppercase, ascii_lowercase as lowercase, ascii_uppercase
+from string import ascii_uppercase as uppercase, ascii_uppercase
 from time import time
 from urllib.parse import urljoin, urlencode, splitquery, parse_qsl
 
@@ -10,13 +10,13 @@ import scrapy
 from scrapy import FormRequest
 from scrapy.http.request import Request
 
-from product_spider.items import JkItem, AccPrdItem, BestownPrdItem, RawData
+from product_spider.items import JkItem, BestownPrdItem, RawData
 from product_spider.utils.drug_list import drug_pattern
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formular_trans
 
 
-class myBaseSpider(scrapy.Spider):
+class BaseSpider(scrapy.Spider):
     headers = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "accept-encoding": "gzip, deflate, sdch, br",
@@ -77,7 +77,7 @@ class JkPrdSpider(scrapy.Spider):
             yield jkitem
 
 
-class AccPrdSpider(myBaseSpider):
+class AccPrdSpider(BaseSpider):
     name = "acc_prds"
     allowed_domains = ["accustandard.com"]
     base_url = "https://www.accustandard.com"
@@ -121,11 +121,17 @@ class AccPrdSpider(myBaseSpider):
 
 
 # TODO Get Blocked
-class ChemServicePrdSpider(myBaseSpider):
+class ChemServicePrdSpider(BaseSpider):
     name = "chemsrvprd"
     base_url = "https://www.chemservice.com/"
     start_urls = ["https://www.chemservice.com/store.html?limit=100", ]
     handle_httpstatus_list = [500, ]
+
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'CONCURRENT_REQUESTS_PER_IP': 2,
+    }
 
     def start_requests(self):
         yield Request(url=self.base_url, headers=self.headers, callback=self.home_parse)
@@ -175,7 +181,7 @@ class ChemServicePrdSpider(myBaseSpider):
             print(k, v)
 
 
-class CDNPrdSpider(myBaseSpider):
+class CDNPrdSpider(BaseSpider):
     name = "cdn_prds"
     base_url = "https://cdnisotopes.com/"
     start_urls = [
@@ -211,7 +217,7 @@ class CDNPrdSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class BestownSpider(myBaseSpider):
+class BestownSpider(BaseSpider):
     name = "bestownprd"
     base_url = "http://bestown.net.cn/"
     start_urls = ["http://bestown.net.cn/?gallery-8.html"]
@@ -245,7 +251,7 @@ class BestownSpider(myBaseSpider):
         """
 
 
-class TLCSpider(myBaseSpider):
+class TLCSpider(BaseSpider):
     name = "tlc_prds"
     base_url = "http://tlcstandards.com/"
     start_urls = map(lambda x: "http://tlcstandards.com/ProductsRS.aspx?type={}&cpage=1".format(x), ascii_uppercase)
@@ -337,13 +343,13 @@ class NicpbpSpider(scrapy.Spider):
         print(failure)
 
 
-class MolcanPrdSpider(myBaseSpider):
+class MolcanPrdSpider(BaseSpider):
     name = 'molcan_prds'
     base_url = 'http://molcan.com'
     start_urls = map(lambda x: f"http://molcan.com/product_categories/{x}", uppercase)
-    pattern_cas = re.compile("\d+-\d{2}-\d(?!\d)")
-    pattern_mw = re.compile('\d+\.\d+')
-    pattern_mf = re.compile("(?P<tmf>(?P<mf>(?P<p>[A-Za-z]+\d+)+([A-Z]+[a-z])?)\.?(?P=mf)?)")
+    pattern_cas = re.compile(r"\d+-\d{2}-\d(?!\d)")
+    pattern_mw = re.compile(r'\d+\.\d+')
+    pattern_mf = re.compile(r"(?P<tmf>(?P<mf>(?P<p>[A-Za-z]+\d+)+([A-Z]+[a-z])?)\.?(?P=mf)?)")
 
     custom_settings = {
         'CONCURRENT_REQUESTS': 8,
@@ -388,7 +394,7 @@ class MolcanPrdSpider(myBaseSpider):
         # TODO Finish the spider
 
 
-class SimsonSpider(myBaseSpider):
+class SimsonSpider(BaseSpider):
     name = "simson_prds"
     allowd_domains = ["simsonpharma.com"]
     base_url = "http://simsonpharma.com"
@@ -436,7 +442,7 @@ class SimsonSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class DaltonSpider(myBaseSpider):
+class DaltonSpider(BaseSpider):
     name = "dalton_prds"
     allowed_domains = ["daltonresearchmolecules.com"]
     start_urls = ["https://www.daltonresearchmolecules.com/chemical-compounds-catalog", ]
@@ -486,7 +492,7 @@ class DaltonSpider(myBaseSpider):
             yield RawData(**d)
 
 
-class LGCSpider(myBaseSpider):
+class LGCSpider(BaseSpider):
     name = "lgc_prds"
     allowd_domains = ["lgcstandards.com"]
     start_urls = ["https://www.lgcstandards.com/CN/en/LGC-impurity-and-API-standards/cat/154584", ]
@@ -539,7 +545,7 @@ class LGCSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class AozealSpider(myBaseSpider):
+class AozealSpider(BaseSpider):
     name = "aozeal_prds"
     allowd_domains = ["aozeal.com"]
     start_urls = ["http://aozeal.com/list.php", ]
@@ -593,7 +599,7 @@ class AozealSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class AnantSpider(myBaseSpider):
+class AnantSpider(BaseSpider):
     name = "anant_prds"
     allowd_domains = ["anantlabs.com"]
     start_urls = ["http://anantlabs.com/", ]
@@ -643,7 +649,7 @@ class AnantSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class AcanthusSpider(myBaseSpider):
+class AcanthusSpider(BaseSpider):
     name = "acanthus_prds"
     allowd_domains = ["acanthusresearch.com"]
     start_urls = map(lambda x: f"http://www.acanthusresearch.com/product_catalogue.asp?alp={x}", uppercase)
@@ -681,7 +687,7 @@ class AcanthusSpider(myBaseSpider):
             yield RawData(**d)
 
 
-class SynzealSpider(myBaseSpider):
+class SynzealSpider(BaseSpider):
     name = "synzeal_prds"
     allowd_domains = ["synzeal.com"]
     base_url = "https://www.synzeal.com"
@@ -723,7 +729,7 @@ class SynzealSpider(myBaseSpider):
 
 
 # TODO untested
-class TRCSpider(myBaseSpider):
+class TRCSpider(BaseSpider):
     name = "trc_prds"
     allow_domain = ["trc-canada.com", ]
     start_urls = ["https://www.trc-canada.com/parent-drug/", ]
@@ -772,7 +778,7 @@ class TRCSpider(myBaseSpider):
         yield RawData(**item)
 
 
-class VeeprhoSpider(myBaseSpider):
+class VeeprhoSpider(BaseSpider):
     name = "veeprho_prds"
     base_url = "http://www.veeprhopharma.com/"
     start_urls = (f"http://www.veeprhopharma.com/product_view.php?char={char}" for char in string.ascii_uppercase)
@@ -803,7 +809,7 @@ class VeeprhoSpider(myBaseSpider):
             yield RawData(**item)
 
 
-class StannumSpider(myBaseSpider):
+class StannumSpider(BaseSpider):
     name = "stannum_prds"
     start_urls = ("http://www.stannumusa.com/?page_id=13",)
     base_url = "http://www.stannumusa.com/"
@@ -837,7 +843,7 @@ class StannumSpider(myBaseSpider):
             yield RawData(**item)
 
 
-class SynPharmatechSpider(myBaseSpider):
+class SynPharmatechSpider(BaseSpider):
     name = "syn_prds"
     base_url = "http://www.synpharmatech.com"
     start_urls = (f'http://www.synpharmatech.com/products/search.asp?type=sign&twd={char}' for char in
@@ -872,7 +878,7 @@ class SynPharmatechSpider(myBaseSpider):
         yield RawData(**item)
 
 
-class ChromaDexSpider(myBaseSpider):
+class ChromaDexSpider(BaseSpider):
     name = "chromadex_prds"
     start_urls = map(lambda x: f"https://standards.chromadex.com/search?type=product&q={x}", ("ASB", "KIT"))
     base_url = "https://standards.chromadex.com/"
@@ -892,7 +898,7 @@ class ChromaDexSpider(myBaseSpider):
 
     def detail_parse(self, response):
         cat_no = response.xpath('//h1[@itemprop="name"][2]/text()').extract_first("")
-        m = re.match('[A-Z]{3}-\d+', cat_no)
+        m = re.match(r'[A-Z]{3}-\d+', cat_no)
         if m:
             cat_no = m.group(0)
         d = {
@@ -912,7 +918,7 @@ class ChromaDexSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class AcornSpider(myBaseSpider):
+class AcornSpider(BaseSpider):
     name = "acorn_prds"
     start_urls = ["http://www.acornpharmatech.com/18501/index.html", ]
     base_url = "http://www.acornpharmatech.com"
@@ -920,7 +926,7 @@ class AcornSpider(myBaseSpider):
     def parse(self, response):
         hrefs = response.xpath('//table[@width="100%"]//tr//a/@href').extract()
         for href in hrefs:
-            m = re.search("/\d+/\d+\.html", href)
+            m = re.search(r"/\d+/\d+\.html", href)
             if m is None:
                 continue
             yield Request(self.base_url + m.group(0), callback=self.parse_list)
@@ -950,7 +956,7 @@ class AcornSpider(myBaseSpider):
             yield RawData(**d)
 
 
-class SincoSpider(myBaseSpider):
+class SincoSpider(BaseSpider):
     name = "sinco_prds"
     start_urls = (f"http://www.sincopharmachem.com/category.asp?c={c}" for c in ascii_uppercase + '1')
     base_url = "http://www.sincopharmachem.com"
@@ -988,7 +994,7 @@ class SincoSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class QCCSpider(myBaseSpider):
+class QCCSpider(BaseSpider):
     name = "qcc_prds"
     start_urls = (f"http://www.qcchemical.com/index.php/Index/api?letter={c.lower()}&mletter={c}" for c in
                   ascii_uppercase)
@@ -1023,7 +1029,7 @@ class QCCSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class STDSpider(myBaseSpider):
+class STDSpider(BaseSpider):
     name = "std_prds"
     start_urls = ["http://www.standardpharm.com/portal/list/index/id/11.html", ]
     base_url = "http://www.standardpharm.com/"
@@ -1032,7 +1038,7 @@ class STDSpider(myBaseSpider):
         a_nodes = response.xpath('//ul[@class="pro"]/li/a')
         for a in a_nodes:
             url = urljoin(self.base_url, a.xpath('./@href').extract_first(""))
-            parent = getattr(re.search('.+(?=\s\()', a.xpath('./text()').extract_first()), "group")()
+            parent = getattr(re.search(r'.+(?=\s\()', a.xpath('./text()').extract_first()), "group")()
             yield Request(url, callback=self.list_parse, meta={"parent": parent})
 
     def list_parse(self, response):
@@ -1054,7 +1060,7 @@ class STDSpider(myBaseSpider):
             yield RawData(**d)
 
 
-class CPRDSpider(myBaseSpider):
+class CPRDSpider(BaseSpider):
     name = "cprd_prds"
     start_urls = (f"http://c-prd.com/product/{c}.html" for c in ascii_uppercase)
     base_url = "http://c-prd.com/"
@@ -1091,7 +1097,7 @@ class CPRDSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class ECOSpicer(myBaseSpider):
+class ECOSpicer(BaseSpider):
     name = "eco_prds"
     start_urls = ["http://eco-canada.com/search/", ]
     base_url = "http://eco-canada.com/"
@@ -1124,7 +1130,7 @@ class ECOSpicer(myBaseSpider):
         yield RawData(**d)
 
 
-class HICSpider(myBaseSpider):
+class HICSpider(BaseSpider):
     name = "hic_prds"
     start_urls = ["http://www.hi-chemical.com/parent-drug/", ]
     base_url = "http://www.hi-chemical.com/"
@@ -1158,7 +1164,7 @@ class HICSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class WitegaSpider(myBaseSpider):
+class WitegaSpider(BaseSpider):
     name = "witega_prds"
     base_url = "https://auftragssynthese.com/"
     start_urls = ["https://auftragssynthese.com/katalog_e.php", ]
@@ -1180,7 +1186,7 @@ class WitegaSpider(myBaseSpider):
             yield RawData(**d)
 
 
-class CILSpider(myBaseSpider):
+class CILSpider(BaseSpider):
     name = "cil_prds"
     base_url = "https://shop.isotope.com/"
     start_urls = ["https://shop.isotope.com/category.aspx", ]
@@ -1256,7 +1262,7 @@ class CILSpider(myBaseSpider):
         yield RawData(**d)
 
 
-class DRESpider(myBaseSpider):
+class DRESpider(BaseSpider):
     name = "dre_prds"
     allowd_domains = ["lgcstandards.com"]
     start_urls = [
@@ -1270,16 +1276,16 @@ class DRESpider(myBaseSpider):
         per_page = int(response.xpath('//pagination/pageSize/text()').extract_first())
         next_page = cur_page + 1
 
-        produts = response.xpath('//products')
+        products = response.xpath('//products')
 
-        for product in produts:
+        for product in products:
             url = product.xpath('./url/text()').extract_first()
             yield Request(url=self.base_url + url, callback=self.detail_parse)
 
         if next_page <= total_page:
             data = {
                 "currentPage": next_page,
-                "q": "DRE",  # TODO hardcoding
+                "q": "DRE",  # INFO hardcoding
                 "sort": "relevance",
                 "pageSize": per_page,
                 "country": "CN",
@@ -1320,7 +1326,7 @@ class DRESpider(myBaseSpider):
         yield RawData(**d)
 
 
-class APIChemSpider(myBaseSpider):
+class APIChemSpider(BaseSpider):
     name = "apichem"
     base_url = "http://chemmol.com/chemmol/suppliers/apichemistry/texts.php"
     start_urls = [base_url, ]
