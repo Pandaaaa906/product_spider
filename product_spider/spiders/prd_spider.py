@@ -93,7 +93,8 @@ class AccPrdSpider(BaseSpider):
     }
 
     def parse(self, response):
-        prd_urls = response.xpath('//ol[contains(@class,"products-list")]/li//h2[@class="product-name"]/a/@href').extract()
+        prd_urls = response.xpath(
+            '//ol[contains(@class,"products-list")]/li//h2[@class="product-name"]/a/@href').extract()
         for prd_url in prd_urls:
             yield Request(prd_url, callback=self.detail_parse)
 
@@ -107,13 +108,18 @@ class AccPrdSpider(BaseSpider):
             "parent": response.xpath('//div[@class="breadcrumbs"]//li[2]/a/span/text()').extract_first(),
             "cat_no": response.xpath('//div[@itemprop="productID"]/text()').extract_first(),
             "en_name": response.xpath('//div[@class="product-name"]//span[@itemprop="name"]/text()').extract_first(),
-            "cas": ";".join(response.xpath('//table[@class="analytetable"]//td[contains(@class, "cas_number")]/text()').extract()),
-            "mf": "".join(response.xpath('//span[contains(text(), "Molecular Formula")]/../following-sibling::div[1]//text()').extract()) or None,
-            "mw": response.xpath('//span[contains(text(), "Molecular Weight")]/../following-sibling::div[1]//text()').extract_first(),
+            "cas": ";".join(
+                response.xpath('//table[@class="analytetable"]//td[contains(@class, "cas_number")]/text()').extract()),
+            "mf": "".join(response.xpath(
+                '//span[contains(text(), "Molecular Formula")]/../following-sibling::div[1]//text()').extract()) or None,
+            "mw": response.xpath(
+                '//span[contains(text(), "Molecular Weight")]/../following-sibling::div[1]//text()').extract_first(),
             "stock_info": response.xpath('//meta[@itemprop="availability"]/@content').extract_first(),
             "img_url": response.xpath('//img[@itemprop="image"]/@src').extract_first(),
-            "info2": response.xpath('//span[contains(text(), "Unit")]/../following-sibling::div[1]//text()').extract_first(),
-            "info3": response.xpath('//span[contains(text(), "Storage Condition")]/../following-sibling::div[1]//text()').extract_first(),
+            "info2": response.xpath(
+                '//span[contains(text(), "Unit")]/../following-sibling::div[1]//text()').extract_first(),
+            "info3": response.xpath(
+                '//span[contains(text(), "Storage Condition")]/../following-sibling::div[1]//text()').extract_first(),
             "info4": response.xpath('//span[@class="price"]/text()').extract_first(),
             "prd_url": response.url,
         }
@@ -1369,3 +1375,73 @@ class APIChemSpider(BaseSpider):
                 "ucid": first_cat_no,
             }
             yield FormRequest(self.base_url, formdata=d, callback=self.parse)
+
+
+class DaicelSpider(BaseSpider):
+    name = "daicel_prds"
+    base_url = "http://www.daicelpharmastandards.com/"
+    start_urls = ["http://www.daicelpharmastandards.com/products.php", ]
+
+    def parse(self, response):
+        rel_urls = response.xpath('//div[@class="Catalogue"]/a/@href').extract()
+        for rel_url in rel_urls:
+            yield Request(urljoin(self.base_url, rel_url), callback=self.detail_parse)
+
+    def detail_parse(self, response):
+        tmp = '//td[contains(text(), {!r})]/following-sibling::td/text()'
+        img_rel_url = response.xpath('//div[@class="modal-body"]/img/@src').extract_first()
+        d = {
+            "brand": "Daicel",
+            "parent": strip(response.xpath(tmp.format("API Name :")).extract_first()),
+            "cat_no": response.xpath('//div[@class="Catalogue"]/text()').extract_first().split(': ')[-1],
+            "en_name": response.xpath(tmp.format("Name of Compound :")).extract_first(),
+            "cas": strip(response.xpath('//b[text()="CAS number : "]/following-sibling::text()[1]').extract_first()),
+            "mf": strip(response.xpath('//b[text()="Mol. Formula : "]/following-sibling::text()[1]').extract_first()),
+            "mw": response.xpath(tmp.format("Molecular Weight :")).extract_first(),
+            "img_url": img_rel_url and urljoin(self.base_url, img_rel_url),
+            "info1": strip(response.xpath(tmp.format('IUPAC Name :')).extract_first()),
+            "info2": strip(response.xpath(tmp.format('Storage Condition :')).extract_first()),
+            "info4": strip(response.xpath(tmp.format('Appearance :')).extract_first()),
+            "prd_url": response.request.url,
+            "stock_info": strip(response.xpath(tmp.format('Stock Status :')).extract_first()),
+        }
+        yield RawData(**d)
+
+
+class ClearsynthSpider(BaseSpider):
+    name = "clearsynth_prds"
+    base_url = "https://www.clearsynth.com/en/"
+    start_urls = ["https://www.clearsynth.com/en/", ]
+
+    def parse(self, response):
+        rel_urls = response.xpath('//ul[@class="menu"]//a/@href').extract()
+        for rel_url in rel_urls:
+            yield Request(urljoin(self.base_url, rel_url), callback=self.list_parse)
+
+    def list_parse(self, response):
+        rel_urls = response.xpath('//div[@class="product-image"]//a/@href').extract()
+        for rel_url in rel_urls:
+            yield Request(urljoin(response.request.url, rel_url), callback=self.detail_parse)
+
+    def detail_parse(self, response):
+        tmp = 'normalize-space(//td[contains(text(),{!r})]/following-sibling::td//text())'
+        tmp2 = '//strong[contains(text(), {!r})]/../following-sibling::td/text()'
+        parent = response.xpath(tmp.format("Parent API")).extract_first()
+        category = response.xpath(tmp.format("Category")).extract_first()
+        img_rel_url = response.xpath('//div[@class="product-media"]//img/@src').extract_first()
+        d = {
+            "brand": "Clearsynth",
+            "parent": parent or category,
+            "cat_no": response.xpath(tmp.format("CAT No.")).extract_first(),
+            "en_name": response.xpath('//div[@class="product-name"]//text()').extract_first(),
+            "cas": response.xpath(tmp.format("CAS")).extract_first(),
+            "mf": formular_trans(strip("".join(response.xpath(tmp.format("Mol. Formula")).extract()))),
+            "mw": response.xpath(tmp.format("Mol. Weight")).extract_first(),
+            "img_url": img_rel_url and urljoin(response.request.url, img_rel_url),
+            "info1": strip(response.xpath(tmp2.format('Synonyms')).extract_first()),
+            "info2": strip(response.xpath(tmp2.format("Storage Conditions")).extract_first()),
+            "smiles": strip(response.xpath(tmp2.format("Smiles")).extract_first()),
+            "prd_url": response.request.url,
+            "stock_info": strip(response.xpath(tmp2.format("Stock Status")).extract_first()),
+        }
+        yield RawData(**d)
