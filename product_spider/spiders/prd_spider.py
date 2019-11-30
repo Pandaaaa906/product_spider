@@ -1414,14 +1414,31 @@ class ClearsynthSpider(BaseSpider):
     start_urls = ["https://www.clearsynth.com/en/", ]
 
     def parse(self, response):
-        rel_urls = response.xpath('//ul[@class="menu"]//a/@href').extract()
-        for rel_url in rel_urls:
-            yield Request(urljoin(self.base_url, rel_url), callback=self.list_parse)
+        categories = response.xpath('//ul[@class="menu"]//a/text()').extract()
+        for category in categories:
+            params = {
+                "search": category,
+                "Therapeutic": "",
+                "api": "",
+                "industry": "",
+                "category": "",
+                "t": "",
+                "limit": 20,
+                "start": 1,
+                "_": int(time()*1000),
+            }
+            url = "https://www.clearsynth.com/en/fetch.asp?" + urlencode(params)
+            yield Request(url, callback=self.list_parse, meta={'params': params})
 
     def list_parse(self, response):
         rel_urls = response.xpath('//div[@class="product-image"]//a/@href').extract()
         for rel_url in rel_urls:
             yield Request(urljoin(response.request.url, rel_url), callback=self.detail_parse)
+        if rel_urls:
+            params = response.meta.get('params')
+            params["start"] = params["start"] + params["limit"]
+            url = "https://www.clearsynth.com/en/fetch.asp?" + urlencode(params)
+            yield Request(url, callback=self.list_parse, meta={'params': params})
 
     def detail_parse(self, response):
         tmp = 'normalize-space(//td[contains(text(),{!r})]/following-sibling::td//text())'
@@ -1435,7 +1452,7 @@ class ClearsynthSpider(BaseSpider):
             "cat_no": response.xpath(tmp.format("CAT No.")).extract_first(),
             "en_name": response.xpath('//div[@class="product-name"]//text()').extract_first(),
             "cas": response.xpath(tmp.format("CAS")).extract_first(),
-            "mf": formular_trans(strip("".join(response.xpath(tmp.format("Mol. Formula")).extract()))),
+            "mf": formular_trans(strip("".join(response.xpath("//td[contains(text(),'Mol. Formula')]/following-sibling::td//text()").extract()))),  # TODO
             "mw": response.xpath(tmp.format("Mol. Weight")).extract_first(),
             "img_url": img_rel_url and urljoin(response.request.url, img_rel_url),
             "info1": strip(response.xpath(tmp2.format('Synonyms')).extract_first()),
