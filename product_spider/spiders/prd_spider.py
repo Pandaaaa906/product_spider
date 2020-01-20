@@ -2,6 +2,7 @@
 import json
 import re
 import string
+from itertools import chain
 from string import ascii_uppercase as uppercase, ascii_uppercase
 from time import time
 from urllib.parse import urljoin, urlencode, splitquery, parse_qsl
@@ -9,6 +10,8 @@ from urllib.parse import urljoin, urlencode, splitquery, parse_qsl
 import scrapy
 from scrapy import FormRequest
 from scrapy.http.request import Request
+from scrapy.spidermiddlewares.httperror import HttpError
+from twisted.internet.error import DNSLookupError, TCPTimedOutError
 
 from product_spider.items import JkItem, BestownPrdItem, RawData
 from product_spider.utils.drug_list import drug_pattern
@@ -226,7 +229,7 @@ class CDNPrdSpider(BaseSpider):
 class BestownSpider(BaseSpider):
     name = "bestownprd"
     base_url = "http://bestown.net.cn/"
-    start_urls = ["http://bestown.net.cn/?gallery-8.html"]
+    start_urls = ["http://www.bestown.net.cn/?gallery-25.html"]
 
     def parse(self, response):
         prd_urls = response.xpath('//div[@class="items-list "]//h6/a/@href').extract()
@@ -501,29 +504,15 @@ class DaltonSpider(BaseSpider):
 class LGCSpider(BaseSpider):
     name = "lgc_prds"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = ["https://www.lgcstandards.com/CN/en/LGC-impurity-and-API-standards/cat/154584", ]
+    start_urls = ["https://www.lgcstandards.com/CN/en/Pharmaceutical/cat/279492", ]
     base_url = "https://www.lgcstandards.com"
 
     def parse(self, response):
-        urls = response.xpath(
-            '//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
+        urls = response.xpath('//div[@class="outline"]//h4/a/@href').extract()
         for url in urls:
-            yield Request(url=self.base_url + url, callback=self.drug_list_parse)
+            yield Request(url=urljoin(self.base_url, url), callback=self.detail_parse)
 
-    def drug_list_parse(self, response):
-        urls = response.xpath(
-            '//table[@class="subCategoryTable"]//td[@class="beveragesListWrapTd beveragesListWrapProductName"]/a/@href').extract()
-        for url in urls:
-            yield Request(url=self.base_url + url, callback=self.product_list_parse)
 
-    def product_list_parse(self, response):
-        urls = response.xpath('//table[@class="subCategoryTable"]//td[1]/a/@href').extract()
-        for url in urls:
-            yield Request(url=self.base_url + url, callback=self.detail_parse)
-        np_url = response.xpath('//div[@class="pagination"]/strong/following-sibling::a/@href').extract_first(
-            default="")
-        if np_url:
-            yield Request(url=self.base_url + np_url, callback=self.product_list_parse)
 
     def detail_parse(self, response):
         tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
@@ -554,53 +543,39 @@ class LGCSpider(BaseSpider):
 class AozealSpider(BaseSpider):
     name = "aozeal_prds"
     allowd_domains = ["aozeal.com"]
-    start_urls = ["http://aozeal.com/list.php", ]
+    start_urls = ["https://www.aozeal.com/shop-2/", ]
     base_url = "http://aozeal.com"
 
     def parse(self, response):
-        values = response.xpath('//select[@id="pf-selected"]/option/@value').extract()
-        for value in values:
-            if not value:
-                continue
-            yield Request(url=f"http://aozeal.com/list.php?sub=&typename={value}", callback=self.list_parse)
+        categories = response.xpath('//ul[@class="product-categories"]/li/a')
+        for cat in categories:
+            cat_url = cat.xpath('./@href').extract_first()
+            parent_drug = cat.xpath('./text()').extract_first()
+            yield Request(cat_url, callback=self.list_parse, meta={"parent_drug": parent_drug})
 
     def list_parse(self, response):
-        urls = response.xpath('//li[@class="item"]/div[@class="img-wrap"]/a/@href').extract()
+        urls = response.xpath('//div[@class="hb-product-meta"]//a/@href').extract()
         for rel_url in urls:
-            yield Request(url=urljoin(self.base_url, rel_url), callback=self.detail_parse)
-        next_url = response.xpath('//a[@class="nxt"]/@href').extract_first()
+            yield Request(url=urljoin(self.base_url, rel_url), callback=self.detail_parse, meta=response.meta)
+        next_url = response.xpath('//a[@class="next page-numbers"]/@href').extract_first()
         if next_url is None:
             return
-        yield Request(url=urljoin(self.base_url, next_url), callback=self.list_parse)
+        yield Request(url=next_url, callback=self.list_parse)
 
     def detail_parse(self, response):
-        response = response.replace(body=response.body.replace(b"--!>", b"-->"))
-        rel_url = response.xpath('//div[@class="p-product-detail"]//img/@src').extract_first()
-        if rel_url is not None:
-            img_url = urljoin(self.base_url, rel_url)
-        else:
-            img_url = None
+        tmp_xpath = '//div[contains(@class, "summary entry-summary")]//span[text()={0!r}]/../following-sibling::span/text()'
         d = {
             'brand': "Aozeal",
-            'en_name': response.xpath('//div[@class="content"]/p/text()').extract_first(),
+            'en_name': response.xpath('//h3[@itemprop="name"]//text()').extract_first(),
             'prd_url': response.request.url,  # 产品详细连接
-            'cat_no': response.xpath(
-                '//div[@class="content"]/dl/dt[contains(text(),"Catalogue No:")]/following-sibling::dd/text()').extract_first(
-                default=""),
-            'cas': response.xpath(
-                '//div[@class="content"]/dl/dt[contains(text(),"CAS No.:")]/following-sibling::dd/text()').extract_first(
-                default=""),
-            'mf': response.xpath(
-                '//div[@class="content"]/dl/dt[contains(text(),"Mol. Formula:")]/following-sibling::dd/text()').extract_first(
-                default=""),
-            'mw': response.xpath(
-                '//div[@class="content"]/dl/dt[contains(text(),"Mol.Weight:")]/following-sibling::dd/text()').extract_first(
-                default=""),
-            'info1': response.xpath(
-                '//div[@class="content"]/dl/dt[contains(text(),"Synonyms:")]/following-sibling::dd/text()').extract_first(
-                default="").strip(),
-            'parent': response.xpath('//div[contains(@class, "cath1title")]/h1/text()').extract_first(default=""),
-            'img_url': img_url,
+            'cat_no': response.xpath(tmp_xpath.format("Catalogue No.")).extract_first(default=""),
+            'cas': response.xpath(tmp_xpath.format("CAS No.")).extract_first(default="N/A"),
+            'mf': response.xpath(tmp_xpath.format("Mol. Formula")).extract_first(default=""),
+            'mw': response.xpath(tmp_xpath.format("Mol. Weight")).extract_first(default=""),
+            'stock_info': response.xpath(tmp_xpath.format("Stock Info")).extract_first(default=None),
+            'info1': "".join(response.xpath('//div[@id="tab-description"]//text()').extract()).strip(),
+            'parent': response.meta.get("parent_drug"),
+            'img_url': response.xpath('//figure//a/@href').extract_first(),
         }
         yield RawData(**d)
 
@@ -658,39 +633,37 @@ class AnantSpider(BaseSpider):
 class AcanthusSpider(BaseSpider):
     name = "acanthus_prds"
     allowd_domains = ["acanthusresearch.com"]
-    start_urls = map(lambda x: f"http://www.acanthusresearch.com/product_catalogue.asp?alp={x}", uppercase)
+    start_urls = ["http://acanthusresearch.com/products/", ]
     base_url = "http://www.acanthusresearch.com/"
 
     def parse(self, response):
-        l_a = response.xpath('//td[@align="left"]/a[@class="rightNavLink"]')
-        for a in l_a:
-            r_url = a.xpath('./@href').extract_first().strip()
-            parent = a.xpath('./span/text()').extract_first()
-            meta = {'parent': parent}
-            yield Request(self.base_url + r_url, callback=self.list_parse, meta=meta)
+        prd_urls = response.xpath('//ul[@class="products"]/li//div[@class="prod-detail"]//h2/a/@href').extract()
+        for prd_url in prd_urls:
+            yield Request(prd_url, callback=self.detail_parse)
+        next_page_url = response.xpath('//a[@class="next page-numbers"]/@href').extract_first()
+        if next_page_url:
+            yield Request(next_page_url, callback=self.parse)
 
-    def list_parse(self, response):
-        products = response.xpath('//div[@id="ContainerTCell2"]/table//tr')
-        tmp_xpath = './/strong[contains(text(),"{0}")]/following-sibling::text()'
-        for product in products:
-            raw_mf = product.xpath(
-                './/strong[contains(text(),"Molecular Formula")]/following-sibling::span/text()').extract()
-            en_name = product.xpath(tmp_xpath.format("Name")).extract_first(default="").strip()
-            cas = product.xpath(tmp_xpath.format("CAS Number")).extract_first(default="").strip()
-            d = {
-                'brand': "Acanthus",
-                'cat_no': product.xpath(tmp_xpath.format("Catalogue Number")).extract_first(default="").strip(),
-                'en_name': en_name,
-                'prd_url': response.request.url,  # 产品详细连接
-                'cas': cas == "NA" and None or cas,
-                'mf': ''.join(raw_mf),
-                'mw': None,
-                'info1': product.xpath(tmp_xpath.format("Synonyms")).extract_first(default="").strip(),
-                'parent': product.xpath(tmp_xpath.format("Parent Drug")).extract_first(default="").strip(),
-                'img_url': self.base_url + product.xpath('.//p/img/@src').extract_first(),
-            }
+    def detail_parse(self, response):
+        tmp_xpath = '//span[@class="spec" and contains(text(), {0!r})]/following-sibling::span//text()'
 
-            yield RawData(**d)
+        raw_mf = response.xpath(tmp_xpath.format("Molecular Formula")).extract()
+        en_name = response.xpath('//h1[contains(@class, "product_title")]/text()').extract_first(default="").strip()
+        cas = response.xpath(tmp_xpath.format("CAS Number")).extract_first(default="N/A").strip()
+        d = {
+            'brand': "Acanthus",
+            'cat_no': response.xpath(tmp_xpath.format("Product Number")).extract_first(default="").strip(),
+            'en_name': en_name,
+            'prd_url': response.request.url,  # 产品详细连接
+            'cas': cas == "NA" and "N/A" or cas,
+            'mf': ''.join(raw_mf),
+            'mw': None,
+            'info1': response.xpath('//div[@class="tags"]/a/text()').extract_first("").strip() or None,
+            'stock_info': "".join(response.xpath('//div[@class="row"]//div[contains(@class, "stock-opt")]//text()').extract()).strip(),
+            'parent': response.xpath(tmp_xpath.format("Parent Drug")).extract_first(default="").strip(),
+            'img_url': urljoin(self.base_url, response.xpath('//div[@class="row"]//img/@src').extract_first()),
+        }
+        yield RawData(**d)
 
 
 class SynzealSpider(BaseSpider):
@@ -930,29 +903,29 @@ class AcornSpider(BaseSpider):
     base_url = "http://www.acornpharmatech.com"
 
     def parse(self, response):
-        hrefs = response.xpath('//table[@width="100%"]//tr//a/@href').extract()
-        for href in hrefs:
-            m = re.search(r"/\d+/\d+\.html", href)
-            if m is None:
+        a_nodes = response.xpath('//table[@width="100%"]//tr//a')
+        for a_node in a_nodes:
+            parent = a_node.xpath('./img/@alt').extract_first()
+            href = a_node.xpath('./@href').extract_first()
+            if href is None or href.startswith('#'):
                 continue
-            yield Request(self.base_url + m.group(0), callback=self.parse_list)
+            yield Request(urljoin(self.base_url, href), callback=self.parse_list, meta={"parent": parent})
 
     def parse_list(self, response):
         rows = response.xpath('//td[@valign="top"]/table[not(@width)]//tr[position()>1]')
-        parent = response.xpath('//tr/td/table[@width]/tr[position()>1]/td[not(a) and img]/img/@alt').extract_first()
+        parent = response.meta.get("parent", "")
         parent = parent.split(" - List")[0]
 
         for row in rows:
-            cat_no = row.xpath('normalize-space(./td[1]/text())').extract_first()
-            en_name = row.xpath('normalize-space(./td[3]/text())').extract_first()
-            en_name = en_name and en_name.strip()
+            cat_no = "".join(row.xpath('normalize-space(./td[1]//text())').extract()).strip() or None
+            en_name = "".join(row.xpath('normalize-space(./td[3]/text())').extract()).strip() or None
             stock_info = row.xpath('normalize-space(./td[5]/descendant::text())').extract_first()
             img_rel_url = row.xpath('./td[4]/img/@src').extract_first()
             d = {
                 "brand": "Acorn",
                 "parent": parent,
-                "cat_no": cat_no and cat_no.strip(),
-                "cas": row.xpath('./td[2]/text()').extract_first(),
+                "cat_no": cat_no,
+                "cas": row.xpath('./td[2]/text()').extract_first("N/A").strip(),
                 "en_name": en_name,
                 "info1": en_name,
                 "img_url": img_rel_url and img_rel_url.replace("./..", self.base_url),
@@ -964,37 +937,32 @@ class AcornSpider(BaseSpider):
 
 class SincoSpider(BaseSpider):
     name = "sinco_prds"
-    start_urls = (f"http://www.sincopharmachem.com/category.asp?c={c}" for c in ascii_uppercase + '1')
+    start_urls = (f"http://www.sincopharmachem.com/category.asp?c={c}" for c in chain(ascii_uppercase, ('OTHER', )))
     base_url = "http://www.sincopharmachem.com"
 
     def parse(self, response):
-        a_nodes = response.xpath('//li[@class="biglist_2"]/a')
+        a_nodes = response.xpath('//li[@class="product-category-item"]/a')
         for a in a_nodes:
-            url = self.base_url + a.xpath('./@href').extract_first()
-            parent = a.xpath('./text()').extract_first()
+            url = urljoin(self.base_url, a.xpath('./@href').extract_first())
+            parent = a.xpath('./@title').extract_first()
             yield Request(url, meta={"parent": parent}, callback=self.list_parse)
 
     def list_parse(self, response):
-        urls = response.xpath('//form[@name="addcart"]//tr/td[1]/a/@href').extract()
+        urls = response.xpath('//li[@class="product-item"]/div[1]/a/@href').extract()
         for url in urls:
             yield Request(url, meta=response.meta, callback=self.detail_parse)
 
     def detail_parse(self, response):
-        div = response.xpath('//div[@class="sem_c_mid_right_c_1"][2]')
+        tmp_xpath = '//strong[text()={0!r}]/../following-sibling::td//text()'
         d = {
             "brand": "Sinco",
             "parent": response.meta.get('parent'),
-            "cat_no": div.xpath(
-                './/tr/td[contains(descendant::text(),"CAT")]/following-sibling::td/text()').extract_first(),
-            "cas": div.xpath(
-                './/tr/td[contains(descendant::text(),"CAS")]/following-sibling::td/text()').extract_first(),
-            "en_name": div.xpath(
-                './/tr/td[contains(descendant::text(),"Product")]/following-sibling::td/text()').extract_first(),
-            "img_url": urljoin(self.base_url, div.xpath('.//div/img/@src').extract_first()),
-            "mf": div.xpath(
-                './/tr/td[contains(descendant::text(),"M.F")]/following-sibling::td/text()').extract_first(),
-            "mw": div.xpath(
-                './/tr/td[contains(descendant::text(),"M.W")]/following-sibling::td/text()').extract_first(),
+            "cat_no": "".join(response.xpath(tmp_xpath.format("CAT#: ")).extract()),
+            "cas": "".join(response.xpath(tmp_xpath.format("CAS#: ")).extract()),
+            "en_name": "".join(response.xpath(tmp_xpath.format("Product Name: ")).extract()),
+            "mf": "".join(response.xpath(tmp_xpath.format("M.F.: ")).extract()),
+            "mw": "".join(response.xpath(tmp_xpath.format("M.W.: ")).extract()),
+            "img_url": response.xpath('//img[@class="smallImg"]/@src').extract_first(),
             "prd_url": response.url,
         }
         yield RawData(**d)
@@ -1272,7 +1240,7 @@ class DRESpider(BaseSpider):
     name = "dre_prds"
     allowd_domains = ["lgcstandards.com"]
     start_urls = [
-        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?currentPage=1&q=DRE&sort=relevance&pageSize=100&country=CN&lang=en&fields=FULL", ]
+        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?currentPage=1&q=&sort=relevance-code&pageSize=20&country=CN&lang=en&fields=FULL", ]
     base_url = "https://www.lgcstandards.com/CN/en"
     search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?"
 
