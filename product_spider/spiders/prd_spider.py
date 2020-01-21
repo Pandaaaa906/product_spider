@@ -21,11 +21,18 @@ from product_spider.utils.maketrans import formular_trans
 
 class BaseSpider(scrapy.Spider):
     headers = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "accept-encoding": "gzip, deflate, sdch, br",
         "accept-language": "zh-CN,zh;q=0.8",
         "upgrade-insecure-requests": "1",
         "user-agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
+    }
+
+
+class JsonSpider(scrapy.Spider):
+    headers = {
+        'Content-Type': 'application/json',
+        'accept': 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
     }
 
 
@@ -501,18 +508,42 @@ class DaltonSpider(BaseSpider):
             yield RawData(**d)
 
 
-class LGCSpider(BaseSpider):
+class LGCSpider(JsonSpider):
     name = "lgc_prds"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = ["https://www.lgcstandards.com/CN/en/Pharmaceutical/cat/279492", ]
-    base_url = "https://www.lgcstandards.com"
+    start_urls = [
+        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?pageSize=20&fields=FULL&sort=code-asc&currentPage=0&q=&country=CN&lang=en",
+    ]
+    base_url = "https://www.lgcstandards.com/CN/en/"
+    search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?"
+
+    def start_requests(self):
+        url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?pageSize=20&fields=FULL&sort=code-asc&currentPage=0&q=&country=CN&lang=en"
+        yield Request(url, callback=self.parse, headers=self.headers)
 
     def parse(self, response):
-        urls = response.xpath('//div[@class="outline"]//h4/a/@href').extract()
-        for url in urls:
-            yield Request(url=urljoin(self.base_url, url), callback=self.detail_parse)
+        obj = json.loads(response.text)
+        pagination = obj.get('pagination', {})
+        current_page = pagination.get('currentPage', 0)
+        total_pages = pagination.get('totalPages', 0)
+        per_page = pagination.get('pageSize', 0)
 
+        products = obj.get('products', [])
+        for product in products:
+            url = product.get('url')
+            yield Request(self.base_url + url, callback=self.detail_parse)
 
+        if current_page < total_pages:
+            data = {
+                "currentPage": current_page+1,
+                "q": "",  # INFO hardcoding
+                "sort": "relevance-code",
+                "pageSize": per_page,
+                "country": "CN",
+                "lang": "en",
+                "fields": "FULL",
+            }
+            yield Request(self.search_url + urlencode(data), callback=self.parse, headers=self.headers)
 
     def detail_parse(self, response):
         tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
