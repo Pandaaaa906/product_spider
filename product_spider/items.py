@@ -103,11 +103,13 @@ class BestownPrdItem(scrapy.OrderedItem):
     country = scrapy.Field()
     brand = scrapy.Field()
     unit = scrapy.Field()
+    cas = scrapy.Field()
     cat_no_unit = scrapy.Field()
     prd_type = scrapy.Field()
     stock = scrapy.Field()
     coupon = scrapy.Field()
     price = scrapy.Field()
+    url = scrapy.Field()
 
     class Meta:
         indexes = (
@@ -178,5 +180,53 @@ class TanmoItem(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (('cat_no','name'),True),
-            )
+            (('cat_no', 'name'), True),
+        )
+
+
+class AnpelItem(scrapy.OrderedItem):
+    cat_no = scrapy.Field()
+    cn_name = scrapy.Field()
+    en_name = scrapy.Field()
+    brand = scrapy.Field()
+    cas = scrapy.Field()
+    package = scrapy.Field()
+    unit = scrapy.Field()
+    price = scrapy.Field()
+    delivery_time = scrapy.Field()
+    storage = scrapy.Field()
+    prd_url = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('cat_no',), True),
+        )
+
+
+class NewBestownItem(scrapy.OrderedItem):
+    uid = scrapy.Field()
+    stockcode = scrapy.Field()
+    name = scrapy.Field()
+    brand = scrapy.Field()
+    purity = scrapy.Field()
+    name2 = scrapy.Field()
+    name3 = scrapy.Field()
+    pack = scrapy.Field()
+    molecular = scrapy.Field()
+    picture = scrapy.Field()
+    picture2 = scrapy.Field()
+    date = scrapy.Field()
+    temp = scrapy.Field()
+    method = scrapy.Field()
+    transport = scrapy.Field()
+    attention = scrapy.Field()
+    price = scrapy.Field()
+    num = scrapy.Field()
+    msds = scrapy.Field()
+    report = scrapy.Field()
+    rj = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('stockcode',), True),
+        )

@@ -10,30 +10,12 @@ from urllib.parse import urljoin, urlencode, splitquery, parse_qsl
 import scrapy
 from scrapy import FormRequest
 from scrapy.http.request import Request
-from scrapy.spidermiddlewares.httperror import HttpError
-from twisted.internet.error import DNSLookupError, TCPTimedOutError
+from more_itertools import first
 
 from product_spider.items import JkItem, BestownPrdItem, RawData
-from product_spider.utils.drug_list import drug_pattern
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formular_trans
-
-
-class BaseSpider(scrapy.Spider):
-    headers = {
-        "accept-encoding": "gzip, deflate, sdch, br",
-        "accept-language": "zh-CN,zh;q=0.8",
-        "upgrade-insecure-requests": "1",
-        "user-agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
-    }
-
-
-class JsonSpider(scrapy.Spider):
-    headers = {
-        'Content-Type': 'application/json',
-        'accept': 'application/json, text/plain, */*',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
-    }
+from product_spider.utils.spider_mixin import BaseSpider, JsonSpider
 
 
 class JkPrdSpider(scrapy.Spider):
@@ -236,7 +218,7 @@ class CDNPrdSpider(BaseSpider):
 class BestownSpider(BaseSpider):
     name = "bestownprd"
     base_url = "http://bestown.net.cn/"
-    start_urls = ["http://www.bestown.net.cn/?gallery-25.html"]
+    start_urls = ["http://www.bestown.net.cn/?gallery-8.html"]
 
     def parse(self, response):
         prd_urls = response.xpath('//div[@class="items-list "]//h6/a/@href').extract()
@@ -248,17 +230,21 @@ class BestownSpider(BaseSpider):
 
     def detail_parse(self, response):
         prd_form = response.xpath('//form[@class="goods-action"]')
+        tmp = prd_form.xpath('.//span[text()="cas编 号："]/../text()').extract_first(default='')
+        cas = first(re.findall(r'\d+-\d{2}-\d\b', tmp), None)
         d = {
             'chs_name': prd_form.xpath('./h1/text()').extract_first(default=''),
             'en_name': prd_form.xpath('.//span[text()="英文名称："]/../text()').extract_first(default=''),
             'country': prd_form.xpath('.//span[text()="生产国别："]/../text()').extract_first(default=''),
             'brand': prd_form.xpath('.//span[text()="生产企业："]/../text()').extract_first(default=''),
+            'cas': cas,
             'unit': prd_form.xpath('.//span[text()="规格货号："]/../text()').extract_first(default=''),
             'cat_no_unit': prd_form.xpath('.//span[@id="goodsBn"]/text()').extract_first(default=''),
             'prd_type': prd_form.xpath('.//span[text()="产品类别："]/../text()').extract_first(default=''),
             'stock': prd_form.xpath('.//span[text()="库存："]/../text()').extract_first(default=''),
             'coupon': prd_form.xpath('.//span[@id="goodsScore"]/text()').extract_first(default=''),
             'price': prd_form.xpath('.//span[@class="price1"]/text()').extract_first(default=''),
+            'url': response.url,
         }
         yield BestownPrdItem(**d)
         """
