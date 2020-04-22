@@ -230,3 +230,24 @@ class NewBestownItem(scrapy.OrderedItem):
         indexes = (
             (('stockcode',), True),
         )
+
+
+class HbErmItem(scrapy.OrderedItem):
+    cat_no = scrapy.Field()
+    cn_name = scrapy.Field()
+    batch = scrapy.Field()
+    manufacture = scrapy.Field()
+    expire_date = scrapy.Field()
+    package = scrapy.Field()
+    sale_info = scrapy.Field()
+    usage = scrapy.Field()
+    components = scrapy.Field()
+    concentrate = scrapy.Field()
+
+    price = scrapy.Field()
+    stock_info = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('cat_no', 'batch'), True),
+        )

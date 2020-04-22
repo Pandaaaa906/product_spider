@@ -7,7 +7,7 @@ from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import NewBestownItem
-from product_spider.utils.spider_mixin import JsonSpider, BaseSpider
+from product_spider.utils.spider_mixin import JsonSpider
 
 logger = logging.getLogger(__name__)
 

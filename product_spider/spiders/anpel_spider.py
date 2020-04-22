@@ -85,8 +85,8 @@ class AnpelSpider(BaseSpider):
     base_url = 'https://www.anpel.com.cn/'
     start_urls = [
         'https://www.anpel.com.cn/Brands_0032.html',  # anpel
-        'https://www.anpel.com.cn/Brands_0134.html',  # cnw
-        'https://www.anpel.com.cn/Brands_0181.html',  # o2si
+        # 'https://www.anpel.com.cn/Brands_0134.html',  # cnw
+        # 'https://www.anpel.com.cn/Brands_0181.html',  # o2si
     ]
 
     def parse(self, response):
