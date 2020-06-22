@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class TLCSpider(BaseSpider):
-    name = "tlc_prds"
+    name = "tlc"
     base_url = "http://tlcstandards.com/"
     start_urls = map(lambda x: "http://tlcstandards.com/ProductsRS.aspx?type={}&cpage=1".format(x), ascii_uppercase)
     x_template = './child::br[contains(following-sibling::text(),"{0}")]/following-sibling::font[1]/text()'

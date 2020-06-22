@@ -1,0 +1,5 @@
+scrapy
+scrapyd
+git+https://github.com/Pandaaaa906/ScrapyAutoDb.git
+psycopg2
+six

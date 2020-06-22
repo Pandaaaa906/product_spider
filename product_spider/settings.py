@@ -8,7 +8,8 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-LOG_LEVEL = "INFO"
+LOG_LEVEL = 'INFO'
+LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
 
 SPIDER_MODULES = ['product_spider.spiders']
