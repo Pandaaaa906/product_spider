@@ -81,7 +81,7 @@ def gen_post_data(target, to_page, view_state, view_state_generator, event_valid
 
 
 class AnpelSpider(BaseSpider):
-    name = "anpel_prds"
+    name = "anpel"
     base_url = 'https://www.anpel.com.cn/'
     start_urls = [
         'https://www.anpel.com.cn/Brands_0032.html',  # anpel

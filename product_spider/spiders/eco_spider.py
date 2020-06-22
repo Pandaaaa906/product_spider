@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class ECOSpider(BaseSpider):
-    name = "eco_prds"
+    name = "eco"
     start_urls = ["http://eco-canada.com/search/", ]
     base_url = "http://eco-canada.com/"
 

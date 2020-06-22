@@ -9,7 +9,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class QCCSpider(BaseSpider):
-    name = "qcc_prds"
+    name = "qcc"
     start_urls = (f"http://www.qcchemical.com/index.php/Index/api?letter={c}&mletter={c}" for c in ascii_uppercase)
     base_url = "http://www.qcchemical.com/"
 

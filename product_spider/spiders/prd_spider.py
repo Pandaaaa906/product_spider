@@ -17,7 +17,7 @@ from product_spider.utils.spider_mixin import BaseSpider, JsonSpider
 
 
 class JkPrdSpider(scrapy.Spider):
-    name = "jk_prds"
+    name = "jk"
     allowed_domains = ["jkchemical.com"]
     base_url = "http://www.jkchemical.com"
     start_urls = map(lambda x: "http://www.jkchemical.com/CH/products/index/ProductName/{0}.html".format(x),
@@ -129,7 +129,7 @@ class ChemServicePrdSpider(BaseSpider):
 
 
 class CDNPrdSpider(BaseSpider):
-    name = "cdn_prds"
+    name = "cdn"
     base_url = "https://cdnisotopes.com/"
     start_urls = [
         "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50", ]
@@ -247,7 +247,7 @@ class NicpbpSpider(scrapy.Spider):
 
 
 class SimsonSpider(BaseSpider):
-    name = "simson_prds"
+    name = "simson"
     allowd_domains = ["simsonpharma.com"]
     base_url = "http://simsonpharma.com"
 
@@ -295,7 +295,7 @@ class SimsonSpider(BaseSpider):
 
 
 class DaltonSpider(BaseSpider):
-    name = "dalton_prds"
+    name = "dalton"
     allowed_domains = ["daltonresearchmolecules.com"]
     start_urls = ["https://www.daltonresearchmolecules.com/chemical-compounds-catalog", ]
     base_url = "https://www.daltonresearchmolecules.com"
@@ -348,7 +348,7 @@ class DaltonSpider(BaseSpider):
 
 
 class LGCSpider(JsonSpider):
-    name = "lgc_prds"
+    name = "lgc"
     allowd_domains = ["lgcstandards.com"]
     start_urls = [
         "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?pageSize=20&fields=FULL&sort=code-asc&currentPage=0&q=&country=CN&lang=en",
@@ -413,7 +413,7 @@ class LGCSpider(JsonSpider):
 
 
 class AozealSpider(BaseSpider):
-    name = "aozeal_prds"
+    name = "aozeal"
     allowd_domains = ["aozeal.com"]
     start_urls = ["https://www.aozeal.com/shop-2/", ]
     base_url = "http://aozeal.com"
@@ -454,7 +454,7 @@ class AozealSpider(BaseSpider):
 
 # TODO untested
 class TRCSpider(BaseSpider):
-    name = "trc_prds"
+    name = "trc"
     allow_domain = ["trc-canada.com", ]
     start_urls = ["https://www.trc-canada.com/parent-drug/", ]
     search_url = "https://www.trc-canada.com/products-listing/?"
@@ -502,7 +502,7 @@ class TRCSpider(BaseSpider):
 
 # Dead website 20200522
 class StannumSpider(BaseSpider):
-    name = "stannum_prds"
+    name = "stannum"
     start_urls = ("http://www.stannumusa.com/?page_id=13",)
     base_url = "http://www.stannumusa.com/"
 
@@ -536,7 +536,7 @@ class StannumSpider(BaseSpider):
 
 
 class ChromaDexSpider(BaseSpider):
-    name = "chromadex_prds"
+    name = "chromadex"
     start_urls = map(lambda x: f"https://standards.chromadex.com/search?type=product&q={x}", ("ASB", "KIT"))
     base_url = "https://standards.chromadex.com/"
 
@@ -575,7 +575,7 @@ class ChromaDexSpider(BaseSpider):
 
 
 class AcornSpider(BaseSpider):
-    name = "acorn_prds"
+    name = "acorn"
     start_urls = ["http://www.acornpharmatech.com/18501/index.html", ]
     base_url = "http://www.acornpharmatech.com"
 
@@ -613,7 +613,7 @@ class AcornSpider(BaseSpider):
 
 
 class CPRDSpider(BaseSpider):
-    name = "cprd_prds"
+    name = "cprd"
     start_urls = (f"http://c-prd.com/product/{c}.html" for c in ascii_uppercase)
     base_url = "http://c-prd.com/"
 
@@ -650,7 +650,7 @@ class CPRDSpider(BaseSpider):
 
 
 class HICSpider(BaseSpider):  # dead website 20200522
-    name = "hic_prds"
+    name = "hic"
     start_urls = ["http://www.hi-chemical.com/parent-drug/", ]
     base_url = "http://www.hi-chemical.com/"
 
@@ -684,7 +684,7 @@ class HICSpider(BaseSpider):  # dead website 20200522
 
 
 class CILSpider(BaseSpider):
-    name = "cil_prds"
+    name = "cil"
     base_url = "https://shop.isotope.com/"
     start_urls = ["https://shop.isotope.com/category.aspx", ]
 
@@ -760,7 +760,7 @@ class CILSpider(BaseSpider):
 
 
 class DRESpider(BaseSpider):
-    name = "dre_prds"
+    name = "dre"
     allowd_domains = ["lgcstandards.com"]
     start_urls = [
         "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?currentPage=1&q=&sort=relevance-code&pageSize=20&country=CN&lang=en&fields=FULL", ]
@@ -869,7 +869,7 @@ class APIChemSpider(BaseSpider):
 
 
 class ClearsynthSpider(BaseSpider):
-    name = "clearsynth_prds"
+    name = "clearsynth"
     base_url = "https://www.clearsynth.com/en/"
     start_urls = ["https://www.clearsynth.com/en/", ]
 

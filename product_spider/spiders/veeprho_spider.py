@@ -9,7 +9,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class VeeprhoSpider(BaseSpider):
-    name = "veeprho_prds"
+    name = "veeprho"
     base_url = "https://www.eshop-veeprho.com/"
     start_urls = (f"https://www.eshop-veeprho.com/en/products?char={char}" for char in ascii_uppercase)
 

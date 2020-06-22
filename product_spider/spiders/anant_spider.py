@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class AnantSpider(BaseSpider):
-    name = "anant_prds"
+    name = "anant"
     allowd_domains = ["anantlabs.com"]
     start_urls = [f"http://anantlabs.com/{a}/" for a in ascii_lowercase]
     base_url = "http://anantlabs.com"

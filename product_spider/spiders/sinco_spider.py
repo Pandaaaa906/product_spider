@@ -9,7 +9,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class SincoSpider(BaseSpider):
-    name = "sinco_prds"
+    name = "sinco"
     start_urls = (f"http://www.sincopharmachem.com/category.asp?c={c}" for c in chain(ascii_uppercase, ('OTHER',)))
     base_url = "http://www.sincopharmachem.com"
 

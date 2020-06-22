@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class SteraloidsSpider(BaseSpider):
-    name = "steraloids_prds"
+    name = "steraloids"
     base_url = "https://www.steraloids.com/"
     start_urls = ["https://www.steraloids.com/catalogue", ]
 

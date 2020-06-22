@@ -28,7 +28,7 @@ def gen_post_data(catalog, page, operate='Product_list'):
 
 
 class NewBestownSpider(JsonSpider):
-    name = "new_bestown_prds"
+    name = "new_bestown"
     base_url = 'http://www.bepurestandards.com/'
     start_urls = [
         'http://www.bepurestandards.com/a.aspx?oper=Product_classification',

@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class AcanthusSpider(BaseSpider):
-    name = "acanthus_prds"
+    name = "acanthus"
     allowd_domains = ["acanthusresearch.com"]
     start_urls = ["http://acanthusresearch.com/products/", ]
     base_url = "http://www.acanthusresearch.com/"

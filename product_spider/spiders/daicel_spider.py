@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class DaicelSpider(BaseSpider):
-    name = "daicel_prds"
+    name = "daicel"
     base_url = "http://www.daicelpharmastandards.com/"
     start_urls = ["http://www.daicelpharmastandards.com/products.php", ]
 

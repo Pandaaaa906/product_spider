@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class WitegaSpider(BaseSpider):
-    name = "witega_prds"
+    name = "witega"
     base_url = "https://auftragssynthese.com/"
     start_urls = ["https://auftragssynthese.com/en/nitrofuran-metabolites/", ]
 

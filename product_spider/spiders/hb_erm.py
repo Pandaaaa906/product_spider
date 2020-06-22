@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class HbErmSpider(BaseSpider):
-    name = "hberm_prds"
+    name = "hberm"
     base_url = 'http://www.hb-erm.com/'
     start_urls = [
         'http://www.hb-erm.com/index.php?m=goods&a=search',

@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class SynzealSpider(BaseSpider):
-    name = "synzeal_prds"
+    name = "synzeal"
     allowd_domains = ["synzeal.com"]
     base_url = "https://www.synzeal.com"
     start_urls = map(lambda x: f"https://www.synzeal.com/category/{x}", ascii_uppercase)

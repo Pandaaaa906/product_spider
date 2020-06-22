@@ -9,7 +9,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class SynPharmatechSpider(BaseSpider):
-    name = "syn_prds"
+    name = "syn"
     base_url = "http://www.synpharmatech.com"
     start_urls = (f'http://www.synpharmatech.com/products/search.asp?type=sign&twd={char}' for char in
                   ascii_uppercase)

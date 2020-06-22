@@ -2,7 +2,7 @@ FROM python:3.6
 
 COPY . /product_spider
 
-WORKDIR /app
+WORKDIR /product_spider
 
 RUN mkdir -p ~/.pip
 RUN echo "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple" | tee ~/.pip/pip.conf

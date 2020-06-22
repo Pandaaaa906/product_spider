@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class SplendidLabSpider(BaseSpider):
-    name = 'splendidlab_prds'
+    name = 'splendidlab'
     base_url = 'http://splendidlab.com/'
     start_urls = ['http://splendidlab.com/products.php', ]
 

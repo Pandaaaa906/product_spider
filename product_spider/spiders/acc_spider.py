@@ -5,7 +5,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class AccPrdSpider(BaseSpider):
-    name = 'acc_prds'
+    name = 'acc'
     allowed_domains = ['accustandard.com']
     base_url = 'https://www.accustandard.com'
     start_urls = ['https://www.accustandard.com/organic.html?limit=100',

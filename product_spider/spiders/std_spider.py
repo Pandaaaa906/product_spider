@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class STDSpider(BaseSpider):
-    name = "std_prds"
+    name = "std"
     start_urls = ["http://www.standardpharm.com/portal/list/index/id/11.html", ]
     base_url = "http://www.standardpharm.com/"
 
