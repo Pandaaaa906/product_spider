@@ -13,11 +13,11 @@ class TLCSpider(BaseSpider):
     start_urls = map(lambda x: "http://tlcstandards.com/ProductsRS.aspx?type={}&cpage=1".format(x), ascii_uppercase)
     x_template = './child::br[contains(following-sibling::text(),"{0}")]/following-sibling::font[1]/text()'
 
-    custom_settings = {
-        'CONCURRENT_REQUESTS': 32,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 64,
-        'CONCURRENT_REQUESTS_PER_IP': 64,
-    }
+    # custom_settings = {
+    #     'CONCURRENT_REQUESTS': 32,
+    #     'CONCURRENT_REQUESTS_PER_DOMAIN': 64,
+    #     'CONCURRENT_REQUESTS_PER_IP': 64,
+    # }
 
     def parse(self, response):
         rel_urls = response.xpath('//div[@class="information"]/a/@href').extract()
@@ -29,7 +29,7 @@ class TLCSpider(BaseSpider):
             d = dict(parse_qsl(q))
             d['cpage'] = int(d.get('cpage', 0)) + 1
             q = urlencode(d)
-            yield Request('?'.join((url, q)), callback=self.parse)
+            yield Request(f'{url}?{q}', callback=self.parse)
 
     @staticmethod
     def extract_value(response, title):

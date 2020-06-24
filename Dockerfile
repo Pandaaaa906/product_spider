@@ -9,7 +9,7 @@ RUN echo "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple" | tee 
 RUN git config --global http.sslverify false
 RUN pip install -r requirements
 
-
-RUN scrapyd
+CMD logparser
+ENTRYPOINT scrapyd
 
 EXPOSE 6800

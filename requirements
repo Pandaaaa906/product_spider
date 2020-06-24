@@ -1,5 +1,7 @@
 scrapy
 scrapyd
+logparser
+more_itertools
 git+https://github.com/Pandaaaa906/ScrapyAutoDb.git
 psycopg2
 six

@@ -925,9 +925,7 @@ class ClearsynthSpider(BaseSpider):
         }
         yield RawData(**d)
 
-# TODO https://www.hpc-standards.com/shop/ReferenceMaterials/PharmaceuticalsVeterinaryProducts/Demethylolanzapine.htm
-# TODO http://niftylabs.com/intermediate-product.html
-# TODO https://bdg.co.nz/
+
 # TODO https://www.carbosynth.com/
 # TODO https://www.alsachim.com/
 # TODO https://www.dawnscientific.com/
