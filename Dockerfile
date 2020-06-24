@@ -1,7 +1,6 @@
 FROM python:3.6
 
 COPY . /product_spider
-
 WORKDIR /product_spider
 
 RUN mkdir -p ~/.pip
@@ -9,7 +8,9 @@ RUN echo "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple" | tee 
 RUN git config --global http.sslverify false
 RUN pip install -r requirements
 
-CMD logparser
+CMD logparser -dir /product_spider/logs/
+
 ENTRYPOINT scrapyd
+
 
 EXPOSE 6800
