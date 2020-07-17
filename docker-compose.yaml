@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+  scrapyd:
+    build: .
+    entrypoint: "scrapyd"
+    hostname: "scrapyd"
+    volumes:
+      - /www/prd_spider/logs:/app/logs
+    ports:
+      - 6800:6800
+  scrapydweb:
+    build: .
+    entrypoint: "scrapydweb"
+    hostname: "scrapydweb"
+    environment:
+      - HOST_SCRAPYD=scrapyd
+      - PORT_SCRAPYD=6800
+      - DATA_PATH=/app/data
+    volumes:
+      - /www/prd_spider/logs:/app/logs
+      - /www/prd_spider/data:/app/data
+    ports:
+      - 5859:5000
+  logparser:
+    build: .
+    entrypoint: "logparser -dir=/app/logs/"
+    hostname: "logparser"
+    volumes:
+      - /www/prd_spider/logs:/app/logs

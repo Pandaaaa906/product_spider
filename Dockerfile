@@ -1,16 +1,17 @@
-FROM python:3.6
-
-COPY . /product_spider
-WORKDIR /product_spider
+FROM python:3.6 as prd_spider_base
 
 RUN mkdir -p ~/.pip
 RUN echo "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple" | tee ~/.pip/pip.conf
 RUN git config --global http.sslverify false
-RUN pip install -r requirements
+COPY requirements /tmp/requirements
+RUN pip install -r /tmp/requirements
 
-CMD logparser -dir /product_spider/logs/
+FROM prd_spider_base
 
+COPY . /app
+WORKDIR /app
+#CMD ["logparser", "-dir=/product_spider/logs/"]
 ENTRYPOINT scrapyd
 
-
 EXPOSE 6800
+EXPOSE 5000
