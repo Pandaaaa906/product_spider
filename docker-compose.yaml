@@ -9,6 +9,8 @@ services:
       - /www/prd_spider/logs:/app/logs
     ports:
       - 6800:6800
+    env_file:
+      - secret.env
   scrapydweb:
     build: .
     entrypoint: "scrapydweb"
@@ -21,7 +23,7 @@ services:
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/data:/app/data
     ports:
-      - 5859:5000
+      - 6799:5000
   logparser:
     build: .
     entrypoint: "logparser -dir=/app/logs/"

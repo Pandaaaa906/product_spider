@@ -8,30 +8,29 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
+from os import getenv
+
 LOG_LEVEL = 'INFO'
 LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
 
 SPIDER_MODULES = ['product_spider.spiders']
 NEWSPIDER_MODULE = 'product_spider.spiders'
-'''
-DATABASE = {
-   "engine": "sqlite",
-   "params": {
-       "database": "scrapy_db.db"
-    }
-}
-'''
 
-DATABASE = {"engine": "postgresql",
+DATABASE_ENGINE = getenv('DATABASE_ENGINE', 'postgresql')
+DATABASE_NAME = getenv('DATABASE_NAME', 'chemhost')
+DATABASE_USER = getenv('DATABASE_USER', 'postgres')
+DATABASE_PWD = getenv('DATABASE_PWD', 'catochem')
+DATABASE_HOST = getenv('DATABASE_HOST', '192.168.5.249')
+DATABASE_PORT = int(getenv('DATABASE_PORT', '5432'))
+
+DATABASE = {"engine": DATABASE_ENGINE,
             "params": {
-                "database": "chemhost",
-                "user": "postgres",
-                "password": "catochem",
-                # "host": "127.0.0.1",
-                # "host": "192.168.1.251",
-                "host": "192.168.5.249",
-                "port": 5432,
+                "database": DATABASE_NAME,
+                "user": DATABASE_USER,
+                "password": DATABASE_PWD,
+                "host": DATABASE_HOST,
+                "port": DATABASE_PORT,
             }
             }
 

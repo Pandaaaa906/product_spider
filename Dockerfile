@@ -10,7 +10,7 @@ FROM prd_spider_base
 
 COPY . /app
 WORKDIR /app
-#CMD ["logparser", "-dir=/product_spider/logs/"]
+
 ENTRYPOINT scrapyd
 
 EXPOSE 6800
