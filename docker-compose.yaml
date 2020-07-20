@@ -5,8 +5,11 @@ services:
     build: .
     entrypoint: "scrapyd"
     hostname: "scrapyd"
+    restart: unless-stopped
     volumes:
       - /www/prd_spider/logs:/app/logs
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - 6800:6800
     env_file:
@@ -15,6 +18,7 @@ services:
     build: .
     entrypoint: "scrapydweb"
     hostname: "scrapydweb"
+    restart: unless-stopped
     environment:
       - HOST_SCRAPYD=scrapyd
       - PORT_SCRAPYD=6800
@@ -22,11 +26,16 @@ services:
     volumes:
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/data:/app/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - 6799:5000
   logparser:
     build: .
     entrypoint: "logparser -dir=/app/logs/"
     hostname: "logparser"
+    restart: unless-stopped
     volumes:
       - /www/prd_spider/logs:/app/logs
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
