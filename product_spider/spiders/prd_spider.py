@@ -318,7 +318,7 @@ class DaltonSpider(BaseSpider):
         catalog = response.meta.get('catalog')
         for row in rows:
             name = row.xpath('./a/text()').get()
-            url_prd = row.xpath('./a/@href').get()
+            url_prd = urljoin(self.base_url, row.xpath('./a/@href').get())
             mol_text = row.xpath('./div/div/object/param/@value').get()
             text = row.xpath('./div/div[contains(text(),"Purity")]/text()').getall()
             if not text:
@@ -932,3 +932,4 @@ class ClearsynthSpider(BaseSpider):
 # TODO http://anaxlab.com/
 # TODO https://vivanls.com/
 # TODO https://syntheselabor.de/
+# TODO http://srinidhiindsynth.com/fosfomycin/
