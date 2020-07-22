@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     volumes:
       - /www/prd_spider/logs:/app/logs
+      - /www/prd_spider/dbs:/app/dbs
+      - /www/prd_spider/eggs:/app/eggs
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
@@ -23,7 +25,9 @@ services:
       - HOST_SCRAPYD=scrapyd
       - PORT_SCRAPYD=6800
       - DATA_PATH=/app/data
+      - SCRAPY_PROJECTS_DIR=/app/data/projects
     volumes:
+      - /www/prd_spider/data/projects:/app/data/projects
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/data:/app/data
       - /etc/timezone:/etc/timezone:ro
@@ -39,3 +43,13 @@ services:
       - /www/prd_spider/logs:/app/logs
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+  portia:
+    image: scrapinghub/portia
+    hostname: portia
+    environment:
+      - SCRAPYD_URL=http://scrapyd:6800/
+    ports:
+      - 9001:9001
+      - 9002:9002
+    volumes:
+      - /www/prd_spider/data/projects:/app/data/projects:rw

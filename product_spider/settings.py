@@ -13,7 +13,7 @@ from os import getenv
 LOG_LEVEL = 'INFO'
 LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
-
+LOG_STDOUT = True
 SPIDER_MODULES = ['product_spider.spiders']
 NEWSPIDER_MODULE = 'product_spider.spiders'
 

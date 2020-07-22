@@ -280,7 +280,7 @@ class SimsonSpider(BaseSpider):
         img_url = response.xpath('//div[@class="product-img"]//img/@src').get()
         d = {
             "brand": "Simson",
-            "en_name": response.xpath('//h5[contains(@class, "pro-title")]/text()').get(),
+            "en_name": response.xpath('//h1[contains(@class, "pro-title")]/text()').get(),
             "prd_url": response.url,
             "info1": self.extract_value(response, "Chemical Name"),
             "cat_no": self.extract_value(response, "Cat. No."),
@@ -291,6 +291,9 @@ class SimsonSpider(BaseSpider):
             "info4": self.extract_value(response, "Category"),
             "stock_info": self.extract_value(response, "Product Stock Status"),
         }
+        # TODO should have a middleware to warn this
+        if d.get('en_name') is None or d.get('cat_no') is None:
+            self.logger.warn(f'Get data loss from {response.url!r}')
         yield RawData(**d)
 
 

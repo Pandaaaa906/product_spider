@@ -1,5 +1,6 @@
-scrapy
+scrapy==1.6
 scrapyd
+slybot
 logparser
 more_itertools
 git+https://github.com/Pandaaaa906/ScrapyAutoDb.git
