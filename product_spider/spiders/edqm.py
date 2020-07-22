@@ -16,15 +16,11 @@ class EDQMSpider(BaseSpider):
         for prd in prds:
             d = {
                 "brand": "EP",
-                "parent": None,
                 "cat_no": first(prd.xpath('./Order_Code/text()'), None),
-                "cas": first(prd.xpath('./CAS_Registry_Number/text()')),
-                "en_name": first(prd.xpath('./Reference_Standard/text()')),
-                "img_url": None,
-                "mf": None,
-                "mw": None,
-                "info2": first(prd.xpath('./Storage/text()')),
-                "prd_url": f"https://crs.edqm.eu/db/4DCGI/View={prd.xpath('./Order_Code/text()').get()}",
+                "cas": first(prd.xpath('./CAS_Registry_Number/text()'), None),
+                "en_name": first(prd.xpath('./Reference_Standard/text()'), None),
+                "info2": first(prd.xpath('./Storage/text()'), None),
+                "prd_url": f"https://crs.edqm.eu/db/4DCGI/View={first(prd.xpath('./Order_Code/text()'), '')}",
             }
             yield RawData(**d)
 
