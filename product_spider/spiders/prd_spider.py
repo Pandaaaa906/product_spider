@@ -927,12 +927,3 @@ class ClearsynthSpider(BaseSpider):
             "stock_info": strip(response.xpath(tmp2.format("Stock Status")).get()),
         }
         yield RawData(**d)
-
-
-# TODO https://www.carbosynth.com/
-# TODO https://www.alsachim.com/
-# TODO https://www.dawnscientific.com/
-# TODO http://anaxlab.com/
-# TODO https://vivanls.com/
-# TODO https://syntheselabor.de/
-# TODO http://srinidhiindsynth.com/fosfomycin/
