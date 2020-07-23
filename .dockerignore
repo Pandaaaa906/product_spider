@@ -1,6 +1,7 @@
 .git
 .idea
 .logs
-
+logs/
+dbs/
 *.bat
 *.log
