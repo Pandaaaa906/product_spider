@@ -1,0 +1,6 @@
+.git
+.idea
+.logs
+
+*.bat
+*.log
