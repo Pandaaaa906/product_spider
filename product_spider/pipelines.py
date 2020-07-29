@@ -12,6 +12,7 @@ class DropNullCatNoPipeline:
 
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
+        # Skip items dont have key `cat_no`
         if 'cat_no' not in adapter:
             return item
         cat_no = adapter.get('cat_no')
