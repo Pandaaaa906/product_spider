@@ -10,7 +10,7 @@
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 from os import getenv
 
-LOG_LEVEL = 'INFO'
+LOG_LEVEL = 'DEBUG'
 LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
 
@@ -85,6 +85,7 @@ CONCURRENT_REQUESTS_PER_IP = 16
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
+    'product_spider.pipelines.DropNullCatNoPipeline': 100,
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 
