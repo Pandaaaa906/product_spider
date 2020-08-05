@@ -10,8 +10,8 @@
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 from os import getenv
 
-LOG_LEVEL = 'DEBUG'
-LOG_FILE = 'scrapy.log'
+LOG_LEVEL = 'INFO'
+# LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
 
 SPIDER_MODULES = ['product_spider.spiders']

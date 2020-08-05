@@ -6,8 +6,8 @@
 # TODO https://www.carbosynth.com/
 # TODO https://www.alsachim.com/
 # TODO https://www.dawnscientific.com/
-# TODO http://anaxlab.com/
 # TODO https://vivanls.com/
 # TODO https://syntheselabor.de/
 # TODO http://srinidhiindsynth.com/fosfomycin/
 # TODO https://www.hemarsh.com/Products
+# TODO http://karpschem.in/products.php?show=C&page=1&catpage=1

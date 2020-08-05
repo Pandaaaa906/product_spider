@@ -3,7 +3,7 @@ version: "3"
 services:
   scrapyd:
     build: .
-    entrypoint: "scrapyd --pidfile=/run/scrapyd.pid"
+    entrypoint: "scrapyd --pidfile= "
     hostname: "scrapyd"
     restart: unless-stopped
     volumes:

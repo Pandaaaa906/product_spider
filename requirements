@@ -8,3 +8,4 @@ psycopg2
 six
 scrapydweb
 tzlocal
+itemadapter
