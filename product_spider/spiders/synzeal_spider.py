@@ -1,5 +1,6 @@
 import re
 from string import ascii_uppercase
+from urllib.parse import urljoin
 
 from scrapy import Request
 
@@ -14,36 +15,39 @@ class SynzealSpider(BaseSpider):
     start_urls = map(lambda x: f"https://www.synzeal.com/category/{x}", ascii_uppercase)
 
     def parse(self, response):
-        l_url = response.xpath("//h4[@class='title']/a/@href").extract()
-        for rel_url in l_url:
-            yield Request(self.base_url + rel_url, callback=self.list_parse, meta=response.meta, headers=self.headers)
+        a_nodes = response.xpath('//a[@class="clsMaincatdiv"]')
+        for a in a_nodes:
+            parent = a.xpath('./text()').get('').strip() or None
+            rel_url = a.xpath('./@href').get()
+            yield Request(urljoin(self.base_url, rel_url),
+                          meta = {'parent': parent},
+                          callback=self.list_parse,
+                          headers=self.headers)
 
     def list_parse(self, response):
-        urls = response.xpath('//div[@class="product-item"]//h2/a/@href').extract()
+        urls = response.xpath('//h4[@class="product_name"]/a/@href').extract()
         for rel_url in urls:
-            yield Request(self.base_url + rel_url, callback=self.detail_parse, meta=response.meta, headers=self.headers)
+            yield Request(urljoin(self.base_url, rel_url),
+                          callback=self.detail_parse,
+                          meta=response.meta,
+                          headers=self.headers)
 
     def detail_parse(self, response):
-        en_name = response.xpath('//h1[@class="titleproduct"]/text()').get(default="")
+        en_name = response.xpath('//h1[@class="product-detail-title"]/text()').get(default="")
         en_name = re.sub(r'\r?\n', "", en_name)
+        tmp = '//td[contains(text(),{!r})]/following-sibling::td/text()'
         d = {
             'brand': "SynZeal",
             'en_name': en_name.strip(),
             'prd_url': response.request.url,  # 产品详细连接
-            'cat_no': response.xpath('//span[contains(@id,"sku")]/text()').get(default=""),
-            'cas': response.xpath('//span[contains(@id,"mpn")]/text()').get(default=""),
-            'stock_info': response.xpath('//span[contains(@id,"ProductInstockStatus")]/text()').get(
-                default=""),
-            'mf': response.xpath(
-                '//span[contains(text(),"Molecular Formula")]/following-sibling::span/text()').get(
-                default=""),
-            'mw': response.xpath(
-                '//span[contains(text(),"Molecular Weight")]/following-sibling::span/text()').get(default=""),
-            'info1': response.xpath('//b[contains(text(),"Synonyms")]/following-sibling::span/text()').get(
-                default="").strip(),
-            'parent': response.xpath('//div[contains(@class, "cath1title")]/h1/text()').get(default=""),
-            'img_url': response.xpath(
-                '//div[@class="maindiv-productdetails"]//div[@class="picture"]//img/@src').get(),
+            'cat_no': response.xpath(tmp.format('SZ CAT No')).get(),
+            'cas': response.xpath(tmp.format('CAS No')).get(default=""),
+            'stock_info': response.xpath(tmp.format('Inv. Status')).get(),
+            'mf': response.xpath(tmp.format('Mol.F.')).get(),
+            'mw': response.xpath(tmp.format('Mol.Wt.')).get(),
+            'info1': response.xpath('//b[text()="Synonym: "]/../text()').get(default="").strip(),
+            'parent': response.meta.get('parent'),
+            'img_url': response.xpath('//div[@class="product-details-tab"]//img/@src').get(),
         }
         yield RawData(**d)
 
