@@ -20,7 +20,7 @@ class SynzealSpider(BaseSpider):
             parent = a.xpath('./text()').get('').strip() or None
             rel_url = a.xpath('./@href').get()
             yield Request(urljoin(self.base_url, rel_url),
-                          meta = {'parent': parent},
+                          meta={'parent': parent},
                           callback=self.list_parse,
                           headers=self.headers)
 
