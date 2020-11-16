@@ -33,6 +33,8 @@ class BPSpider(BaseSpider):
             'en_name': ''.join(response.xpath('//header/h1//text()').getall()),
             "cas": response.xpath(tmp.format('CAS Number:')).get(),
             "info2": response.xpath(tmp.format('Long-Term Storage')).get(),
+            "info3": response.xpath(tmp.format('Pack Size:')).get(),
+            "info4": response.xpath(tmp.format('Price:')).get(),
             "stock_info": response.xpath(tmp.format('Availability:')).get(),
             "prd_url": response.url,
         }
