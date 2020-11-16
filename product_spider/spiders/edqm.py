@@ -20,6 +20,8 @@ class EDQMSpider(BaseSpider):
                 "cas": first(prd.xpath('./CAS_Registry_Number/text()'), None),
                 "en_name": first(prd.xpath('./Reference_Standard/text()'), None),
                 "info2": first(prd.xpath('./Storage/text()'), None),
+                "info3": first(prd.xpath('./Quantity_per_vial/text()'), None),
+                "info4": first(prd.xpath('./Price/text()'), None),
                 "prd_url": f"https://crs.edqm.eu/db/4DCGI/View={first(prd.xpath('./Order_Code/text()'), '')}",
             }
             yield RawData(**d)
