@@ -1,6 +1,6 @@
 import json
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 
 from scrapy import Request
 
@@ -14,8 +14,13 @@ class ChemImpexSpider(BaseSpider):
     base_url = "https://www.chemimpex.com/"
     start_urls = ['https://www.chemimpex.com/products/catalog', ]
 
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 4,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
+    }
+
     def parse(self, response):
-        a_nodes = response.xpath('//div[@class="categoryname"]/a')
+        a_nodes = response.xpath('//div[@class="count-box"]/a[translate(normalize-space(text())," ","")!="0"]')
         for a in a_nodes:
             cat_url = strip(a.xpath('./@href').get())
             if not cat_url:
@@ -29,11 +34,17 @@ class ChemImpexSpider(BaseSpider):
                           meta={'parent': response.meta.get('parent')}
                           )
 
-        next_page = response.xpath(
-            '//span[@class="selectedpage"]/../following-sibling::li/a[not(parent::li/span)]/@href'
-        ).get()
+        next_page = strip(response.xpath(
+            '//span[@class="selectedpage"]/../following-sibling::li/a[not(parent::li/span)]/text()'
+        ).get())
         if next_page:
-            yield Request(urljoin(self.base_url))
+            url, *_ = response.url.split('?')
+            params = urlencode({
+                'custguid': '',
+                'custclsid': '',
+                'pn': next_page,
+            })
+            yield Request(f'{url}?{params}', callback=self.parse, meta={'parent': response.meta.get('parent')})
 
     def parse_detail(self, response):
         tmp = '//span[contains(text(), {!r})]/following-sibling::span//text()'
@@ -55,6 +66,7 @@ class ChemImpexSpider(BaseSpider):
         m = re.search(r'push\(({.+\})\);', response.text)
         if not m:
             yield RawData(**d)
+            return
         j_obj = json.loads(m.group(1))
         params = [j_obj.get(f'param{i}', '') for i in range(1, 7)]
         url = 'https://www.chemimpex.com/Widgets-product/gethtml_skulist/{}/{}/{}/{}/{}/{}'.format(*params)
@@ -67,4 +79,3 @@ class ChemImpexSpider(BaseSpider):
             'stock_info': strip(response.xpath('//span[contains(@class, "stockstatus")]/text()').get()),
         }
         yield RawData(**response.meta.get('prd_info', {}), **d)
-
