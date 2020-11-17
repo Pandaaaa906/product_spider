@@ -144,6 +144,7 @@ class RawData(scrapy.OrderedItem):
     mw = scrapy.Field()
     stock_info = scrapy.Field()
     purity = scrapy.Field()
+    appearance = scrapy.Field()
     img_url = scrapy.Field()
     info1 = scrapy.Field()
     info2 = scrapy.Field()

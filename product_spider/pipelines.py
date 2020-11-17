@@ -7,6 +7,8 @@
 from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
 
+from product_spider.utils.functions import strip
+
 
 class DropNullCatNoPipeline:
 
@@ -20,3 +22,12 @@ class DropNullCatNoPipeline:
             raise DropItem("Missing cat_no in %s" % item)
         adapter['cat_no'] = str.strip(adapter['cat_no'])
         return item
+
+
+class StripPipeline:
+
+    def process_item(self, item, spider):
+        adapter = ItemAdapter(item)
+        for key, value in adapter.items():
+            adapter[key] = strip(value)
+        return adapter.item
