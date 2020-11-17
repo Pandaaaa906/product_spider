@@ -7,6 +7,8 @@ from product_spider.items import RawData
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
+t = str.maketrans('', '', '[]')
+
 
 class SyninnovaSpider(BaseSpider):
     name = "syninnova"
@@ -62,11 +64,13 @@ class SyninnovaSpider(BaseSpider):
             '//div[not(@style)]/table[@class="table table-condensed"]/tbody/tr[position()=1 and position()!=last()]'
         )
         price = row.xpath('./td[2]/text()').get()
+        cas = strip(response.xpath('//b[contains(text(), "CAS")]/../following-sibling::div/text()').get())
         d = {
             'brand': 'Syninnova',
             'parent': response.meta.get('category'),
             'cat_no': response.xpath('//div[contains(@class, "productinfo")]/h2[1]/text()').get(),
             'en_name': response.xpath('//div[contains(@class, "productinfo")]/h2[2]/text()').get(),
+            'cas': cas and cas.translate(t),
             'mf': mf,
             'mw': strip(response.xpath('//label[text()="Mol. Weight : "]/following-sibling::text()').get()),
             'appearance': strip(response.xpath('//label[text()="Appearance : "]/following-sibling::text()').get()),
