@@ -31,7 +31,7 @@ class DaicelSpider(BaseSpider):
             "img_url": img_rel_url and urljoin(self.base_url, img_rel_url),
             "info1": strip(response.xpath(tmp.format('IUPAC Name :')).get()),
             "info2": strip(response.xpath(tmp.format('Storage Condition :')).get()),
-            "info4": strip(response.xpath(tmp.format('Appearance :')).get()),
+            "appearance": strip(response.xpath(tmp.format('Appearance :')).get()),
             "prd_url": response.request.url,
             "stock_info": strip(response.xpath(tmp.format('Stock Status :')).get()),
         }

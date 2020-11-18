@@ -7,7 +7,7 @@ from product_spider.items import RawData
 from product_spider.utils.spider_mixin import BaseSpider
 
 
-def strip(s):
+def cus_strip(s):
     if s is None:
         return
     return s.strip(':').strip()
@@ -38,12 +38,12 @@ class AnaxlabSpider(BaseSpider):
             'brand': "Anaxlab",
             'en_name': response.xpath('//h1[@class="title"]/text()').get(),
             'prd_url': response.request.url,  # 产品详细连接
-            'cat_no': strip(response.xpath(tmp_cat_no).get()),
-            'cas': strip(response.xpath(tmp.format('CAS Number')).get()),
-            'mf': strip(response.xpath(tmp.format('Molecular Formula')).get()),
-            'mw': strip(response.xpath(tmp.format('Molecular Weight')).get()),
+            'cat_no': cus_strip(response.xpath(tmp_cat_no).get()),
+            'cas': cus_strip(response.xpath(tmp.format('CAS Number')).get()),
+            'mf': cus_strip(response.xpath(tmp.format('Molecular Formula')).get()),
+            'mw': cus_strip(response.xpath(tmp.format('Molecular Weight')).get()),
             'smiles': response.xpath('//li[contains(text(), "Smile Code")]/following-sibling::li[1]/text()').get(),
-            'info1': strip(response.xpath(tmp.format('Synonyms')).get()),
+            'info1': cus_strip(response.xpath(tmp.format('Synonyms')).get()),
             'parent': response.meta.get('parent'),
             'img_url': rel_img and urljoin(self.base_url, rel_img),
         }

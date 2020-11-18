@@ -36,7 +36,6 @@ class AnantSpider(BaseSpider):
         div = response.xpath('//div[contains(@class,"heading")]')
         tmp_xpath = './h6[contains(text(),"{0}")]/parent::*/following-sibling::*/h5/descendant-or-self::*/text()'
         tmp_xpath_2 = './h6[contains(text(),"{0}")]/parent::*/following-sibling::*/h5/text()'
-        # TODO untested
         mf = ''.join(div.xpath(tmp_xpath.format("Molecular Formula")).extract()).strip()
         d = {
             'brand': "Anant",

@@ -56,6 +56,5 @@ class MolcanPrdSpider(BaseSpider):
             'parent': response.meta.get('api_name'),
         }
         yield RawData(**d)
-        # TODO Finish the spider
 
 
