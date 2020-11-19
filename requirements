@@ -9,3 +9,4 @@ six
 scrapydweb
 tzlocal
 itemadapter
+requests_html

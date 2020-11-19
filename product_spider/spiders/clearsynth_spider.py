@@ -55,7 +55,7 @@ class ClearsynthSpider(BaseSpider):
             "cas": response.xpath(tmp.format("CAS")).get(),
             "mf": formular_trans(strip("".join(
                 response.xpath("//td[contains(text(),'Mol. Formula')]/following-sibling::td//text()").extract()))),
-            # TODO
+
             "mw": response.xpath(tmp.format("Mol. Weight")).get(),
             "img_url": img_rel_url and urljoin(response.request.url, img_rel_url),
             "info1": strip(response.xpath(tmp2.format('Synonyms')).get()),
