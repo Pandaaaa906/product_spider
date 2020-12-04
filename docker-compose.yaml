@@ -46,6 +46,7 @@ services:
   portia:
     image: scrapinghub/portia
     hostname: portia
+    restart: unless-stopped
     environment:
       - SCRAPYD_URL=http://scrapyd:6800/
     ports:

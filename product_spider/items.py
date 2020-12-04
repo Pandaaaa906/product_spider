@@ -152,6 +152,8 @@ class RawData(scrapy.OrderedItem):
     info4 = scrapy.Field()
     mol_text = scrapy.Field()
     prd_url = scrapy.Field()
+    expiry_date = scrapy.Field()
+    stock_num = scrapy.Field()
 
     class Meta:
         indexes = (

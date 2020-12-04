@@ -1,6 +1,9 @@
+import re
+
 from scrapy import Request
 
 from product_spider.items import RawData
+from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -27,10 +30,18 @@ class SrinidhiindSynthSpider(BaseSpider):
             tmp = short_desc.split(';')
             tmp = map(str.strip, tmp)
             tmp = tuple(filter(bool, tmp))
+            m_cas = re.search(r'\d+-\d{2}-\d', short_desc)
+            m_mw = re.search(r'Mol\. Wt\.: ([^;]+);', short_desc)
+            m_mf = re.search(r'CAS : [^;]+; ([^;]+)', short_desc)
             d = {
                 'brand': 'SrinidhiindSynth',
+                'parent': response.meta.get('parent'),
                 'cat_no': en_name,
                 'en_name': en_name,
-                'img_url': table.xpath('.//img/@src'),
+                'cas': m_cas and m_cas.group(),
+                'mf': m_mf and strip(m_mf.group(1)),
+                'mw': m_mw and strip(m_mw.group(1)),
+                'img_url': table.xpath('.//img/@src').get(),
+                'prd_url': response.url,
             }
             # yield RawData(**d)
