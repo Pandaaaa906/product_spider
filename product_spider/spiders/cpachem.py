@@ -13,13 +13,18 @@ class CPAChemSpider(BaseSpider):
     base_url = "https://www.cpachem.com/"
 
     def parse(self, response):
+        rel_urls = response.xpath('//ul[@id="cat0"]/li/a/@href').getall()
+        for rel_url in rel_urls:
+            yield Request(urljoin(self.base_url, rel_url), callback=self.parse_list)
+
+    def parse_list(self, response):
         rel_urls = response.xpath('//div[@class="row shop_products"]/div[2]/a/@href').getall()
         for rel_url in rel_urls:
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_detail)
 
         next_page = response.xpath('//li[@class="active current"]/following-sibling::li[not(@class)]/a/@href').get()
         if next_page:
-            yield Request(urljoin(self.base_url, next_page), callback=self.parse)
+            yield Request(urljoin(self.base_url, next_page), callback=self.parse_list)
 
     def parse_detail(self, response):
         tmp = '//b[text()={!r}]/following-sibling::text()'
