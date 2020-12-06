@@ -1,5 +1,8 @@
+import json
+import re
 from urllib.parse import urljoin
 
+from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData
@@ -33,12 +36,36 @@ class HongmengSpider(BaseSpider):
         d = {
             'brand': '海岸鸿蒙',
             'parent': response.meta.get('parent'),
-            'cat_no': strip(response.xpath('//table//tr[2]/td[2]//text()').get()),
-            'purity': strip(response.xpath('//table//tr[2]/td[3]//text()').get()),
+            'cat_no': strip(response.xpath('//span[contains(@class, "kj_customno")]/text()').get()),
             'chs_name': strip(response.xpath('//h4[@class="c red1"]/text()').get()),
-            'info3': strip(response.xpath('//table//tr[2]/td[4]//text()').get()),
-            'info4': strip(response.xpath('//table//tr[2]/td[5]//text()').get()),
-            'stock_info': strip(response.xpath('//table//tr[2]/td[7]//text()').get()),
             'prd_url': response.url,
         }
+        pd_id = response.xpath('//input[@id="nowproductid"]/@value').get()
+        if not pd_id:
+            return
+        yield Request(
+            'http://www.bjhongmeng.com/ajaxpro/Web960.Web.index,Web960.Web.ashx',
+            method='POST',
+            body=json.dumps({'pd_id': pd_id,}),
+            headers={'X-AjaxPro-Method': 'LoadGoods', },
+            callback=self.parse_price,
+            meta={'product': d}
+        )
+
+    def parse_price(self, response):
+        t = first(re.findall(r'({.+});', response.text))
+        if not t:
+            return
+        obj = json.loads(t)
+        obj = json.loads(obj.get('ObjResult'))
+        (_, (prd, *_)), *_ = obj.items()
+        prd, *_ = prd.get('Inventores', [])
+
+        (_, goods_info), *_ = json.loads(prd.get('Goods_Info', '{}')).items()
+
+        d = response.meta.get('product', {})
+        d['info3'] = goods_info.get('packaging')
+        d['purity'] = goods_info.get('purity')
+        d['info3'] = f"{prd.get('Conv', '')} {prd.get('Measure', '')}"
+        d['info3'] = f"{prd.get('MoneyUnit', '')} {prd.get('Price', '')}"
         yield RawData(**d)
