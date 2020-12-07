@@ -24,79 +24,6 @@ class JkItem(scrapy.OrderedItem):
         )
 
 
-class AccPrdItem(scrapy.OrderedItem):
-    cat_no = scrapy.Field()
-    catalog = scrapy.Field()
-    name = scrapy.Field()
-    unit = scrapy.Field()
-    price = scrapy.Field()
-    description = scrapy.Field()
-    stock_info = scrapy.Field()
-    prd_url = scrapy.Field()
-
-    class Meta:
-        indexes = (
-            (("cat_no",), True),
-        )
-
-
-class AccPrdDetail(scrapy.OrderedItem):
-    cat_no = scrapy.Field()
-    n_components = scrapy.Field()
-    unit = scrapy.Field()
-    price = scrapy.Field()
-    storage = scrapy.Field()
-    l_components = scrapy.Field()
-    cas = scrapy.Field()
-    mp = scrapy.Field()
-    bp = scrapy.Field()
-    fp = scrapy.Field()
-    ghs = scrapy.Field()
-    un_num = scrapy.Field()
-    pk_group = scrapy.Field()
-
-    class Meta:
-        indexes = (
-            (("cat_no",), True),
-        )
-
-
-class ChemServItem(scrapy.OrderedItem):
-    cat_no = scrapy.Field()
-    name = scrapy.Field()
-    synonyms = scrapy.Field()
-    unit = scrapy.Field()
-    cas = scrapy.Field()
-    price = scrapy.Field()
-    stock_available = scrapy.Field()
-    catalog = scrapy.Field()
-    shipment = scrapy.Field()
-    concn = scrapy.Field()
-    solvent = scrapy.Field()
-    current_lot = scrapy.Field()
-    url = scrapy.Field()
-
-    class Meta:
-        indexes = (
-            (("cat_no",), True),
-        )
-
-
-class CDNPrdItem(scrapy.OrderedItem):
-    cat_no = scrapy.Field()
-    name = scrapy.Field()
-    unit = scrapy.Field()
-    cas = scrapy.Field()
-    purity = scrapy.Field()
-    price = scrapy.Field()
-    stock = scrapy.Field()
-
-    class Meta:
-        indexes = (
-            (('cat_no', 'unit'), True),
-        )
-
-
 class BestownPrdItem(scrapy.OrderedItem):
     chs_name = scrapy.Field()
     en_name = scrapy.Field()
@@ -253,4 +180,25 @@ class HbErmItem(scrapy.OrderedItem):
     class Meta:
         indexes = (
             (('cat_no', 'batch'), True),
+        )
+
+
+class HongmengItem(scrapy.OrderedItem):
+    brand = scrapy.Field()
+    sub_brand = scrapy.Field()
+    parent = scrapy.Field()
+    cat_no = scrapy.Field()
+    sub_cat_no = scrapy.Field()
+    cn_name = scrapy.Field()
+    purity = scrapy.Field()
+    cas = scrapy.Field()
+    package = scrapy.Field()
+    price = scrapy.Field()
+    amount = scrapy.Field()
+    place_code = scrapy.Field()
+    prd_url = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('brand', 'sub_brand', 'cat_no', 'sub_cat_no', 'place_code'), True),
         )

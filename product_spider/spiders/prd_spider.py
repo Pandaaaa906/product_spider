@@ -13,7 +13,7 @@ from more_itertools import first
 from product_spider.items import JkItem, BestownPrdItem, RawData
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formular_trans
-from product_spider.utils.spider_mixin import BaseSpider, JsonSpider
+from product_spider.utils.spider_mixin import BaseSpider
 
 
 class JkPrdSpider(scrapy.Spider):

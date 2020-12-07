@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 from more_itertools import first
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import HongmengItem
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -37,7 +37,8 @@ class HongmengSpider(BaseSpider):
             'brand': '海岸鸿蒙',
             'parent': response.meta.get('parent'),
             'cat_no': strip(response.xpath('//span[contains(@class, "kj_customno")]/text()').get()),
-            'chs_name': strip(response.xpath('//h4[@class="c red1"]/text()').get()),
+            'cas': strip(response.xpath('//p/text()[contains(self::text(), "CAS")]/following-sibling::span/text()').get()),
+            'cn_name': strip(response.xpath('//h4[@class="c red1"]/text()').get()),
             'prd_url': response.url,
         }
         pd_id = response.xpath('//input[@id="nowproductid"]/@value').get()
@@ -46,7 +47,7 @@ class HongmengSpider(BaseSpider):
         yield Request(
             'http://www.bjhongmeng.com/ajaxpro/Web960.Web.index,Web960.Web.ashx',
             method='POST',
-            body=json.dumps({'pd_id': pd_id,}),
+            body=json.dumps({'pd_id': pd_id, }),
             headers={'X-AjaxPro-Method': 'LoadGoods', },
             callback=self.parse_price,
             meta={'product': d}
@@ -58,14 +59,26 @@ class HongmengSpider(BaseSpider):
             return
         obj = json.loads(t)
         obj = json.loads(obj.get('ObjResult'))
-        (_, (prd, *_)), *_ = obj.items()
-        prd, *_ = prd.get('Inventores', [])
-
-        (_, goods_info), *_ = json.loads(prd.get('Goods_Info', '{}')).items()
-
         d = response.meta.get('product', {})
-        d['info3'] = goods_info.get('packaging')
-        d['purity'] = goods_info.get('purity')
-        d['info3'] = f"{prd.get('Conv', '')} {prd.get('Measure', '')}"
-        d['info3'] = f"{prd.get('MoneyUnit', '')} {prd.get('Price', '')}"
-        yield RawData(**d)
+
+        if not obj.items():
+            yield HongmengItem(**d)
+            return
+
+        _, prds = zip(*obj.items())
+        for prd in prds:
+            prd = first(prd)
+            for inventory in prd.get('Inventores', []):
+                goods_info = json.loads(inventory.get('Goods_Info', '{}')).get('goodsinfo', {})
+
+                d_prd = {
+                    'sub_cat_no': inventory.get('Goods_no'),
+                    'place_code': inventory.get('Placecode'),
+                    'amount': inventory.get('Amount'),
+                    'package': goods_info.get('packaging'),
+                    'sub_brand': goods_info.get('brand'),
+                    'purity': goods_info.get('purity'),
+                    'price': f"{inventory.get('MoneyUnit')} {inventory.get('Price')}"
+                }
+                d_prd.update(d)
+                yield HongmengItem(**d_prd)
