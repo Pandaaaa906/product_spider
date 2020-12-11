@@ -30,8 +30,8 @@ class STDSpider(BaseSpider):
                 "cas": node.xpath(tmp.format("CAS No.")).get("").replace("CAS No.", "").strip(),
                 "en_name": node.xpath('./h3//p/text()').get(),
                 "img_url": urljoin(self.base_url, node.xpath('./span/img/@src').get()),
-                "mf": response.xpath(tmp.format("Chemical Formula")).get("").replace("Chemical Formula :", "").strip(),
-                "prd_url": urljoin(self.base_url, response.xpath('./a/@href').get('')),
+                "mf": node.xpath(tmp.format("Chemical Formula")).get("").replace("Chemical Formula :", "").strip(),
+                "prd_url": urljoin(self.base_url, node.xpath('./a/@href').get('')),
             }
             yield RawData(**d)
 
