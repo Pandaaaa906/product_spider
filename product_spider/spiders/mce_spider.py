@@ -3,6 +3,8 @@ from urllib.parse import urljoin
 from scrapy import Request
 
 from product_spider.items import RawData
+from product_spider.utils.functions import strip
+from product_spider.utils.maketrans import formular_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -25,7 +27,7 @@ class MCESpider(BaseSpider):
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_list, meta={'parent': parent})
 
     def parse_list(self, response):
-        rel_urls = response.xpath('//th/a/@href').getall()
+        rel_urls = response.xpath('//th[@class="t_pro_list_name"]/a/@href').getall()
         parent = response.meta.get('parent')
         for rel_url in rel_urls:
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_detail, meta={'parent': parent})
@@ -35,22 +37,22 @@ class MCESpider(BaseSpider):
             yield Request(urljoin(self.base_url, next_page), callback=self.parse_list, meta={'parent': parent})
 
     def parse_detail(self, response):
-        tmp = '//th[contains(text(), {!r})]/following-sibling::td//text()'
+        tmp = '//th[contains(text(), {!r})]/following-sibling::td//p/text()'
         package = '//td[@class="pro_price_1" and contains(text(), "mg") and not(./b)]'
         rel_img = response.xpath('//div[@class="struct-img-wrapper"]/img/@src').get()
         d = {
             'brand': 'MCE',
             'parent': response.meta.get('parent'),
-            'cat_no': response.xpath('').get(),
+            'cat_no': response.xpath('//dt/span/text()').get('').replace('Cat. No.: ', ''),
             'en_name': response.xpath('//h1/strong/text()').get(),
 
-            'cas': ''.join(response.xpath(tmp.format("CAS No.")).getall()),
-            'mf': ''.join(response.xpath(tmp.format("Formula")).getall()),
-            'mw': ''.join(response.xpath(tmp.format("Molecular Weight")).getall()),
-            'smiles': ''.join(response.xpath(tmp.format("SMILES")).getall()),
+            'cas': strip(response.xpath(tmp.format("CAS No.")).get()),
+            'mf': formular_trans(strip(response.xpath(tmp.format("Formula")).get())),
+            'mw': strip(response.xpath(tmp.format("Molecular Weight")).get()),
+            'smiles': strip(response.xpath(tmp.format("SMILES")).get()),
 
-            'info3': response.xpath(f'{package}/text()').get(),
-            'info4': response.xpath(f'{package}/following-sibling::td[1]/text()').get(),
+            'info3': strip(response.xpath(f'{package}/text()').get()),
+            'info4': strip(response.xpath(f'{package}/following-sibling::td[1]/text()').get()),
 
             'img_url': rel_img and urljoin(response.url, rel_img),
             'prd_url': response.url,
