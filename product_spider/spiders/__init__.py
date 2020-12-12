@@ -8,4 +8,3 @@
 # TODO https://www.dawnscientific.com/
 # TODO https://syntheselabor.de/
 # TODO https://www.hemarsh.com/Products
-# TODO http://karpschem.in/products.php?show=C&page=1&catpage=1
