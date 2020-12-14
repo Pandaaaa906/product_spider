@@ -7,6 +7,7 @@ from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
+# TODO Not working
 class CarbonsynthSpider(BaseSpider):
     name = "carbonsynth"
     base_url = "https://www.carbosynth.com/"
