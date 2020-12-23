@@ -88,7 +88,7 @@ class RawData(scrapy.OrderedItem):
         )
 
 
-class ProductUnitItem(scrapy.OrderedItem):
+class ProductPackageItem(scrapy.OrderedItem):
     brand = scrapy.Field()
     cat_no = scrapy.Field()
     cat_no_unit = scrapy.Field()
