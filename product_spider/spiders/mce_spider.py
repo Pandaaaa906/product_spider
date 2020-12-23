@@ -32,12 +32,12 @@ class MCESpider(BaseSpider):
         for rel_url in rel_urls:
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_detail, meta={'parent': parent})
 
-        next_page = response.xpath('//li[@class="ui-pager focus"]/following-sibling::li/a/@href').get()
+        next_page = response.xpath('//link[@rel="next"]/@href').get()
         if next_page:
             yield Request(urljoin(self.base_url, next_page), callback=self.parse_list, meta={'parent': parent})
 
     def parse_detail(self, response):
-        tmp = '//th[contains(text(), {!r})]/following-sibling::td//p/text()'
+        tmp = '//th[contains(text(), {!r})]/following-sibling::td//p//text()'
         package = '//td[@class="pro_price_1" and contains(text(), "mg") and not(./b)]'
         rel_img = response.xpath('//div[@class="struct-img-wrapper"]/img/@src').get()
         d = {
@@ -49,7 +49,7 @@ class MCESpider(BaseSpider):
             'cas': strip(response.xpath(tmp.format("CAS No.")).get()),
             'mf': formular_trans(strip(response.xpath(tmp.format("Formula")).get())),
             'mw': strip(response.xpath(tmp.format("Molecular Weight")).get()),
-            'smiles': strip(response.xpath(tmp.format("SMILES")).get()),
+            'smiles': strip(''.join(response.xpath(tmp.format("SMILES")).getall())),
 
             'info3': strip(response.xpath(f'{package}/text()').get()),
             'info4': strip(response.xpath(f'{package}/following-sibling::td[1]/text()').get()),
