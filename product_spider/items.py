@@ -89,11 +89,18 @@ class RawData(scrapy.OrderedItem):
 
 
 class ProductUnitItem(scrapy.OrderedItem):
+    brand = scrapy.Field()
     cat_no = scrapy.Field()
     cat_no_unit = scrapy.Field()
-    unit = scrapy.Field()
+    package = scrapy.Field()
     price = scrapy.Field()
     currency = scrapy.Field()
+    delivery_time = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('brand', 'cat_no', 'package'), True),
+        )
 
 
 class TanmoItem(scrapy.OrderedItem):
