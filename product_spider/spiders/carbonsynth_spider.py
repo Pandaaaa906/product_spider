@@ -7,7 +7,7 @@ from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
-# TODO Not working
+# TODO Not working, js dynamic set cookies
 class CarbonsynthSpider(BaseSpider):
     name = "carbonsynth"
     base_url = "https://www.carbosynth.com/"
