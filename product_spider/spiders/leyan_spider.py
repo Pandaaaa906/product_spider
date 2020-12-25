@@ -36,10 +36,10 @@ class LeyanSpider(BaseSpider):
         rel_img = response.xpath('//input[@id="image"]/@value').get()
         d = {
             'brand': self.brand,
+            'parent': '_'.join(response.xpath('//li[@class="active"]/following-sibling::li/a/text()').getall()),
             'cat_no': cat_no,
             'en_name': response.xpath('//h2/span/text()').get(),
             'purity': response.xpath('//span[@class="d-purity"]/text()').get(),
-
             'cas': response.xpath(tmp.format("CAS 号")).get(),
             'mf': response.xpath(tmp.format("分子式")).get(),
             'mw': response.xpath(tmp.format("分子量")).get(),
