@@ -81,6 +81,8 @@ class RawData(scrapy.OrderedItem):
     prd_url = scrapy.Field()
     expiry_date = scrapy.Field()
     stock_num = scrapy.Field()
+    mdl = scrapy.Field()
+    einecs = scrapy.Field()
 
     class Meta:
         indexes = (
@@ -88,7 +90,7 @@ class RawData(scrapy.OrderedItem):
         )
 
 
-class ProductPackageItem(scrapy.OrderedItem):
+class ProductPackage(scrapy.OrderedItem):
     brand = scrapy.Field()
     cat_no = scrapy.Field()
     cat_no_unit = scrapy.Field()
@@ -96,6 +98,7 @@ class ProductPackageItem(scrapy.OrderedItem):
     price = scrapy.Field()
     currency = scrapy.Field()
     delivery_time = scrapy.Field()
+    stock_num = scrapy.Field()
 
     class Meta:
         indexes = (
