@@ -7,7 +7,6 @@ from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
-# TODO not working, get 403 easily
 class TCISpider(BaseSpider):
     name = "tci"
     base_url = "https://www.tcichemicals.com"
