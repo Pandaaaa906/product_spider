@@ -2,7 +2,7 @@
 def strip(string: str, default=None):
     if string is None:
         return default
-    return string.strip()
+    return string.strip() or None
 
 
 def first(l: list, default=None):
