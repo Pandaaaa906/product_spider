@@ -44,7 +44,8 @@ class USPSpider(BaseSpider):
         price = None
         if raw_price:
             raw_price = re.sub(r'\s+', ' ', raw_price)
-            price = first(re.findall(r'(\d+(\.\d+)?)', raw_price), None)
+            price = first(map(lambda m: m.group(0) if m is not None else None,
+                              re.finditer(r'(\d+(\.\d+)?)', raw_price)), None)
         dd = {
             'brand': self.brand,
             'cat_no': cat_no,
