@@ -1,13 +1,16 @@
+import re
 from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage
+from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class USPSpider(BaseSpider):
     name = "usp"
+    brand = 'USP'
     start_urls = ["https://store.usp.org/OA_HTML/ibeCCtpSctDspRte.jsp?section=10042", ]
     base_url = "https://store.usp.org/"
 
@@ -23,12 +26,26 @@ class USPSpider(BaseSpider):
 
     def parse_detail(self, response):
         tmp = '//td[contains(text(), {!r})]/following-sibling::td/text()'
+        cat_no = response.xpath(tmp.format('Catalog #')).get()
         d = {
-            'brand': 'USP',
-            'cat_no': response.xpath(tmp.format('Catalog #')).get(),
+            'brand': self.brand,
+            'cat_no': cat_no,
             'en_name': response.xpath('//td[@class="pageTitle"]/text()').get(),
             'cas': response.xpath(tmp.format('CAS#')).get(),
             'stock_info': response.xpath(tmp.format('In Stock')).get(),
             'prd_url': response.url,
         }
         yield RawData(**d)
+
+        raw_price = strip(response.xpath(
+            'normalize-space(//td[contains(text(), "Retail Price:")]/following-sibling::td/text())'
+        ).get())
+        price = re.sub(r'\s+', ' ', raw_price) if raw_price else raw_price
+        dd = {
+            'brand': self.brand,
+            'cat_no': cat_no,
+            'price': price,
+            'currency': 'USD',
+            'delivery_time': response.xpath(tmp.format('In Stock')).get(),
+        }
+        yield ProductPackage(**dd)
