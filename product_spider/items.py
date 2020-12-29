@@ -99,6 +99,7 @@ class ProductPackage(scrapy.OrderedItem):
     currency = scrapy.Field()
     delivery_time = scrapy.Field()
     stock_num = scrapy.Field()
+    info = scrapy.Field()
 
     class Meta:
         indexes = (
