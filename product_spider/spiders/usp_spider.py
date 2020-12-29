@@ -1,6 +1,7 @@
 import re
 from urllib.parse import urljoin
 
+from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
@@ -40,12 +41,16 @@ class USPSpider(BaseSpider):
         raw_price = strip(response.xpath(
             'normalize-space(//td[contains(text(), "Retail Price:")]/following-sibling::td/text())'
         ).get())
-        price = re.sub(r'\s+', ' ', raw_price) if raw_price else raw_price
+        price = None
+        if raw_price:
+            raw_price = re.sub(r'\s+', ' ', raw_price)
+            price = first(re.findall(r'(\d+(\.\d+)?)', raw_price), None)
         dd = {
             'brand': self.brand,
             'cat_no': cat_no,
             'price': price,
             'currency': 'USD',
+            'info': raw_price,
             'delivery_time': response.xpath(tmp.format('In Stock')).get(),
         }
         yield ProductPackage(**dd)
