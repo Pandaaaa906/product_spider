@@ -65,6 +65,7 @@ class TCISpider(BaseSpider):
                 'package': row.xpath('./td[1]/text()').get(),
                 'price': strip(row.xpath('./td[2]/div/text()').get()),
                 'stock_num': strip(row.xpath('./td[3]/text()').get()),
+                'currency': 'RMB',
             }
             ProductPackage(**package)
 

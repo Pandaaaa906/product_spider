@@ -55,5 +55,6 @@ class WakoSpider(BaseSpider):
             brand=self.brand,
             cat_no=cat_no,
             package=package,
-            price=price
+            price=price,
+            currency='RMB',
         )

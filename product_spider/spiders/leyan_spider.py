@@ -59,6 +59,7 @@ class LeyanSpider(BaseSpider):
                 'cat_no': cat_no,
                 'package': row.xpath('./td[@id="packing"]/text()').get(),
                 'price': row.xpath('./td[@id="money"]/text()').get(),
+                'currency': 'RMB',
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
             yield ProductPackage(**package)

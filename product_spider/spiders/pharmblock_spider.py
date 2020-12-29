@@ -94,5 +94,6 @@ class PharmBlockSpider(BaseSpider):
                 'package': row.xpath('./td[1]/text()').get(),
                 'price': strip(row.xpath('./td[2]/text()').get()),
                 'stock_num': row.xpath('./td[5]/text()').get(),
+                'currency': 'RMB',
             }
             yield ProductPackage(**package)

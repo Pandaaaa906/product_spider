@@ -65,6 +65,7 @@ class ShaoyuanSpider(BaseSpider):
                 'cat_no': cat_no,
                 'package': tr.xpath('./td[4]/text()').get(),
                 'price': tr.xpath('./td[5]/text()').get(),
+                'currency': 'RMB',
                 'delivery_time': tr.xpath('./td[8]/text()').get(),
             }
             if d_package['package'] == 'bulk':

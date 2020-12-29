@@ -67,5 +67,6 @@ class MacklinSpider(BaseSpider):
                 'package': package,
                 'cat_no_unit': cat_no_unit,
                 'price': strip(row.xpath('./td[5]/text()').get()),
+                'currency': 'RMB',
             }
             yield ProductPackage(**dd)
