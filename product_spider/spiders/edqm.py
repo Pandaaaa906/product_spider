@@ -28,11 +28,12 @@ class EDQMSpider(BaseSpider):
             }
             yield RawData(**d)
 
+            price = first(prd.xpath('./Price/text()'), None)
             yield ProductPackage(
                 brand=self.brand,
                 cat_no=cat_no,
                 package=first(prd.xpath('./Quantity_per_vial/text()'), None),
-                price=first(prd.xpath('./Price/text()'), None),
+                price=price and price.replace('€', ''),
                 currency='EUR',
             )
 

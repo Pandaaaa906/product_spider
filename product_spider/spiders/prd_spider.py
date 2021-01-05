@@ -11,7 +11,6 @@ from scrapy.http.request import Request
 from more_itertools import first
 
 from product_spider.items import JkItem, BestownPrdItem, RawData
-from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formular_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -65,42 +64,6 @@ class JkPrdSpider(scrapy.Spider):
             d.update(response.meta.get('prd_data', {}))
             jkitem = JkItem(**d)
             yield jkitem
-
-
-class CDNPrdSpider(BaseSpider):
-    name = "cdn"
-    base_url = "https://cdnisotopes.com/"
-    start_urls = [
-        "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50", ]
-
-    def parse(self, response):
-        urls = response.xpath('//ol[@id="products-list"]/li/div[@class="col-11"]/a/@href').extract()
-        for url in urls:
-            yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
-        next_page = response.xpath('//div[@class="pages"]//li[last()]/a/@href').get()
-        if next_page:
-            yield Request(urljoin(self.base_url, next_page), callback=self.parse)
-
-    # TODO Stock information (actually all product info) is described in the page js var matrixChildrenProducts
-    def detail_parse(self, response):
-        tmp = '//th[contains(text(),{0!r})]/following-sibling::td/descendant-or-self::text()'
-        img_url = response.xpath('//th[contains(text(),"Structure")]/following-sibling::td/img/@src').get()
-        d = {
-            "brand": "CDN",
-            "cat_no": response.xpath(tmp.format("Product No.")).get(),
-            "parent": response.xpath(tmp.format("Category")).get(),
-            "info1": "".join(response.xpath(tmp.format("Synonym(s)")).extract()),
-            "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "mf": "".join(response.xpath(tmp.format("Formula")).extract()),
-            "cas": response.xpath(tmp.format("CAS Number")).get(),
-            "en_name": strip(
-                "".join(response.xpath('//div[@class="product-name"]/span/descendant-or-self::text()').extract())),
-            "img_url": img_url and urljoin(self.base_url, img_url),
-            "stock_info": response.xpath(
-                '//table[@id="product-matrix"]//td[@class="unit-price"]/text()').get(),
-            "prd_url": response.url,
-        }
-        yield RawData(**d)
 
 
 class BestownSpider(BaseSpider):
