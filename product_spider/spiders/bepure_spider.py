@@ -6,7 +6,7 @@ from urllib.parse import urlencode, quote
 from more_itertools import first
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -16,6 +16,7 @@ class BepureSpider(BaseSpider):
     base_url = "http://www.bepurestandards.com/"
     api_url = 'http://www.bepurestandards.com/a.aspx?'
     start_urls = ["http://www.bepurestandards.com/a.aspx?oper=getSubNav", ]
+    brand = 'Bepure'
 
     def parse(self, response):
         j_obj = json.loads(response.text)
@@ -34,7 +35,7 @@ class BepureSpider(BaseSpider):
                 'brand': 'BePure',
             }
             yield Request(
-                self.api_url+urlencode(params),
+                self.api_url + urlencode(params),
                 callback=self.parse_list,
                 meta={
                     'parent': parent,
@@ -50,9 +51,10 @@ class BepureSpider(BaseSpider):
         for product in products:
             name = product.get('name')
             cas = first(re.findall(r'\d+-\d{2}-\d', name), None)
+            cat_no = product.get('code')
             d = {
-                'brand': 'Bepure',
-                'cat_no': product.get('code'),
+                'brand': self.brand,
+                'cat_no': cat_no,
                 'chs_name': product.get('name'),
                 'stock_info': product.get('cnum'),
                 'cas': cas,
@@ -64,6 +66,15 @@ class BepureSpider(BaseSpider):
             }
             yield RawData(**d)
 
+            dd = {
+                'brand': self.brand,
+                'cat_no': cat_no,
+                'package': product.get('pack'),
+                'price': product.get('price'),
+                'currency': 'RMB',
+            }
+            yield ProductPackage(**dd)
+
         page_table = first(j_obj.get('table1'), {})
         cur_page = int(page_table.get('no', 0))
         total_page = int(page_table.get('pagecount', 0))
@@ -73,7 +84,7 @@ class BepureSpider(BaseSpider):
             return
         params['page'] = str(int(params['page']) + 1)
         yield Request(
-            self.api_url+urlencode(params),
+            self.api_url + urlencode(params),
             callback=self.parse_list,
             meta={
                 'parent': parent,

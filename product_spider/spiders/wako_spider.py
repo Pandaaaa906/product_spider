@@ -34,7 +34,7 @@ class WakoSpider(BaseSpider):
         if not cat_no:
             return
         package = strip(response.xpath('//td[3]/text()').get())
-        price =strip(response.xpath('//td[5]/text()').get())
+        price = strip(''.join(response.xpath('//td[5]/text()').getall()))
         d = {
             'brand': self.brand,
             'parent': response.xpath('//div[@class="search-tab"]/a[last()]/text()').get(),

@@ -1,6 +1,6 @@
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -26,9 +26,11 @@ class TanmoSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//el-form-item[contains(@label, {!r})]/span/text()'
         brand = strip(response.xpath(tmp.format("品牌")).get(), "")
+        brand = '_'.join(('Tanmo', brand))
+        cat_no = strip(response.xpath(tmp.format("产品编号")).get())
         d = {
-            'brand': '_'.join(('Tanmo', brand)),
-            'cat_no': strip(response.xpath(tmp.format("产品编号")).get()),
+            'brand': brand,
+            'cat_no': cat_no,
             'chs_name': strip(response.xpath('//h2[@class="p-right-title"]/text()').get()),
             'cas': strip(response.xpath(tmp.format("CAS号")).get()),
 
@@ -43,3 +45,12 @@ class TanmoSpider(BaseSpider):
             'prd_url': response.url,
         }
         yield RawData(**d)
+
+        dd = {
+            'brand': brand,
+            'cat_no': cat_no,
+            'package': strip(response.xpath(tmp.format("规格")).get()),
+            'price': strip(response.xpath('//span[@class="sell-price"]/text()').get()),
+            'currency': 'RMB',
+        }
+        yield ProductPackage(**dd)
