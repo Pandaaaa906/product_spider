@@ -76,10 +76,9 @@ class BepureSpider(BaseSpider):
             yield ProductPackage(**dd)
 
         page_table = first(j_obj.get('table1'), {})
-        cur_page = int(page_table.get('no', 0))
         total_page = int(page_table.get('pagecount', 0))
         params = response.meta.get('params')
-
+        cur_page = int(params.get('page', 1))
         if cur_page >= total_page:
             return
         params['page'] = str(int(params['page']) + 1)

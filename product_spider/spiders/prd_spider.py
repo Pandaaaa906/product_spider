@@ -1,7 +1,7 @@
 # coding=utf-8
 import json
 import re
-from string import ascii_uppercase as uppercase, ascii_uppercase
+from string import ascii_uppercase as uppercase
 from time import time
 from urllib.parse import urljoin, urlencode
 
