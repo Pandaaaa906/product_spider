@@ -34,7 +34,14 @@ class ChromaDexSpider(BaseSpider):
         cat_no = m.group(0) if m else cat_no_unit
         rel_img = response.xpath('//img[@class="zoomImg"]/@src').get()
         full_name = response.xpath('//h1[@itemprop="name"][1]/text()').get("").title()
-        en_name, package = full_name.rsplit('-', 1)
+        tmp_full_name = response.xpath('//div[@itemprop="description"]/text()').get("").title()
+        if '-' in full_name:
+            en_name, package = full_name.rsplit('-', 1)
+        elif '-' in tmp_full_name:
+            en_name, package = tmp_full_name.rsplit('-', 1)
+        else:
+            en_name, package = full_name, 'kit'
+
         d = {
             "brand": self.brand,
             "parent": self.extract_value(response, "Chemical Family: "),
