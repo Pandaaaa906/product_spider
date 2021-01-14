@@ -59,13 +59,15 @@ class TCISpider(BaseSpider):
 
         rows = response.xpath('//table[@id="PricingTable"]/tbody/tr')
         for row in rows:
+            stock_num = strip(row.xpath('./td[3]/text()').get())
             package = {
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
+                'delivery_time': '现货' if stock_num != '0' else None,
                 'price': strip(row.xpath('./td[2]/div/text()').get()),
-                'stock_num': strip(row.xpath('./td[3]/text()').get()),
+                'stock_num': stock_num,
                 'currency': 'RMB',
             }
-            ProductPackage(**package)
+            yield ProductPackage(**package)
 

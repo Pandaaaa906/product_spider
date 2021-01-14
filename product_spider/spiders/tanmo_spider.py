@@ -1,3 +1,6 @@
+import re
+
+from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
@@ -18,10 +21,23 @@ class TanmoSpider(BaseSpider):
             yield Request(url, callback=self.parse_list, meta={'parent': parent})
 
     def parse_list(self, response):
-        urls = response.xpath('//table[@id="product_table"]//td[1]//a/@href').getall()
         parent = response.meta.get('parent')
-        for url in urls:
+        rows = response.xpath('//table[@id="product_table"]/tbody/tr')
+        for row in rows:
+            sub_brand = row.xpath('./td[10]/div/text()').get()
+            if sub_brand and not ('坛墨' in sub_brand or 'tm' in sub_brand.lower()):
+                continue
+            url = row.xpath('./td[1]//a/@href').get()
             yield Request(url, callback=self.parse_detail, meta={'parent': parent})
+
+        cur_page = first(re.findall(r'pno: (\d+),', response.text), None)
+        total_page = first(re.findall(r'total: (\d+),', response.text), None)
+        if cur_page is None or total_page is None:
+            return
+        if int(cur_page) >= int(total_page):
+            return
+        next_page = re.sub(r'\d+(?=\.html)', str(int(cur_page)+1), response.url)
+        yield Request(next_page, callback=self.parse_list, meta={'parent': parent})
 
     def parse_detail(self, response):
         tmp = '//el-form-item[contains(@label, {!r})]/span/text()'
