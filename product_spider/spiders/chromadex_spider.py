@@ -60,11 +60,12 @@ class ChromaDexSpider(BaseSpider):
         yield RawData(**d)
 
         stock_num = response.xpath('//div[@class="items_left"]//em/text()').get()
+        package = strip(package)
         dd = {
             'brand': self.brand,
             'cat_no_unit': cat_no_unit,
             'cat_no': cat_no,
-            'package': strip(package),
+            'package': package and package.lower(),
             'price': response.xpath('//span[@itemprop="price"]/@content').get(),
             'currency': 'USD',
             'stock_num': stock_num and first(re.findall(r'\d+', stock_num), None),
