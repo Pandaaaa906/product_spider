@@ -324,45 +324,6 @@ class StannumSpider(BaseSpider):
             yield RawData(**item)
 
 
-class ChromaDexSpider(BaseSpider):
-    name = "chromadex"
-    start_urls = map(lambda x: f"https://standards.chromadex.com/search?type=product&q={x}", ("ASB", "KIT"))
-    base_url = "https://standards.chromadex.com/"
-
-    def parse(self, response):
-        rel_urls = response.xpath('//h2[@itemprop="name"]/a/@href').extract()
-        for url in rel_urls:
-            yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
-        next_url = response.xpath('//a[@title="Next »"]/@href').get()
-        if next_url:
-            yield Request(urljoin(self.base_url, next_url), callback=self.parse)
-
-    @staticmethod
-    def extract_value(response, title):
-        ret = response.xpath(f'//p[contains(text(), {title!r})]/text()').get()
-        return ret.replace(title, '').strip() or None
-
-    def detail_parse(self, response):
-        cat_no = response.xpath('//h1[@itemprop="name"][2]/text()').get("")
-        m = re.match(r'[A-Z]{3}-\d+', cat_no)
-        if m:
-            cat_no = m.group(0)
-        d = {
-            "brand": "ChromaDex",
-            "parent": self.extract_value(response, "Chemical Family: "),
-            "cat_no": cat_no,
-            "en_name": response.xpath('//h1[@itemprop="name"][1]/text()').get("").title().rsplit(' - ', 1)[0],
-            "cas": self.extract_value(response, "CAS: "),
-            "mf": self.extract_value(response, "Chemical Formula: "),
-            "mw": self.extract_value(response, "Formula Weight: "),
-            "info2": self.extract_value(response, "Long Term Storage: "),
-            "info4": self.extract_value(response, "Appearance: "),
-            "purity": self.extract_value(response, "Purity: "),
-            "prd_url": response.url,
-        }
-        yield RawData(**d)
-
-
 class AcornSpider(BaseSpider):
     name = "acorn"
     start_urls = ["http://www.acornpharmatech.com/18501/index.html", ]
