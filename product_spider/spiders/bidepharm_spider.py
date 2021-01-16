@@ -13,6 +13,10 @@ class BidepharmSpider(BaseSpider):
     start_urls = ["https://www.bidepharm.com/", ]
     base_url = "https://www.bidepharm.com/"
 
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 2
+    }
+
     def parse(self, response):
         rel_urls = response.xpath('//a[text()="更多+"]/@href').getall()
 

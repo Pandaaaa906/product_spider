@@ -55,6 +55,7 @@ class BepureSpider(BaseSpider):
             d = {
                 'brand': self.brand,
                 'cat_no': cat_no,
+                'en_name': product.get('name2'),
                 'chs_name': product.get('name'),
                 'stock_info': product.get('cnum'),
                 'cas': cas,

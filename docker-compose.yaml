@@ -12,8 +12,6 @@ services:
       - /www/prd_spider/eggs:/app/eggs
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-#    ports:
-#      - 6800:6800
     env_file:
       - secret.env
   scrapydweb:
@@ -34,6 +32,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
     ports:
       - 6799:5000
+    env_file:
+      - secret.env
   logparser:
     build: .
     entrypoint: "logparser -dir=/app/logs/"
