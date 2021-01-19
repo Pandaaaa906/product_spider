@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from scrapy import Request, FormRequest
 
 from product_spider.items import RawData
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -51,7 +51,7 @@ class SimsonSpider(BaseSpider):
             "info1": self.extract_value(response, "Chemical Name"),
             "cat_no": self.extract_value(response, "Cat. No."),
             "cas": self.extract_value(response, "CAS. No."),
-            "mf": formular_trans(self.extract_value(response, "Molecular Formula")),
+            "mf": formula_trans(self.extract_value(response, "Molecular Formula")),
             "mw": self.extract_value(response, "Formula Weight"),
             "img_url": img_url or urljoin(self.base_url, img_url),
             "info4": self.extract_value(response, "Category"),

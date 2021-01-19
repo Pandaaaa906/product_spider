@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 from scrapy import Request
 
 from product_spider.items import RawData
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -31,7 +31,7 @@ class VivanSpider(BaseSpider):
             'cat_no': response.xpath(tmp.format('Catalogue No.:')).get(),
             'en_name': response.xpath('//div[@class="product-detail"]//h2/text()').get(),
             'cas': response.xpath(tmp.format('CAS No. :')).get(),
-            'mf': formular_trans(response.xpath(tmp.format('Mol. Formula :')).get()),
+            'mf': formula_trans(response.xpath(tmp.format('Mol. Formula :')).get()),
             'mw': response.xpath(tmp.format('Mol. Weight :')).get(),
             'img_url': rel_img and urljoin(self.base_url, rel_img),
             'info1': ';'.join(sym),

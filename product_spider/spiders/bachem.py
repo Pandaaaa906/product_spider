@@ -2,7 +2,7 @@ from scrapy import Request
 
 from product_spider.items import RawData
 from product_spider.utils.functions import strip
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -44,7 +44,7 @@ class BachemSpider(BaseSpider):
             'cat_no': strip(response.xpath('//div[@id="productname"]/text()').get()),
             'en_name': en_name or sequence,
             'cas': response.xpath(tmp.format("CAS Registry Number")).get(),
-            'mf': formular_trans(response.xpath(tmp.format("Molecular Formula")).get()),
+            'mf': formula_trans(response.xpath(tmp.format("Molecular Formula")).get()),
             'mw': response.xpath(tmp.format("Relative Molecular Mass")).get(),
             'info1': ';'.join(filter(lambda x: x, (synonyms, sequence))),
             'info2': response.xpath(tmp.format("Storage Conditions")).get(),

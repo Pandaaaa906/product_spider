@@ -5,7 +5,7 @@ from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import strip
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -76,7 +76,7 @@ class PharmBlockSpider(BaseSpider):
             'en_name': response.xpath('//div/span/@data-nameen').get(),
             'cas': response.xpath(tmp.format("CAS:")).get(),
             'mdl': response.xpath(tmp.format("MDL:")).get(),
-            'mf': formular_trans(strip(response.xpath(tmp.format("分子式:")).get())),
+            'mf': formula_trans(strip(response.xpath(tmp.format("分子式:")).get())),
             'mw': response.xpath(tmp.format("分子量:")).get(),
             'smiles': response.xpath(tmp.format("SMILES code:")).get(),
             'purity': response.xpath(tmp.format("化学纯度:")).get(),

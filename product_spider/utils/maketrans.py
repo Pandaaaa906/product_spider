@@ -5,7 +5,7 @@ def maketrans(from_text, to_text):
     return dict((ord(i), n) for i, n in zip(from_text, to_text))
 
 
-def formular_trans(mf):
+def formula_trans(mf):
     if not isinstance(mf, str):
         return None
     from_t = u"₀₁₂₃₄₅₆₇₈₉"

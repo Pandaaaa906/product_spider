@@ -4,7 +4,7 @@ from scrapy import Request
 
 from product_spider.items import RawData
 from product_spider.utils.functions import strip
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -47,7 +47,7 @@ class MCESpider(BaseSpider):
             'en_name': response.xpath('//h1/strong/text()').get(),
 
             'cas': strip(response.xpath(tmp.format("CAS No.")).get()),
-            'mf': formular_trans(strip(response.xpath(tmp.format("Formula")).get())),
+            'mf': formula_trans(strip(response.xpath(tmp.format("Formula")).get())),
             'mw': strip(response.xpath(tmp.format("Molecular Weight")).get()),
             'smiles': strip(''.join(response.xpath(tmp.format("SMILES")).getall())),
 

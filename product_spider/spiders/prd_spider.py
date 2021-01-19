@@ -11,7 +11,7 @@ from scrapy.http.request import Request
 from more_itertools import first
 
 from product_spider.items import JkItem, BestownPrdItem, RawData
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -280,7 +280,7 @@ class TRCSpider(BaseSpider):
             'prd_url': response.request.url,  # 产品详细连接
             'cat_no': response.xpath('//div[@class="post-title-wrapper"]/h1/text()').get(),
             'cas': response.xpath(tmp_format.format('CAS Number:')).get(),
-            'mf': formular_trans(response.xpath(tmp_format.format('Molecular Formula:')).get()),
+            'mf': formula_trans(response.xpath(tmp_format.format('Molecular Formula:')).get()),
             'mw': response.xpath(tmp_format.format('Molecular Weight:')).get(),
             'img_url': self.base_url + response.xpath('//div[@id="productImage"]/img/@src').get(),
             'stock_info': response.xpath('//b[text()="Inventory Status : "]/../text()').get(),
@@ -388,7 +388,7 @@ class HICSpider(BaseSpider):  # dead website 20200522
             "en_name": response.xpath(tmp.format("Chemical name:")).get(),
             "info1": response.xpath(tmp.format("Synonyms:")).get(),
             "img_url": response.xpath('//div[@class="images"]//img/@src').get(),
-            "mf": formular_trans(response.xpath(tmp.format("Molecular form:")).get()),
+            "mf": formula_trans(response.xpath(tmp.format("Molecular form:")).get()),
             "mw": response.xpath(tmp.format("Mol. Weight:")).get(),
             "prd_url": response.url,
             "stock_info": response.xpath('//div[@class="InventoryStatus"]/strong/text()').get(),
@@ -465,7 +465,7 @@ class CILSpider(BaseSpider):
             "cas": f"{cas}; Unlabeled Cas:{unlabeled_cas}",
             "en_name": response.xpath('//h1[@class="ldescription"]/text()').get(),
             "img_url": urljoin(response.url, r_img_url),
-            "mf": formular_trans(response.xpath(tmp.format("Chemical Formula")).get()),
+            "mf": formula_trans(response.xpath(tmp.format("Chemical Formula")).get()),
             "mw": response.xpath(tmp.format("Molecular Weight")).get(),
             "prd_url": response.url,
         }

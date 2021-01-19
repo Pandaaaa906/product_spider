@@ -5,7 +5,7 @@ from scrapy import Request
 
 from product_spider.items import RawData
 from product_spider.utils.functions import strip
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -53,7 +53,7 @@ class ClearsynthSpider(BaseSpider):
             "cat_no": response.xpath(tmp.format("CAT No.")).get(),
             "en_name": ''.join(response.xpath('//div[@class="product-name"]//text()').getall()),
             "cas": response.xpath(tmp.format("CAS")).get(),
-            "mf": formular_trans(strip("".join(
+            "mf": formula_trans(strip("".join(
                 response.xpath("//td[contains(text(),'Mol. Formula')]/following-sibling::td//text()").extract()))),
 
             "mw": response.xpath(tmp.format("Mol. Weight")).get(),

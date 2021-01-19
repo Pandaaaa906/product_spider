@@ -3,7 +3,7 @@ from string import ascii_lowercase
 from scrapy import Request
 
 from product_spider.items import RawData
-from product_spider.utils.maketrans import formular_trans
+from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -44,7 +44,7 @@ class AnantSpider(BaseSpider):
             'cat_no': response.xpath('//h5[@class="prod-cat"]/text()').get("").strip(),
             'cas': div.xpath(tmp_xpath_2.format("CAS")).get("").strip(),
             'stock_info': div.xpath(tmp_xpath_2.format("Stock Status")).get("").strip(),
-            'mf': formular_trans(mf),
+            'mf': formula_trans(mf),
             'mw': div.xpath(tmp_xpath_2.format("Molecular Weight")).get("").strip(),
             'info1': response.xpath('//b[contains(text(),"Synonyms : ")]/following-sibling::text()').get("").strip(),
             'parent': response.meta.get('parent'),
