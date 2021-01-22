@@ -40,6 +40,8 @@ class MacklinSpider(BaseSpider):
         tmp = '//th[contains(text(), {!r})]/following-sibling::td[1]//text()'
         cat_no = response.meta.get('cat_no')
         parent = response.meta.get('parent')
+        if response.xpath('//span[contains(text(), "请按住滑块，拖动到最右边")]'):
+            return
         d = {
             'brand': self.brand,
             'parent': parent,
