@@ -1,5 +1,6 @@
 from urllib.parse import urljoin
 
+from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData
@@ -12,6 +13,9 @@ class O2siSpider(BaseSpider):
     brand = 'O2si'
     base_url = "https://www.o2si.com/"
     start_urls = ['https://www.o2si.com/', ]
+    custom_settings = {
+        'CONCURRENT_REQUESTS': '4',
+    }
 
     def parse(self, response):
         a_nodes = response.xpath('//li[a/text()="Catalog"]//li/a')
@@ -46,16 +50,20 @@ class O2siSpider(BaseSpider):
                 })
 
         next_page = response.xpath(
-            '//div[contains(text(),"Page")]/a[@class="current"]/following-sibling::a/@href').get()
+            '//div[contains(text(),"Page")]/a[contains(@class,"current")]/following-sibling::a/@href').get()
         if next_page:
             yield Request(urljoin(self.base_url, next_page), callback=self.parse_list, meta={'parent': parent})
 
     def parse_detail(self, response):
+        cas = response.xpath('//tr[@class="style17"]/td[3]/text()').getall()
+        cas = tuple((strip(i) for i in cas))
         d = {
             'brand': self.brand,
             'parent': response.meta.get('parent'),
             'cat_no': response.meta.get('cat_no'),
             'en_name': response.meta.get('en_name'),
+            'cas': first(cas, None) if len(cas) == 1 else None,
+            'info1': ';'.join(set(filter(lambda x: x, cas))),
             'info3': response.meta.get('package'),
             'info4': response.xpath('//p[contains(text(), "Price:")]/strong/text()').get(),
             'prd_url': response.url,
