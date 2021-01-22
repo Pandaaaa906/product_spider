@@ -13,7 +13,7 @@ class MacklinSpider(BaseSpider):
     base_url = "http://www.macklin.cn/"
 
     custom_settings = {
-        'CONCURRENT_REQUESTS': '1',
+        'CONCURRENT_REQUESTS': 1,
         'DOWNLOAD_DELAY': 2,
     }
 
@@ -32,8 +32,12 @@ class MacklinSpider(BaseSpider):
             cat_no = a.xpath('./text()').get()
             yield Request(url, callback=self.parse_detail, meta={'parent': parent, 'cat_no': cat_no})
 
+        next_page = response.xpath('//ul[@class="pagination"]/li[@class="active" and not(@id)]/following-sibling::li/a/@href').get()
+        if next_page:
+            yield Request(next_page, callback=self.parse_list, meta={'parent': parent})
+
     def parse_detail(self, response):
-        tmp = '//th[contains(text(), {!r})]/following-sibling::td//text()'
+        tmp = '//th[contains(text(), {!r})]/following-sibling::td[1]//text()'
         cat_no = response.meta.get('cat_no')
         parent = response.meta.get('parent')
         d = {
