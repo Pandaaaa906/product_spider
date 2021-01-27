@@ -42,6 +42,7 @@ class MCESpider(BaseSpider):
         package = '//tr[td and td[@class="pro_price_3"]/span[not(@class)]]/td[@class="pro_price_1"]'
         rel_img = response.xpath('//div[@class="struct-img-wrapper"]/img/@src').get()
         cat_no = response.xpath('//dt/span/text()').get('').replace('Cat. No.: ', '').replace('目录号: ', '')
+        tmp_package = strip(response.xpath(f'{package}/text()').get())
         d = {
             'brand': self.brand,
             'parent': response.meta.get('parent'),
@@ -53,7 +54,7 @@ class MCESpider(BaseSpider):
             'mw': strip(response.xpath(tmp.format("Molecular Weight")).get()),
             'smiles': strip(''.join(response.xpath(tmp.format("SMILES")).getall())),
 
-            'info3': strip(response.xpath(f'{package}/text()').get()),
+            'info3': tmp_package and tmp_package.replace('\xa0', ' '),
             'info4': strip(response.xpath(f'{package}/following-sibling::td[1]/text()').get()),
 
             'img_url': rel_img and urljoin(response.url, rel_img),
@@ -65,10 +66,11 @@ class MCESpider(BaseSpider):
         rows = response.xpath('//tr[td and td[@class="pro_price_3"]/span[not(@class)]]')
         for row in rows:
             price = strip(row.xpath('./td[@class="pro_price_2"]/text()').get())
+            tmp_package = strip(row.xpath('./td[@class="pro_price_1"]/text()').get())
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': strip(row.xpath('./td[@class="pro_price_1"]/text()').get()),
+                'package': tmp_package and tmp_package.replace('\xa0', ' '),
                 'price': price and price.strip('￥'),
                 'delivery_time': strip(''.join(row.xpath('./td[@class="pro_price_3"]/span//text()').getall())) or None,
                 'currency': 'RMB',
