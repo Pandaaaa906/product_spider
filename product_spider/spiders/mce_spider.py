@@ -42,7 +42,7 @@ class MCESpider(BaseSpider):
         package = '//tr[td and td[@class="pro_price_3"]/span[not(@class)]]/td[@class="pro_price_1"]'
         rel_img = response.xpath('//div[@class="struct-img-wrapper"]/img/@src').get()
         cat_no = response.xpath('//dt/span/text()').get('').replace('Cat. No.: ', '').replace('目录号: ', '')
-        tmp_package = strip(response.xpath(f'{package}/text()').get())
+        tmp_package = strip(response.xpath(f'normalize-space({package}/text())').get())
         d = {
             'brand': self.brand,
             'parent': response.meta.get('parent'),
@@ -66,7 +66,7 @@ class MCESpider(BaseSpider):
         rows = response.xpath('//tr[td and td[@class="pro_price_3"]/span[not(@class)]]')
         for row in rows:
             price = strip(row.xpath('./td[@class="pro_price_2"]/text()').get())
-            tmp_package = strip(row.xpath('./td[@class="pro_price_1"]/text()').get())
+            tmp_package = strip(row.xpath('normalize-space(./td[@class="pro_price_1"]/text())').get())
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
