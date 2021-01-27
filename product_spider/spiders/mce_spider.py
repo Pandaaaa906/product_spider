@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
@@ -10,8 +10,9 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class MCESpider(BaseSpider):
     name = "mce"
-    base_url = "https://www.medchemexpress.com/"
-    start_urls = ['https://www.medchemexpress.com/products.html', ]
+    brand = 'MCE'
+    base_url = "https://www.medchemexpress.cn/"
+    start_urls = ['https://www.medchemexpress.cn/products.html', ]
 
     def parse(self, response):
         a_nodes = response.xpath('//td/a')
@@ -38,12 +39,13 @@ class MCESpider(BaseSpider):
 
     def parse_detail(self, response):
         tmp = '//th[contains(text(), {!r})]/following-sibling::td//p//text()'
-        package = '//td[@class="pro_price_1" and contains(text(), "mg") and not(./b)]'
+        package = '//tr[td and td[@class="pro_price_3"]/span[not(@class)]]/td[@class="pro_price_1"]'
         rel_img = response.xpath('//div[@class="struct-img-wrapper"]/img/@src').get()
+        cat_no = response.xpath('//dt/span/text()').get('').replace('Cat. No.: ', '').replace('目录号: ', '')
         d = {
-            'brand': 'MCE',
+            'brand': self.brand,
             'parent': response.meta.get('parent'),
-            'cat_no': response.xpath('//dt/span/text()').get('').replace('Cat. No.: ', ''),
+            'cat_no': cat_no,
             'en_name': response.xpath('//h1/strong/text()').get(),
 
             'cas': strip(response.xpath(tmp.format("CAS No.")).get()),
@@ -58,3 +60,17 @@ class MCESpider(BaseSpider):
             'prd_url': response.url,
         }
         yield RawData(**d)
+        if not cat_no:
+            return
+        rows = response.xpath('//tr[td and td[@class="pro_price_3"]/span[not(@class)]]')
+        for row in rows:
+            price = strip(row.xpath('./td[@class="pro_price_2"]/text()').get())
+            dd = {
+                'brand': self.brand,
+                'cat_no': cat_no,
+                'package': strip(row.xpath('./td[@class="pro_price_1"]/text()').get()),
+                'price': price and price.strip('￥'),
+                'delivery_time': strip(''.join(row.xpath('./td[@class="pro_price_3"]/span//text()').getall())) or None,
+                'currency': 'RMB',
+            }
+            yield ProductPackage(**dd)

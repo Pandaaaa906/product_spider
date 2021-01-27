@@ -56,14 +56,14 @@ class O2siSpider(BaseSpider):
 
     def parse_detail(self, response):
         cas = response.xpath('//tr[@class="style17"]/td[3]/text()').getall()
-        cas = tuple((strip(i) for i in cas))
+        cas = tuple(filter(lambda x: x, (strip(i) for i in cas)))
         d = {
             'brand': self.brand,
             'parent': response.meta.get('parent'),
             'cat_no': response.meta.get('cat_no'),
             'en_name': response.meta.get('en_name'),
             'cas': first(cas, None) if len(cas) == 1 else None,
-            'info1': ';'.join(set(filter(lambda x: x, cas))),
+            'info1': ';'.join(set(cas)),
             'info3': response.meta.get('package'),
             'info4': response.xpath('//p[contains(text(), "Price:")]/strong/text()').get(),
             'prd_url': response.url,
