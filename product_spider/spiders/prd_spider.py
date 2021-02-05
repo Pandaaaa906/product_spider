@@ -241,54 +241,6 @@ class AozealSpider(BaseSpider):
         yield RawData(**d)
 
 
-# TODO untested
-class TRCSpider(BaseSpider):
-    name = "trc"
-    allow_domain = ["trc-canada.com", ]
-    start_urls = ["https://www.trc-canada.com/parent-drug/", ]
-    search_url = "https://www.trc-canada.com/products-listing/?"
-    base_url = "https://www.trc-canada.com"
-
-    custom_settings = {
-        'CONCURRENT_REQUESTS': 2,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
-        'CONCURRENT_REQUESTS_PER_IP': 2,
-    }
-
-    def parse(self, response):
-        api_names = response.xpath('//table[contains(@id, "table")]//td/input/@value').extract()
-        for api_name in api_names:
-            d = {
-                "searchBox": api_name,
-                "type": "searchResult",
-            }
-            url = self.search_url + urlencode(d)
-            yield Request(url=url, callback=self.list_parse, meta={"parent": api_name})
-
-    def list_parse(self, response):
-        rel_urls = response.xpath(
-            '//div[@class="chemCard"]/a[not(@data-lity)]/@href').extract()
-        for rel_url in rel_urls:
-            yield Request(urljoin(self.base_url, rel_url), callback=self.detail_parse, meta=response.meta)
-
-    def detail_parse(self, response):
-        tmp_format = '//td[contains(text(), {!r})]/following-sibling::td/text()'
-        item = {
-            "brand": "TRC",
-            'parent': response.meta.get("parent", None),
-            "en_name": response.xpath(tmp_format.format('Chemical Name:')).get(),
-            'prd_url': response.request.url,  # 产品详细连接
-            'cat_no': response.xpath('//div[@class="post-title-wrapper"]/h1/text()').get(),
-            'cas': response.xpath(tmp_format.format('CAS Number:')).get(),
-            'mf': formula_trans(response.xpath(tmp_format.format('Molecular Formula:')).get()),
-            'mw': response.xpath(tmp_format.format('Molecular Weight:')).get(),
-            'img_url': self.base_url + response.xpath('//div[@id="productImage"]/img/@src').get(),
-            'stock_info': response.xpath('//b[text()="Inventory Status : "]/../text()').get(),
-            'info1': response.xpath(tmp_format.format('Synonyms:')).get(),
-        }
-        yield RawData(**item)
-
-
 # Dead website 20200522
 class StannumSpider(BaseSpider):
     name = "stannum"

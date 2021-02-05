@@ -39,18 +39,21 @@ class PeptidegoSpider(BaseSpider):
 
     def parse_detail(self, response):
         tmp = '//td[span[contains(text(), {!r})]]/following-sibling::td/span/text()'
+        cat_no = strip(response.xpath(tmp.format("货号")).get())
+        if not cat_no:
+            return
         d = {
             'brand': self.brand,
             'parent': response.meta.get('parent'),
-            'cat_no': strip(response.xpath(tmp.format("货号"))),
-            'en_name': strip(response.xpath(tmp.format("英文名称"))),
-            'chs_name': strip(response.xpath(tmp.format("中文名称"))),
-            'cas': strip(response.xpath(tmp.format("CAS NO"))),
-            'mf': strip(response.xpath(tmp.format("分子式"))),
-            'mw': strip(response.xpath(tmp.format("分子量"))),
-            'info1': strip(response.xpath(tmp.format("序列"))),
-            'info2': strip(response.xpath(tmp.format("存储温度"))),
-            'purity': strip(response.xpath(tmp.format("纯度"))),
+            'cat_no': cat_no,
+            'en_name': strip(response.xpath(tmp.format("英文名称")).get()),
+            'chs_name': strip(response.xpath(tmp.format("中文名称")).get()),
+            'cas': strip(response.xpath(tmp.format("CAS NO")).get()),
+            'mf': strip(response.xpath(tmp.format("分子式")).get()),
+            'mw': strip(response.xpath(tmp.format("分子量")).get()),
+            'info1': strip(response.xpath(tmp.format("序列")).get()),
+            'info2': strip(response.xpath(tmp.format("存储温度")).get()),
+            'purity': strip(response.xpath(tmp.format("纯度")).get()),
 
             'prd_url': response.url,
         }

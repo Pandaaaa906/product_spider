@@ -10,8 +10,6 @@ services:
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/dbs:/app/dbs
       - /www/prd_spider/eggs:/app/eggs
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
     env_file:
       - secret.env
   scrapydweb:
@@ -28,12 +26,12 @@ services:
       - /www/prd_spider/data/projects:/app/data/projects
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/data:/app/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
     ports:
       - 6799:5000
     env_file:
       - secret.env
+    depends_on:
+      - "scrapyd"
   logparser:
     build: .
     entrypoint: "logparser -dir=/app/logs/"
@@ -41,8 +39,6 @@ services:
     restart: unless-stopped
     volumes:
       - /www/prd_spider/logs:/app/logs
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
   portia:
     image: scrapinghub/portia
     hostname: portia
@@ -54,3 +50,5 @@ services:
       - 9002:9002
     volumes:
       - /www/prd_spider/data/projects:/app/data/projects:rw
+    links:
+      - "scrapyd"

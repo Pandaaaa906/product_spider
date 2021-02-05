@@ -77,6 +77,10 @@ class RawData(scrapy.OrderedItem):
     info2 = scrapy.Field()
     info3 = scrapy.Field()
     info4 = scrapy.Field()
+    info5 = scrapy.Field()
+
+    tags = scrapy.Field()
+    grade = scrapy.Field()
     mol_text = scrapy.Field()
     prd_url = scrapy.Field()
     expiry_date = scrapy.Field()
