@@ -38,8 +38,8 @@ class PeptidegoSpider(BaseSpider):
             yield Request(urljoin(response.url, next_page), callback=self.parse_list)
 
     def parse_detail(self, response):
-        tmp = '//td[span[contains(text(), {!r})]]/following-sibling::td/span/text()'
-        cat_no = strip(response.xpath(tmp.format("货号")).get())
+        tmp = '//td[contains(.//text(), {!r})]/following-sibling::td//text()'
+        cat_no = strip(''.join(response.xpath(tmp.format("货号")).getall()))
         if not cat_no:
             return
         d = {
