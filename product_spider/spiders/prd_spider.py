@@ -10,60 +10,9 @@ from scrapy import FormRequest
 from scrapy.http.request import Request
 from more_itertools import first
 
-from product_spider.items import JkItem, BestownPrdItem, RawData
+from product_spider.items import BestownPrdItem, RawData
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
-
-
-class JkPrdSpider(scrapy.Spider):
-    name = "jk"
-    allowed_domains = ["jkchemical.com"]
-    base_url = "http://www.jkchemical.com"
-    start_urls = map(lambda x: "http://www.jkchemical.com/CH/products/index/ProductName/{0}.html".format(x),
-                     uppercase)
-    prd_size_url = "http://www.jkchemical.com/Controls/Handler/GetPackAgeJsonp.ashx?callback=py27&value={value}&cid={cid}&type=product&_={ts}"
-
-    def parse(self, response):
-        for xp_url in response.xpath("//div[@class='yy toa']//a/@href"):
-            tmp_url = self.base_url + xp_url.extract()
-            yield Request(tmp_url.replace("EN", "CH"), callback=self.parse_prd)
-
-    def parse_prd(self, response):
-        xp_boxes = response.xpath("//table[@id]//div[@class='PRODUCT_box']")
-        for xp_box in xp_boxes:
-            div = xp_box.xpath(".//div[2][@class='left_right mulu_text']")
-            l_chs_name = xp_box.xpath(".//a[@class='name']//span[1]/text()").extract()
-            if l_chs_name:
-                chs_name = l_chs_name[0].strip()
-            else:
-                chs_name = ""
-            try:
-                d = {"purity": div.xpath(".//li[1]/text()").extract()[0].split(u"：")[-1].strip(),
-                     "cas": div.xpath(".//li[2]//a/text()").extract()[0].strip(),
-                     "cat_no": div.xpath(".//li[4]/text()").extract()[0].split(u"：")[-1].strip(),
-                     "en_name": xp_box.xpath(".//a[@class='name']/text()").extract()[0].strip(),
-                     "chs_name": chs_name,
-                     }
-            except:
-                print("WWW", xp_box.xpath(".//a[@class='name']//span/text()").extract())
-                print("WRONG PARSER??", response.url)
-            data_jkid = xp_box.xpath(".//div[@data-jkid]/@data-jkid").extract()[0]
-            data_cid = xp_box.xpath(".//div[@data-cid]/@data-cid").extract()[0]
-            yield Request(self.prd_size_url.format(value=data_jkid, cid=data_cid, ts=int(time())),
-                          body=u"",
-                          meta={"prd_data": d},
-                          callback=self.parse_s)
-
-    def parse_s(self, response):
-        s = re.findall(r"(?<=\().+(?=\))", response.text)[0]
-        l_package_objs = json.loads(s)
-        for package_obj in l_package_objs:
-            d = {"package": package_obj["_package"],
-                 "price": package_obj["_listPrice"],
-                 }
-            d.update(response.meta.get('prd_data', {}))
-            jkitem = JkItem(**d)
-            yield jkitem
 
 
 class BestownSpider(BaseSpider):

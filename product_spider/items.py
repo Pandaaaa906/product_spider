@@ -24,6 +24,36 @@ class JkItem(scrapy.OrderedItem):
         )
 
 
+class JkProduct(scrapy.OrderedItem):
+    brand = scrapy.Field()
+    cat_no = scrapy.Field()
+    en_name = scrapy.Field()
+    cn_name = scrapy.Field()
+    cas = scrapy.Field()
+    purity = scrapy.Field()
+    prd_url = scrapy.Field()
+    img_url = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (("brand", "cat_no",), True),
+        )
+
+
+class JKPackage(scrapy.OrderedItem):
+    brand = scrapy.Field()
+    cat_no = scrapy.Field()
+    package = scrapy.Field()
+    price = scrapy.Field()
+    currency = scrapy.Field()
+    attrs = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('brand', 'cat_no', 'package'), True),
+        )
+
+
 class BestownPrdItem(scrapy.OrderedItem):
     chs_name = scrapy.Field()
     en_name = scrapy.Field()
