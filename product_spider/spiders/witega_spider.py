@@ -24,7 +24,7 @@ class WitegaSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//li[contains(@class, {!r})]/span[@class="attribute-value"]/text()'
         d = {
-            "brand": "Witega",
+            "brand": "witega",
             "cat_no": response.xpath('//span[@class="sku"]/text()').get(),
             "en_name": ''.join(response.xpath('//div[@class="summary entry-summary"]/h2//text()').getall()),
             "cas": response.xpath(tmp.format("cas-number")).get(),

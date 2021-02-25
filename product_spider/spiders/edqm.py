@@ -7,7 +7,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class EDQMSpider(BaseSpider):
     name = 'ep'
-    brand = 'EP'
+    brand = 'ep'
     start_urls = ["https://crs.edqm.eu/db/4DCGI/web_catalog_XML.xml", ]
     base_url = "https://crs.edqm.eu/"
 

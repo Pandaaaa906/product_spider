@@ -21,7 +21,7 @@ class DaicelSpider(BaseSpider):
         tmp = '//td[contains(text(), {!r})]/following-sibling::td/text()'
         img_rel_url = response.xpath('//div[@class="modal-body"]/img/@src').get()
         d = {
-            "brand": "Daicel",
+            "brand": "daicel",
             "parent": strip(response.xpath(tmp.format("API Name :")).get()),
             "cat_no": response.xpath('//div[@class="Catalogue"]/text()').get().split(': ')[-1],
             "en_name": response.xpath(tmp.format("Name of Compound :")).get(),

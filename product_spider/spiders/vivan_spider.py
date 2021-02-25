@@ -27,7 +27,7 @@ class VivanSpider(BaseSpider):
         sym = response.xpath('//ul[contains(@class, "synmlist")]/li/text()').getall()
         sym = filter(bool, map(str.strip, sym))
         d = {
-            'brand': 'Vivan',
+            'brand': 'vivan',
             'cat_no': response.xpath(tmp.format('Catalogue No.:')).get(),
             'en_name': response.xpath('//div[@class="product-detail"]//h2/text()').get(),
             'cas': response.xpath(tmp.format('CAS No. :')).get(),

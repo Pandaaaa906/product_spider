@@ -45,7 +45,7 @@ class SimsonSpider(BaseSpider):
     def detail_parse(self, response):
         img_url = response.xpath('//div[@class="product-img"]//img/@src').get()
         d = {
-            "brand": "Simson",
+            "brand": "simson",
             "en_name": response.xpath('//h1[contains(@class, "pro-title")]/text()').get(),
             "prd_url": response.url,
             "info1": self.extract_value(response, "Chemical Name"),

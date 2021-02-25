@@ -11,7 +11,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class CDNPrdSpider(BaseSpider):
     name = 'cdn'
-    brand = 'CDN'
+    brand = 'cdn'
     base_url = "https://cdnisotopes.com/"
     start_urls = [
         "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50", ]

@@ -32,7 +32,7 @@ class PharmaffiliatesSpider(BaseSpider):
         name = strip(response.xpath('//h1[@class]/text()').get())
         chemical_name = response.xpath(tmp.format("Chemical name")).get()
         d = {
-            'brand': 'Pharmaffiliates',
+            'brand': 'pharmaffiliates',
             'parent': parent and parent.title(),
             'cat_no': response.xpath(tmp.format("Catalogue number")).get(),
             'en_name': name or chemical_name,

@@ -19,7 +19,7 @@ class SynChemSpider(BaseSpider):
 
     def parse_detail(self, response):
         d = {
-            "brand": "SynChem",
+            "brand": "synchem",
             "parent": ';'.join(response.xpath('//td[@class="product_categories"]//a/text()').getall()),
             "cat_no": response.xpath('//td[@class="product_sku"]//text()').get(),
             "en_name": response.xpath('//h1[@class="product_title entry-title"]/text()').get(),

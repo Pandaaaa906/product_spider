@@ -27,7 +27,7 @@ class SynPharmatechSpider(BaseSpider):
         tmp = 'normalize-space(//div[@class="product1_l"]//span[contains(text(), "{}")]/../text())'
         rel_img = response.xpath('//div[@class="product1"]/img/@src').get()
         d = {
-            "brand": "SynPharmaTech",
+            "brand": "synpharmatech",
             "cat_no": strip(response.xpath(tmp.format("Cat. No")).get()),
             "en_name": strip(response.xpath('//div[@class="product1_l"]//h1/text()').get()),
             "info1": strip(response.xpath(tmp.format("Synonyms")).get()),

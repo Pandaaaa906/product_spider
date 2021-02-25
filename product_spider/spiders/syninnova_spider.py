@@ -66,7 +66,7 @@ class SyninnovaSpider(BaseSpider):
         price = row.xpath('./td[2]/text()').get()
         cas = strip(response.xpath('//b[contains(text(), "CAS")]/../following-sibling::div/text()').get())
         d = {
-            'brand': 'Syninnova',
+            'brand': 'syninnova',
             'parent': response.meta.get('category'),
             'cat_no': response.xpath('//div[contains(@class, "productinfo")]/h2[1]/text()').get(),
             'en_name': response.xpath('//div[contains(@class, "productinfo")]/h2[2]/text()').get(),

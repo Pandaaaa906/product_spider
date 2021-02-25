@@ -28,7 +28,7 @@ class QCCSpider(BaseSpider):
     def detail_parse(self, response):
         tmp = '//td[contains(descendant-or-self::text(), "{}")]//following-sibling::td/text()'
         d = {
-            "brand": "QCC",
+            "brand": "qcc",
             "parent": response.meta.get('parent'),
             "cat_no": response.xpath(tmp.format("QCC Cat No.:")).get(),
             "cas": strip(response.xpath(tmp.format("CAS No.:")).get()),

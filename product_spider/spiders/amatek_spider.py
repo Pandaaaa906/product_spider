@@ -11,7 +11,7 @@ class AmatekSpider(BaseSpider):
     name = "amatek"
     base_url = "http://www.amatekbio.com/cn/"
     start_urls = ["http://www.amatekbio.com/cn/product.html", ]
-    brand = 'Amatek'
+    brand = 'amatek'
 
     def parse(self, response):
         a_nodes = response.xpath('//div[@class="produtimg"]/following-sibling::ul/li/a')

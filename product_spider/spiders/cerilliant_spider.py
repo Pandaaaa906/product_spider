@@ -72,7 +72,7 @@ class CerilliantSpider(BaseSpider):
         cat_no, *_ = cat_no.split('/')
         rel_img = response.xpath('//img[@id="ContentPlaceHolder1_imgChemStructPicture"]/@src').get()
         d = {
-            'brand': 'Cerilliant',
+            'brand': 'cerilliant',
             'parent': response.meta.get('parent'),
             'cat_no': strip(cat_no),
             'en_name': ''.join(response.xpath(tmp.format("ContentPlaceHolder1_lblProduct")).getall()),

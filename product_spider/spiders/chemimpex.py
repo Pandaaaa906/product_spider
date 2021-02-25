@@ -49,7 +49,7 @@ class ChemImpexSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//span[contains(text(), {!r})]/following-sibling::span//text()'
         d = {
-            'brand': 'ChemImpex',
+            'brand': 'chemimpex',
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath(tmp.format("Catalog Number:")).get(),
             'en_name': strip(''.join(response.xpath('//h1[@itemprop="name"]//text()[not(parent::span)]').getall())),

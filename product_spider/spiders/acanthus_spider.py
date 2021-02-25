@@ -27,7 +27,7 @@ class AcanthusSpider(BaseSpider):
         en_name = response.xpath('//h1[contains(@class, "product_title")]/text()').get(default="").strip()
         cas = response.xpath(tmp_xpath.format("CAS Number")).get(default="N/A").strip()
         d = {
-            'brand': "Acanthus",
+            'brand': "acanthus",
             'cat_no': response.xpath(tmp_xpath.format("Product Number")).get("").strip(),
             'en_name': en_name,
             'prd_url': response.request.url,  # 产品详细连接

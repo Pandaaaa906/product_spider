@@ -11,7 +11,7 @@ class TCISpider(BaseSpider):
     name = "tci"
     base_url = "https://www.tcichemicals.com"
     start_urls = ['https://www.tcichemicals.com/CN/zh/product/index', ]
-    brand = 'TCI'
+    brand = 'tci'
 
     custom_settings = {
         'CONCURRENT_REQUESTS': '1',

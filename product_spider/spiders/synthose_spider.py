@@ -28,7 +28,7 @@ class SynthoseSpider(BaseSpider):
         tmp = '//th[contains(text(), {!r})]/following-sibling::td//text()'
         img_url = strip(response.xpath('//b/img/@src').get())
         d = {
-            'brand': 'Synthose',
+            'brand': 'synthose',
             'parent': response.meta.get('parent'),
             'cat_no': strip(response.xpath('//h1[@class="header"]/text()').get()),
             'en_name': strip(response.xpath('//h2[@class="compound"]/text()').get()),

@@ -13,7 +13,7 @@ class ChromaDexSpider(BaseSpider):
     name = "chromadex"
     start_urls = (f"https://standards.chromadex.com/search?type=product&q={x}" for x in ("ASB", "KIT"))
     base_url = "https://standards.chromadex.com/"
-    brand = "ChromaDex"
+    brand = "chromadex"
 
     def parse(self, response):
         rel_urls = response.xpath('//h5[@class="sub_title"]/a/@href').getall()

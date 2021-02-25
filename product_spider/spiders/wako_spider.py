@@ -11,7 +11,7 @@ class WakoSpider(BaseSpider):
     name = "wako"
     base_url = "http://www.bb-china.net/"
     start_urls = ['http://www.bb-china.net/', ]
-    brand = 'Wako'
+    brand = 'wako'
 
     def parse(self, response):
         rel_urls = response.xpath(

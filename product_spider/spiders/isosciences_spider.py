@@ -29,7 +29,7 @@ class IsosciencesSpider(BaseSpider):
         tmp = '//th[contains(text(), {!r})]/following-sibling::td//text()'
         price = response.xpath('//span[@class="price"]/span/text()').get()
         d = {
-            'brand': 'ISOSciences',
+            'brand': 'isosciences',
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath(tmp.format("Catalog #")).get(),
             'en_name': strip(''.join(response.xpath('//h1[contains(@class, "product_title")]//text()').getall())),

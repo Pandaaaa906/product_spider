@@ -89,7 +89,7 @@ class ArcSpider(BaseSpider):
         concentration = strip(response.xpath(tmp.format("Concentration:")).get())
         cas = strip(response.xpath(tmp.format("CAS Number:")).get())
         d = {
-            'brand': 'ARC',
+            'brand': 'arc',
             'parent': response.meta.get('parent'),
             'cat_no': response.meta.get('cat_no'),
             'en_name': response.xpath('//p[@itemprop="name"]/text()').get(),

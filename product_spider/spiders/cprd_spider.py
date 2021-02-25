@@ -26,7 +26,7 @@ class CPRDSpider(BaseSpider):
         tmp = '//strong[contains(text(),{!r})]/following-sibling::text()'
         rel_img = response.xpath('//article//a/img/@src').get()
         d = {
-            "brand": "CPRD",
+            "brand": "cprd",
             # "parent": response.xpath('//p[@class="catalogue_number"]/a/text()').get(),
             "cat_no": strip(response.xpath(tmp.format("Catalogue Number:")).get()),
             "cas": strip(response.xpath(tmp.format("CAS Number:")).get()),

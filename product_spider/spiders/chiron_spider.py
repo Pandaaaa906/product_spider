@@ -35,7 +35,7 @@ class ChironSpider(BaseSpider):
         specification = response.xpath(tmp.format("Specification")).get()
         package = response.xpath(tmp.format("Pack size")).get()
         d = {
-            'brand': 'Chiron',
+            'brand': 'chiron',
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath(tmp.format("Product no.")).get(),
             'en_name': response.xpath('//h2/text()').get(),

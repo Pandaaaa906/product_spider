@@ -44,7 +44,7 @@ class MolcanPrdSpider(BaseSpider):
             mf = ""
         relate_img_url = response.xpath('//a[@class="product_image lightbox"]/img/@src').get()
         d = {
-            'brand': "Molcan",
+            'brand': "molcan",
             'en_name': response.xpath('//p[@class="product_name"]/text()').get().split(' ; ')[0],
             'cat_no': response.xpath('//span[@class="productNo"]/text()').get().split('-')[0],
             'img_url': relate_img_url and self.base_url + relate_img_url,

@@ -33,7 +33,7 @@ class MedicalIsotopesSpider(BaseSpider):
         tmp = '//td[contains(text(), {!r})]/following-sibling::td//text()'
         package = strip(response.xpath('normalize-space(//td/table//td[1]/text())').get())
         d = {
-            'brand': 'MedicalIsotopes',
+            'brand': 'medicalisotopes',
             'parent': response.meta.get('parent'),
             'cat_no': strip(response.xpath(tmp.format("Catalog Number:")).get()),
             'en_name': strip(response.xpath('//th[contains(text(), "Product:")]/following-sibling::th/text()').get()),

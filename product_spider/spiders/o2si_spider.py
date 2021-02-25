@@ -10,7 +10,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class O2siSpider(BaseSpider):
     name = "o2si"
-    brand = 'O2si'
+    brand = 'o2si'
     base_url = "https://www.o2si.com/"
     start_urls = ['https://www.o2si.com/', ]
     custom_settings = {

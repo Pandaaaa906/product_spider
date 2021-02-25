@@ -17,7 +17,7 @@ class SplendidLabSpider(BaseSpider):
         for prd in prds:
             img_rel = prd.xpath('.//div[@class="product-img"]/img/@src').get()
             d = {
-                "brand": "SplendidLab",
+                "brand": "splendidlab",
                 "parent": None,
                 "cat_no": prd.xpath(tmp.format("Catalog Number")).get(),
                 "en_name": prd.xpath('.//div[@class="product-text"]/h3/text()').get('').strip() or None,

@@ -48,7 +48,7 @@ class ClearsynthSpider(BaseSpider):
         category = response.xpath(tmp.format("Category")).get()
         img_rel_url = response.xpath('//div[@class="product-media"]//img/@src').get()
         d = {
-            "brand": "Clearsynth",
+            "brand": "clearsynth",
             "parent": parent or category,
             "cat_no": response.xpath(tmp.format("CAT No.")).get(),
             "en_name": ''.join(response.xpath('//div[@class="product-name"]//text()').getall()),

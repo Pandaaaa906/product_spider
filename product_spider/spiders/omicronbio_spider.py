@@ -33,7 +33,7 @@ class OmicronSpider(BaseSpider):
         tmp = '//th[contains(text(), {!r})]/following-sibling::td//text()'
         rel_img = response.xpath('//img[@id="structure"]/@src').get()
         d = {
-            'brand': 'Omicron',
+            'brand': 'omicron',
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath(tmp.format("Catalog")).get(),
             'en_name': ''.join(response.xpath('//h1//text()').getall()),

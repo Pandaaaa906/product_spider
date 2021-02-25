@@ -48,7 +48,7 @@ class TLCSpider(BaseSpider):
             'mf': self.extract_value(response, "Molecular Formula:"),
             'parent': response.xpath('//section[@class="page"][1]//h3[@class="title--product"]/text()').extract_first(
                 default="").title() or None,
-            'brand': 'TLC',
+            'brand': 'tlc',
             'prd_url': response.request.url,
             'stock_info': response.xpath('//span[@class="status"]/text()').extract_first("").strip().title() or None,
         }

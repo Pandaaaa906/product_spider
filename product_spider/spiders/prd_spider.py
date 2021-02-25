@@ -136,7 +136,7 @@ class DaltonSpider(BaseSpider):
                 mol_text = mol_text.encode('u8').decode('unicode-escape')
 
             d = {
-                'brand': 'Dalton',
+                'brand': 'dalton',
                 'en_name': name,
                 'prd_url': url_prd,  # 产品详细连接
                 'mol_text': mol_text,
@@ -175,7 +175,7 @@ class AozealSpider(BaseSpider):
     def detail_parse(self, response):
         tmp_xpath = '//div[contains(@class, "summary entry-summary")]//span[text()={0!r}]/../following-sibling::span/text()'
         d = {
-            'brand': "Aozeal",
+            'brand': "aozeal",
             'en_name': response.xpath('//h3[@itemprop="name"]//text()').get(),
             'prd_url': response.request.url,  # 产品详细连接
             'cat_no': response.xpath(tmp_xpath.format("Catalogue No.")).get(default=""),
@@ -213,7 +213,7 @@ class StannumSpider(BaseSpider):
             elif len(tmp) == 1:
                 mw = tmp[0]
             item = {
-                'brand': 'Stannum',
+                'brand': 'stannum',
                 'parent': parent,
                 'cat_no': row.xpath('./td/text()').get(),
                 'en_name': ''.join(row.xpath('./td[2]/descendant::text()').extract()),
@@ -250,7 +250,7 @@ class AcornSpider(BaseSpider):
             stock_info = row.xpath('normalize-space(./td[5]/descendant::text())').get()
             img_rel_url = row.xpath('./td[4]/img/@src').get()
             d = {
-                "brand": "Acorn",
+                "brand": "acorn",
                 "parent": parent,
                 "cat_no": cat_no,
                 "cas": row.xpath('./td[2]/text()').get("N/A").strip(),
@@ -282,7 +282,7 @@ class HICSpider(BaseSpider):  # dead website 20200522
     def detail_parse(self, response):
         tmp = '//td[contains(text(), {!r})]/following-sibling::td/text()'
         d = {
-            "brand": "HIC",
+            "brand": "hic",
             "parent": response.meta.get("parent"),
             "cat_no": response.xpath('//h1[@class="header-post-title-class"]/text()').get(),
             "cas": response.xpath(tmp.format("CAS:")).get(),
@@ -360,7 +360,7 @@ class CILSpider(BaseSpider):
         unlabeled_cas = response.xpath(tmp.format("Unlabeled CAS#")).get()
         r_img_url = response.xpath('//div[@class="image-section"]/p//img/@src').get()
         d = {
-            "brand": "CIL",
+            "brand": "cil",
             "parent": response.meta.get("parent"),
             "cat_no": response.xpath(tmp.format("Item Number")).get(),
             "cas": f"{cas}; Unlabeled Cas:{unlabeled_cas}",
@@ -416,7 +416,7 @@ class DRESpider(BaseSpider):
         color = response.xpath('//h2[text()="Color"]/following-sibling::p/text()').get("")
         appearance = response.xpath('//h2[text()="Appearance/Form"]/following-sibling::p/text()').get("")
         d = {
-            "brand": "DRE",
+            "brand": "dre",
             "parent": parent or related_categories,
             "cat_no": response.xpath(tmp.format("Product Code")).get(),
             "en_name": response.xpath('//h1[@class="product__title"]/text()').get(default="").strip(),
@@ -454,7 +454,7 @@ class APIChemSpider(BaseSpider):
             if not first_cat_no:
                 first_cat_no = cat_no
             d = {
-                "brand": "APIChem",
+                "brand": "apichem",
                 "parent": None,
                 "cat_no": cat_no,
                 "en_name": en_name,

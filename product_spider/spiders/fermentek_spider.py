@@ -30,7 +30,7 @@ class FermentekSpider(BaseSpider):
         if img_url:
             img_url, *_ = img_url.split('?')
         d = {
-            'brand': 'Fermentek',
+            'brand': 'fermentek',
             'cat_no': response.xpath(tmp.format("Fermentek product code:")).get(),
             'en_name': response.xpath('//div[contains(@class, "field-name-field-fermentek-product-id")]/div//text()').get(),
             'mf': strip(''.join(response.xpath(tmp.format("Molecular Formula")).getall())),

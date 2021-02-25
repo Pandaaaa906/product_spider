@@ -10,7 +10,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class MCESpider(BaseSpider):
     name = "mce"
-    brand = 'MCE'
+    brand = 'mce'
     base_url = "https://www.medchemexpress.cn/"
     start_urls = ['https://www.medchemexpress.cn/products.html', ]
 

@@ -28,7 +28,7 @@ class BPSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//th[contains(text(), {!r})]/following-sibling::td/text()'
         d = {
-            'brand': 'BP',
+            'brand': 'bp',
             'cat_no': response.xpath(tmp.format('Catalogue Number:')).get(),
             'en_name': ''.join(response.xpath('//header/h1//text()').getall()),
             "cas": response.xpath(tmp.format('CAS Number:')).get(),

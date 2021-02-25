@@ -24,7 +24,7 @@ class STDSpider(BaseSpider):
         tmp = './/*[contains(text(),{!r})]/text()'
         for node in nodes:
             d = {
-                "brand": "STD",
+                "brand": "std",
                 "parent": response.meta.get('parent'),
                 "cat_no": node.xpath(tmp.format("STD No.")).get("").replace("STD No.", "").strip(),
                 "cas": node.xpath(tmp.format("CAS No.")).get("").replace("CAS No.", "").strip(),

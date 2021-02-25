@@ -42,7 +42,7 @@ class TanmoSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//el-form-item[contains(@label, {!r})]/span/text()'
         brand = strip(response.xpath(tmp.format("品牌")).get(), "")
-        brand = '_'.join(('Tanmo', brand))
+        brand = '_'.join(('Tanmo', brand)).lower()
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
         d = {
             'brand': brand,

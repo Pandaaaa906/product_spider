@@ -37,7 +37,7 @@ class SteraloidsSpider(BaseSpider):
         cas = response.xpath(tmp.format("CAS")).get('')
         cas = cas if cas!='No' else None
         d = {
-            'brand': 'Steraloids',
+            'brand': 'steraloids',
             'parent': None,
             'cat_no': response.xpath(tmp.format("Catalogue ID")).get(),
             'en_name': response.xpath('//h1[@class="product-title"]/text()').get(),

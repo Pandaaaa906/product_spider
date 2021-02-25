@@ -29,7 +29,7 @@ class BDGSpider(BaseSpider):
         l_cas = p_cas.findall(r_cas)
         cas = None if not l_cas else first(l_cas)
         d = {
-            "brand": "BDG",
+            "brand": "bdg",
             "parent": ';'.join(response.xpath('//span[@class="posted_in"]/a/text()').getall()) or None,
             "cat_no": response.xpath('//span[@class="sku"]/text()').get(),
             "en_name": response.xpath('//h1[@itemprop="name"]/text()').get(),

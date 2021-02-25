@@ -31,7 +31,7 @@ class VeeprhoSpider(BaseSpider):
         rel_img = response.xpath('//div[@class="image"]/img/@data-src').get()
         img_url = urljoin(self.base_url, rel_img) if rel_img else None
         d = {
-            "brand": "Veeprho",
+            "brand": "veeprho",
             "parent": response.meta.get('parent'),
             "cat_no": response.xpath(tmp2.format("Catalogue No.:")).get('').strip() or None,
             "en_name": response.xpath('//div[@class="container"]/h1/text()').get(),

@@ -11,7 +11,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class TRCSpider(BaseSpider):
     name = "trc"
-    brand = 'TRC'
+    brand = 'trc'
     allow_domain = ["trc-canada.com", ]
     start_urls = ["https://www.trc-canada.com/parent-drug/", ]
     search_url = "https://www.trc-canada.com/products-listing/?"

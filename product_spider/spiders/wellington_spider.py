@@ -6,7 +6,7 @@ class WellingtonSpider(BaseSpider):
     name = "wellington"
     start_urls = ["https://well-labs.com/products/productsearch/", ]
     base_url = "https://well-labs.com/"
-    brand = 'Wellington'
+    brand = 'wellington'
 
     def parse(self, response):
         rows = response.xpath('//table[@id="table"]/tbody/tr')

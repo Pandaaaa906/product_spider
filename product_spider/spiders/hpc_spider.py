@@ -28,7 +28,7 @@ class HPCSpider(BaseSpider):
         info3 = f'{quantity}; {concentration} in {solvent}' if concentration else quantity
         mw = response.xpath(tmp.format("Molecular weight")).get()
         d = {
-            'brand': 'HPC',
+            'brand': 'hpc',
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath(tmp.format("Item number")).get(),
             'en_name': response.xpath('//h1/text()').get(),

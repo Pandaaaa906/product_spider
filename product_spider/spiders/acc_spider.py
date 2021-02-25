@@ -31,7 +31,7 @@ class AccPrdSpider(BaseSpider):
     def detail_parse(self, response):
         tmp = '//div[contains(@class, {!r})]/div[contains(@class, "value")]//text()'
         d = {
-            "brand": "AccuStandard",
+            "brand": "accuStandard",
             "parent": response.xpath('//li[position()=last()-1]/a/span[@itemprop]/text()').get(),
             "cat_no": response.xpath('//div[@itemprop="sku"]/text()').get(),
             "en_name": response.xpath('//h1[@class="page-title"]//text()').get(),

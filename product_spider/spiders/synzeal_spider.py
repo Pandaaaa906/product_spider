@@ -37,7 +37,7 @@ class SynzealSpider(BaseSpider):
         en_name = re.sub(r'\r?\n', "", en_name)
         tmp = '//td[contains(text(),{!r})]/following-sibling::td/text()'
         d = {
-            'brand': "SynZeal",
+            'brand': "synzeal",
             'en_name': en_name.strip(),
             'prd_url': response.request.url,  # 产品详细连接
             'cat_no': response.xpath(tmp.format('SZ CAT No')).get(),

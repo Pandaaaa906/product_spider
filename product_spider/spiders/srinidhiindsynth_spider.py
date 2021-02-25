@@ -34,7 +34,7 @@ class SrinidhiindSynthSpider(BaseSpider):
             m_mw = re.search(r'Mol\. Wt\.: ([^;]+);', short_desc)
             m_mf = re.search(r'CAS : [^;]+; ([^;]+)', short_desc)
             d = {
-                'brand': 'SrinidhiindSynth',
+                'brand': 'srinidhiindsynth',
                 'parent': response.meta.get('parent'),
                 'cat_no': en_name,
                 'en_name': en_name,

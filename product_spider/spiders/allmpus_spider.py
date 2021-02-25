@@ -46,7 +46,7 @@ class AllmpusSpider(BaseSpider):
         img_rel_url = response.xpath('//div[@class="panel-body"]//div/img/@src').get()
         img_url = img_rel_url and urljoin(self.base_url, img_rel_url)
         d = {
-            'brand': 'Allmpus',
+            'brand': 'allmpus',
             'parent': response.meta.get('parent', None),
             'cat_no': get_value(response, "CAT No : "),
             'en_name': response.xpath('//h1/text()').get(),

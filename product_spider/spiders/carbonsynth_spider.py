@@ -34,7 +34,7 @@ class CarbonsynthSpider(BaseSpider):
         tmp = '//td[child::b[contains(text(), {!r})]]/following-sibling::td//text()'
         rel_img = response.xpath('//div[@class="prod-img-container"]//img/@src').get()
         d = {
-            'brand': 'Carbonsynth',
+            'brand': 'carbonsynth',
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath('//span[@class="code"]//text()').get(),
             'en_name': strip(response.xpath('//h1[@class="name"]/text()').get()),

@@ -29,7 +29,7 @@ class BetterSynSpider(BaseSpider):
         *_, en_name = response.xpath('normalize-space(//span[contains(text(), "Product name")]/text())')\
             .get('').split(': ')
         d = {
-            'brand': 'BetterSyn',
+            'brand': 'bettersyn',
             'cat_no': response.xpath(tmp.format('CAS NO')).get(),
             'en_name': en_name,
             'info1': en_name,

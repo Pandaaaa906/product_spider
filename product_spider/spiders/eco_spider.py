@@ -25,7 +25,7 @@ class ECOSpider(BaseSpider):
     def detail_parse(self, response):
         tmp = '//span[contains(text(),"{}")]/following-sibling::font/text()'
         d = {
-            "brand": "ECO",
+            "brand": "eco",
             "parent": response.meta.get("parent"),
             "cat_no": response.xpath(tmp.format("Catalogue number")).get(),
             "cas": response.xpath(tmp.format("CAS Number")).get(),

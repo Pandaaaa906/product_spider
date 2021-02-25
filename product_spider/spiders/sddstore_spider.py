@@ -46,7 +46,7 @@ class SddStoreSpider(BaseSpider):
         rel_img = response.xpath('//img[@class="pic"]/@src').get()
 
         d = {
-            'brand': 'SDD',
+            'brand': 'sdd',
             'cat_no': response.xpath('//tr/td[1]/text()').get(),
             'en_name': response.xpath('//div[@class="row"]//dl/dd/text()').get(),
             'chs_name': response.xpath('//div[@class="row"]//dl/dt/text()').get(),

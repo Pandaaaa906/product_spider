@@ -11,7 +11,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class USPSpider(BaseSpider):
     name = "usp"
-    brand = 'USP'
+    brand = 'usp'
     start_urls = ["https://store.usp.org/OA_HTML/ibeCCtpSctDspRte.jsp?section=10042", ]
     base_url = "https://store.usp.org/"
 

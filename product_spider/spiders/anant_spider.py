@@ -38,7 +38,7 @@ class AnantSpider(BaseSpider):
         tmp_xpath_2 = './h6[contains(text(),"{0}")]/parent::*/following-sibling::*/h5/text()'
         mf = ''.join(div.xpath(tmp_xpath.format("Molecular Formula")).extract()).strip()
         d = {
-            'brand': "Anant",
+            'brand': "anant",
             'en_name': response.xpath('normalize-space(//div[contains(@class,"prod-details")]//h1/text())').get(),
             'prd_url': response.request.url,  # 产品详细连接
             'cat_no': response.xpath('//h5[@class="prod-cat"]/text()').get("").strip(),

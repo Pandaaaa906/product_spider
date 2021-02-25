@@ -35,7 +35,7 @@ class AnaxlabSpider(BaseSpider):
         tmp = '//b[contains(text(), {!r})]/../following-sibling::li[1]//span[@itemprop]/text()'
         rel_img = response.xpath('//img[@class="productDetailsImage"]/@src').get()
         d = {
-            'brand': "Anaxlab",
+            'brand': "anaxlab",
             'en_name': response.xpath('//h1[@class="title"]/text()').get(),
             'prd_url': response.request.url,  # 产品详细连接
             'cat_no': cus_strip(response.xpath(tmp_cat_no).get()),

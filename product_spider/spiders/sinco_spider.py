@@ -28,7 +28,7 @@ class SincoSpider(BaseSpider):
     def detail_parse(self, response):
         tmp_xpath = '//*[contains(text(), {!r})]/ancestor::td/following-sibling::td//text()'
         d = {
-            "brand": "Sinco",
+            "brand": "sinco",
             "parent": response.meta.get('parent'),
             "cat_no": "".join(response.xpath(tmp_xpath.format("CAT#:")).extract()),
             "cas": "".join(response.xpath(tmp_xpath.format("CAS#:")).extract()),

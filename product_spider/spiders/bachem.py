@@ -39,7 +39,7 @@ class BachemSpider(BaseSpider):
         en_name = strip(''.join(response.xpath(tmp2).getall())) or None
         synonyms = strip(response.xpath(tmp.format("Synonyms")).get())
         d = {
-            'brand': 'Bachem',
+            'brand': 'bachem',
             'parent': strip(response.xpath('//li[@class="product"]/preceding-sibling::li[1]/a/text()').get()),
             'cat_no': strip(response.xpath('//div[@id="productname"]/text()').get()),
             'en_name': en_name or sequence,

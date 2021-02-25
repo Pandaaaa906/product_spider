@@ -57,7 +57,7 @@ class LGCSpider(JsonSpider):
         related_categories = response.xpath(
             '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').get(default="").strip()
         d = {
-            "brand": 'LGC',
+            "brand": 'lgc',
             "parent": parent or related_categories,
             "cat_no": cat_no,
             "en_name": response.xpath('//h1[@class="product__title"]/text()').get(default="").strip(),

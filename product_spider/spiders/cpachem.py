@@ -30,7 +30,7 @@ class CPAChemSpider(BaseSpider):
         tmp = '//b[text()={!r}]/following-sibling::text()'
         catagory = strip(response.xpath('//b[text()="Category:"]/following-sibling::a/text()').get())
         d = {
-            'brand': 'CPAChem',
+            'brand': 'cpachem',
             'parent': catagory,
             'cat_no': strip(response.xpath(tmp.format("Ref Num:")).get()),
             'en_name': strip(response.xpath(tmp.format("Full Name:")).get()),

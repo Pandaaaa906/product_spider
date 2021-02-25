@@ -16,7 +16,7 @@ class BepureSpider(BaseSpider):
     base_url = "http://www.bepurestandards.com/"
     api_url = 'http://www.bepurestandards.com/a.aspx?'
     start_urls = ["http://www.bepurestandards.com/a.aspx?oper=getSubNav", ]
-    brand = 'Bepure'
+    brand = 'bepure'
 
     def parse(self, response):
         j_obj = json.loads(response.text)
