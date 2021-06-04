@@ -256,8 +256,10 @@ class SupplierProduct(scrapy.OrderedItem):
     brand = scrapy.Field()
     vendor_origin = scrapy.Field()
     vendor_type = scrapy.Field()
+    vendor_url = scrapy.Field()
 
     parent = scrapy.Field()
+    cat_no = scrapy.Field()
     en_name = scrapy.Field()
     chs_name = scrapy.Field()
     cas = scrapy.Field()
@@ -272,6 +274,7 @@ class SupplierProduct(scrapy.OrderedItem):
     storage_condition = scrapy.Field()
     package = scrapy.Field()
     price = scrapy.Field()
+    delivery = scrapy.Field()
 
     info1 = scrapy.Field()
     info2 = scrapy.Field()

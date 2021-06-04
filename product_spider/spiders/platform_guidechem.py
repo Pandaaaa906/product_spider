@@ -41,6 +41,7 @@ class GuideChemSpider(BaseSpider):
                 'platform': self.name,
                 'source_id': dd.xpath('./@data-id').get(),
                 'vendor': dd.xpath('.//em/a/text()').get(),
+                'vendor_url': dd.xpath('.//em/a/@href').get(),
                 'vendor_origin': dd.xpath('.//span/img[contains(@src, "country")]/@title').get(),
                 'vendor_type': dd.xpath('.//span/img[contains(@src, "/vip/")][last()]/@title').get(),
                 'en_name': dd.xpath('.//span/a/@title').get(),
