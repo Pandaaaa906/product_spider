@@ -21,9 +21,12 @@ class SincoSpider(BaseSpider):
             yield Request(url, meta={"parent": parent}, callback=self.list_parse)
 
     def list_parse(self, response):
-        urls = response.xpath('//li[@class="product-item"]/div[1]/a/@href').extract()
+        urls = response.xpath('//div[@class="rm"]/a/@href').extract()
         for url in urls:
             yield Request(url, meta=response.meta, callback=self.detail_parse)
+        next_page = response.xpath('//li[contains(@class,"pro_active")]//following-sibling::li/a/@href').get()
+        if next_page:
+            yield Request(urljoin(self.base_url, next_page), meta=response.meta, callback=self.list_parse)
 
     def detail_parse(self, response):
         tmp_xpath = '//*[contains(text(), {!r})]/ancestor::td/following-sibling::td//text()'
