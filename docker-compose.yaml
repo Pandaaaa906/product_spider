@@ -11,7 +11,7 @@ services:
       - /www/prd_spider/dbs:/app/dbs
       - /www/prd_spider/eggs:/app/eggs
     env_file:
-      - secret.env
+      - .env
   scrapydweb:
     build: .
     entrypoint: "scrapydweb"
@@ -29,7 +29,7 @@ services:
     ports:
       - 6799:5000
     env_file:
-      - secret.env
+      - .env
     depends_on:
       - "scrapyd"
   logparser:
@@ -39,6 +39,8 @@ services:
     restart: unless-stopped
     volumes:
       - /www/prd_spider/logs:/app/logs
+    env_file:
+      - .env
   portia:
     image: scrapinghub/portia
     hostname: portia
@@ -52,3 +54,5 @@ services:
       - /www/prd_spider/data/projects:/app/data/projects:rw
     links:
       - "scrapyd"
+    env_file:
+      - .env
