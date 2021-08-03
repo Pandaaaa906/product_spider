@@ -164,6 +164,7 @@ class AnpelItem(scrapy.OrderedItem):
     cn_name = scrapy.Field()
     en_name = scrapy.Field()
     brand = scrapy.Field()
+    sub_brand = scrapy.Field()
     cas = scrapy.Field()
     package = scrapy.Field()
     unit = scrapy.Field()
