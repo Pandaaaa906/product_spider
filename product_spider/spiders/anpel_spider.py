@@ -325,9 +325,9 @@ brands_urls = [
 
 class AnpelSpider(BaseSpider):
     name = "anpel"
-    base_url = 'https://www.anpel.com.cn/'
+    base_url = 'https://www.labsci.com.cn/'
     start_urls = [
-        'https://www.anpel.com.cn/Brands_0032.html',  # anpel
+        'https://www.labsci.com.cn/Brands_0032.html',  # anpel
         # 'https://www.anpel.com.cn/Brands_0134.html',  # cnw
         # 'https://www.anpel.com.cn/Brands_0181.html',  # o2si
     ]

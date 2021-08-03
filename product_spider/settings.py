@@ -88,7 +88,7 @@ CONCURRENT_REQUESTS_PER_IP = 16
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    # 'product_spider.pipelines.StripPipeline': 50,
+    'product_spider.pipelines.StripPipeline': 50,
     'product_spider.pipelines.DropNullCatNoPipeline': 100,
     'product_spider.pipelines.FilterNAValue': 200,
     'scrapyautodb.pipelines.AutoDBPipeline': 300,

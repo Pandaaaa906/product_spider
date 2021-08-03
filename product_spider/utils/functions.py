@@ -4,7 +4,7 @@ def strip(string: str, default=None):
         return default
     if not isinstance(string, str):
         return string
-    return string.strip() or None
+    return string.strip() or default
 
 
 def first(l: list, default=None):
