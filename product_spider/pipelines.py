@@ -40,4 +40,4 @@ class StripPipeline:
         adapter = ItemAdapter(item)
         for key, value in adapter.items():
             adapter[key] = strip(value)
-        return adapter.item
+        return item
