@@ -21,16 +21,20 @@ class SincoSpider(BaseSpider):
             yield Request(url, meta={"parent": parent}, callback=self.list_parse)
 
     def list_parse(self, response):
-        urls = response.xpath('//li[@class="product-item"]/div[1]/a/@href').extract()
+        urls = response.xpath('//div[@class="rm"]/a/@href').extract()
         for url in urls:
             yield Request(url, meta=response.meta, callback=self.detail_parse)
+        next_page = response.xpath('//li[contains(@class,"pro_active")]//following-sibling::li/a/@href').get()
+        if next_page:
+            yield Request(urljoin(self.base_url, next_page), meta=response.meta, callback=self.list_parse)
 
     def detail_parse(self, response):
         tmp_xpath = '//*[contains(text(), {!r})]/ancestor::td/following-sibling::td//text()'
+        tmp_cat_no = response.xpath('//*[contains(text(), "CAT#:")]/text()').get()
         d = {
             "brand": "sinco",
             "parent": response.meta.get('parent'),
-            "cat_no": "".join(response.xpath(tmp_xpath.format("CAT#:")).extract()),
+            "cat_no": "".join(response.xpath(tmp_xpath.format("CAT#:")).extract()) or tmp_cat_no.replace('CAT#:', ''),
             "cas": "".join(response.xpath(tmp_xpath.format("CAS#:")).extract()),
             "en_name": response.xpath('//div[@class="right pro_det_nr"]/h1/text()').get(),
             "mf": "".join(response.xpath(tmp_xpath.format("M.F.:")).extract()),

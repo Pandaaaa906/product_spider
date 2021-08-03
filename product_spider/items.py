@@ -248,3 +248,51 @@ class HongmengItem(scrapy.OrderedItem):
         indexes = (
             (('brand', 'sub_brand', 'cat_no', 'sub_cat_no', 'place_code'), True),
         )
+
+
+class SupplierProduct(scrapy.OrderedItem):
+    platform = scrapy.Field()
+    source_id = scrapy.Field()
+    vendor = scrapy.Field()
+    brand = scrapy.Field()
+    vendor_origin = scrapy.Field()
+    vendor_type = scrapy.Field()
+    vendor_url = scrapy.Field()
+
+    parent = scrapy.Field()
+    cat_no = scrapy.Field()
+    en_name = scrapy.Field()
+    chs_name = scrapy.Field()
+    cas = scrapy.Field()
+    smiles = scrapy.Field()
+    mf = scrapy.Field()
+    mw = scrapy.Field()
+    stock_info = scrapy.Field()
+    purity = scrapy.Field()
+    appearance = scrapy.Field()
+    img_url = scrapy.Field()
+    synonyms = scrapy.Field()
+    storage_condition = scrapy.Field()
+    package = scrapy.Field()
+    price = scrapy.Field()
+    delivery = scrapy.Field()
+
+    info1 = scrapy.Field()
+    info2 = scrapy.Field()
+    info3 = scrapy.Field()
+    info4 = scrapy.Field()
+    info5 = scrapy.Field()
+
+    tags = scrapy.Field()
+    grade = scrapy.Field()
+    mol_text = scrapy.Field()
+    prd_url = scrapy.Field()
+    expiry_date = scrapy.Field()
+    stock_num = scrapy.Field()
+    mdl = scrapy.Field()
+    einecs = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('platform', 'source_id',), True),
+        )
