@@ -11,7 +11,7 @@
 from os import getenv
 
 LOG_LEVEL = 'INFO'
-if getenv('PYTHONUNBUFFERED'):
+if not getenv('PYTHONUNBUFFERED'):
     LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
 

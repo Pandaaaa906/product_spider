@@ -1,5 +1,6 @@
 import re
 
+import execjs
 from more_itertools import first
 from scrapy import Request
 
@@ -13,14 +14,24 @@ class TanmoSpider(BaseSpider):
     base_url = "https://www.gbw-china.com/"
     start_urls = ["https://www.gbw-china.com/", ]
 
+    handle_httpstatus_list = [521]
+
     def parse(self, response):
-        a_nodes = response.xpath('//dd/a[contains(@href, "list_good")]')
+        a_nodes = response.xpath(
+            '//a[parent::dd|parent::dt[not(following-sibling::dd/a)]][contains(@href, "list_good")]')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
             url = a.xpath('./@href').get()
             yield Request(url, callback=self.parse_list, meta={'parent': parent})
 
     def parse_list(self, response):
+        if response.status == 521:
+            js_clearance = re.findall('cookie=(.*?);location', response.text)[0]
+            result = execjs.eval(js_clearance).split(';')[0]
+            k, v, *_ = result.split('=')
+            yield Request(response.url, callback=self.parse_list, meta=response.meta, cookies={k: v})
+            pass
+
         parent = response.meta.get('parent')
         rows = response.xpath('//table[@id="product_table"]/tbody/tr')
         for row in rows:
