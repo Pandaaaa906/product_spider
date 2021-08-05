@@ -1,7 +1,4 @@
-import json
 import re
-from hashlib import sha1, sha256, md5
-from itertools import permutations
 
 import demjson
 import execjs
@@ -9,26 +6,9 @@ from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
+from product_spider.middlewares.handle521 import get_params, encrypt_cookies, hash_d
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
-
-
-hash_d = {
-    'sha1': sha1,
-    'sha256': sha256,
-    'md5': md5,
-}
-
-
-def encrypt_cookies(chars, bts, ct, hash_func):
-    for i in permutations(chars, 2):
-        cookie = f'{bts[0]}{"".join(i)}{bts[1]}'
-        if hash_func(cookie.encode()).hexdigest() == ct:
-            return cookie
-
-
-def get_params(response):
-    return json.loads(re.findall(r';go\((.*?)\)', response.text)[0])
 
 
 class TanmoSpider(BaseSpider):
@@ -37,6 +17,12 @@ class TanmoSpider(BaseSpider):
     start_urls = ["https://www.gbw-china.com/", ]
 
     handle_httpstatus_list = [521]
+
+    # custom_settings = {
+    #     'DOWNLOADER_MIDDLEWARES': {
+    #         'product_spider.middlewares.handle521.Cookie521Middleware': 100,
+    #     }
+    # }
 
     def parse(self, response, **kwargs):
         a_nodes = response.xpath(
