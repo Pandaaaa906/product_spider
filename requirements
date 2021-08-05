@@ -10,3 +10,5 @@ scrapydweb
 tzlocal
 itemadapter
 requests_html
+pyexecjs
+demjson
