@@ -37,8 +37,8 @@ class SincoSpider(BaseSpider):
             "cat_no": "".join(response.xpath(tmp_xpath.format("CAT#:")).extract()) or tmp_cat_no.replace('CAT#:', ''),
             "cas": "".join(response.xpath(tmp_xpath.format("CAS#:")).extract()),
             "en_name": response.xpath('//div[@class="right pro_det_nr"]/h1/text()').get(),
-            "mf": "".join(response.xpath(tmp_xpath.format("M.F.:")).extract()),
-            "mw": "".join(response.xpath(tmp_xpath.format("M.W.:")).extract()),
+            "mf": "".join(response.xpath(tmp_xpath.format("M.F")).extract()),
+            "mw": "".join(response.xpath(tmp_xpath.format("M.W")).extract()),
             "img_url": response.xpath('//img[@class="smallImg"]/@src').get(),
             "prd_url": response.url,
         }
