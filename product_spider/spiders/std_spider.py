@@ -1,4 +1,5 @@
 import re
+from string import ascii_uppercase
 from urllib.parse import urljoin
 
 from scrapy import Request
@@ -9,7 +10,8 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class STDSpider(BaseSpider):
     name = "std"
-    start_urls = ["http://www.standardpharm.com/portal/list/index/id/11.html", ]
+    start_urls = [f"http://www.standardpharm.com/portal/list/index/id/11/shorttag/{char}.html"
+                  for char in ascii_uppercase ]
     base_url = "http://www.standardpharm.com/"
 
     def parse(self, response, **kwargs):
