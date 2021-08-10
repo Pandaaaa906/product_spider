@@ -12,7 +12,7 @@ class STDSpider(BaseSpider):
     start_urls = ["http://www.standardpharm.com/portal/list/index/id/11.html", ]
     base_url = "http://www.standardpharm.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//ul[@class="pro"]/li/a')
         for a in a_nodes:
             url = urljoin(self.base_url, a.xpath('./@href').get(""))
@@ -29,7 +29,7 @@ class STDSpider(BaseSpider):
                 "cat_no": node.xpath(tmp.format("STD No.")).get("").replace("STD No.", "").strip(),
                 "cas": node.xpath(tmp.format("CAS No.")).get("").replace("CAS No.", "").strip(),
                 "en_name": node.xpath('./h3//p/text()').get(),
-                "img_url": urljoin(self.base_url, node.xpath('./span/img/@src').get()),
+                "img_url": urljoin(self.base_url, node.xpath('./span//img/@src').get()),
                 "mf": node.xpath(tmp.format("Chemical Formula")).get("").replace("Chemical Formula :", "").strip(),
                 "prd_url": urljoin(self.base_url, node.xpath('./a/@href').get('')),
             }
