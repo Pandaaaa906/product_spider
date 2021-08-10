@@ -34,10 +34,12 @@ class QCCSpider(BaseSpider):
             "cas": strip(response.xpath(tmp.format("CAS No.:")).get()),
             "en_name": strip(response.xpath(tmp.format("Chemical Name:")).get()),
             "info1": strip(response.xpath(tmp.format("Synonyms:")).get()),
-            "img_url": urljoin(self.base_url, response.xpath('//table//td/div[@style]/img/@src').get()),
             "mf": strip(response.xpath(tmp.format("Molecular Formula:")).get()),
             "mw": strip(response.xpath(tmp.format("Molecular Weight:")).get()),
             "prd_url": response.url,
         }
+        img_url = urljoin(self.base_url, response.xpath('//table//td/div[@style and not(div)]//img/@src').get())
+        if img_url and not img_url.endswith('Uploads/'):
+            d['img_url'] = img_url
         yield RawData(**d)
 
