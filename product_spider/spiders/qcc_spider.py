@@ -13,12 +13,15 @@ class QCCSpider(BaseSpider):
     start_urls = (f"http://www.qcchemical.com/index.php/Index/api?letter={c}&mletter={c}" for c in ascii_uppercase)
     base_url = "http://www.qcchemical.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@id="pros"]/ul/a')
         for a in a_nodes:
             url = urljoin(self.base_url, a.xpath('./@href').get())
             parent = a.xpath('./li/text()').get()
             yield Request(url, callback=self.list_parse, meta={"parent": parent and parent.strip()})
+        next_page = response.xpath('//a[text()=">"]/@href').get()
+        if next_page:
+            yield Request(urljoin(self.base_url, next_page), callback=self.parse)
 
     def list_parse(self, response):
         rel_urls = response.xpath('//div[@id="list"]//a[contains(text(), "Details")]/@href').extract()
