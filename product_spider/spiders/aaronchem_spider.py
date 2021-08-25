@@ -52,7 +52,6 @@ class AaronchemSpider(CrawlSpider):
             "cat_no" : cat_no,
             "mdl" : response.xpath("//td[contains(text(), 'MDL Number')]/following-sibling::td/text()").get(),
             "smiles" : response.xpath("//td[contains(text(), 'SMILES')]/following-sibling::td/text()").get(),
-            "parent" : response.xpath("//td[contains(text(), 'Catalog Number')]/following-sibling::td/text()").get(),
             "info1" : response.xpath("//td[contains(text(), 'Chemical Name')]/following-sibling::td/text()").get(),
             "cas" : response.xpath("//td[contains(text(), 'CAS Number')]/following-sibling::td/text()").get(),
             "mf" : response.xpath("//td[contains(text(), 'Molecular Formula')]/following-sibling::td/text()").get(),
