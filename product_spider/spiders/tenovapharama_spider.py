@@ -12,7 +12,7 @@ class TenovapharmalSpider(BaseSpider):
     start_urls = ["https://tenovapharma.com/collections/all/", ]
     base_url = "https://tenovapharma.com/collections/all"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         pro_list = response.xpath(
             '//a[@title="Products"]/following-sibling::ul//li[@role="menuitem"]/a[@title and not(following-sibling::ul)]')
         for pro in pro_list:
@@ -32,7 +32,7 @@ class TenovapharmalSpider(BaseSpider):
             url = urljoin(self.base_url, url)
             yield Request(
                 url=url,
-                callback=self.parse_detial,
+                callback=self.parse_detail,
                 meta={'parent': parent}
             )
 
@@ -45,7 +45,7 @@ class TenovapharmalSpider(BaseSpider):
                 meta={'parent': parent}
             )
 
-    def parse_detial(self, response):
+    def parse_detail(self, response):
         parent = response.meta.get('parent')
         cat_no = response.xpath("//span[@class='variant-sku']//text()").get()
         cat_no = first(re.findall(r'SKU:(.+)-', cat_no), None)
