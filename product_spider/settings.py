@@ -32,6 +32,7 @@ DATABASE = {"engine": DATABASE_ENGINE,
                 "password": DATABASE_PWD,
                 "host": DATABASE_HOST,
                 "port": DATABASE_PORT,
+                "application_name": BOT_NAME,
             }
             }
 
