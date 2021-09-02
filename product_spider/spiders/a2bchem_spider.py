@@ -40,9 +40,9 @@ class A2bchemSpider(BaseSpider):
         }
         yield RawData(**d)
 
-        rows = response.xpath("//table[@class='q_table']//tbody//tr[position()>0]")
+        rows = response.xpath("//table[@class='q_table']/tbody/tr")
         for row in rows:
-            price = row.xpath(".//td[5]/text()").get()
+            price = row.xpath(".//td[5]/text()").get('')
             price = price.replace("$", '')
             dd = {
                 "brand": self.name,
@@ -50,6 +50,5 @@ class A2bchemSpider(BaseSpider):
                 "package": row.xpath(".//td[1]/text()").get(),
                 "price": price,
                 "currency": 'USD',
-
             }
             yield ProductPackage(**dd)
