@@ -39,5 +39,5 @@ class StripPipeline:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         for key, value in adapter.items():
-            adapter[key] = strip(value)
+            adapter[key] = strip(value) or None
         return item
