@@ -1,7 +1,9 @@
 import re
-
+import time
+from ast import literal_eval
 import demjson
 import execjs
+from lxml import etree
 from more_itertools import first
 from scrapy import Request
 
@@ -28,9 +30,8 @@ class TanmoSpider(BaseSpider):
         a_nodes = response.xpath(
             '//a[parent::dd|parent::dt[not(following-sibling::dd/a)]][contains(@href, "list_good")]')
         for a in a_nodes:
-            parent = a.xpath('./text()').get()
             url = a.xpath('./@href').get()
-            yield Request(url, callback=self.parse_list, meta={'parent': parent})
+            yield Request(url, callback=self.parse_list)
 
     def handle_521(self, response, callback, **kwargs):
         n = response.meta.get('n', 0)
@@ -56,14 +57,13 @@ class TanmoSpider(BaseSpider):
         if response.status == 521:
             yield from self.handle_521(response, self.parse_list)
             return
-        parent = response.meta.get('parent')
         rows = response.xpath('//table[@id="product_table"]/tbody/tr')
         for row in rows:
             sub_brand = row.xpath('./td[10]/div/text()').get()
             if sub_brand and not ('坛墨' in sub_brand or 'tm' in sub_brand.lower()):
                 continue
             url = row.xpath('./td[1]//a/@href').get()
-            yield Request(url, callback=self.parse_detail, meta={'parent': parent})
+            yield Request(url, callback=self.parse_detail)
 
         cur_page = first(re.findall(r'pno: (\d+),', response.text), None)
         total_page = first(re.findall(r'total: (\d+),', response.text), None)
@@ -72,32 +72,49 @@ class TanmoSpider(BaseSpider):
         if int(cur_page) >= int(total_page):
             return
         next_page = re.sub(r'\d+(?=\.html)', str(int(cur_page) + 1), response.url)
-        yield Request(next_page, callback=self.parse_list, meta={'parent': parent})
+        yield Request(next_page, callback=self.parse_list)
 
     def parse_detail(self, response):
+        time.sleep(3)
         if response.status == 521:
             yield from self.handle_521(response, callback=self.parse_detail)
             return
+        parent = strip(response.xpath("//a[@class='el-breadcrumb__item'][last()]//span/text()").get(), '')
         tmp = '//el-form-item[contains(@label, {!r})]/span/text()'
         brand = strip(response.xpath(tmp.format("品牌")).get(), "")
         brand = '_'.join(('Tanmo', brand)).lower()
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
         good_obj = demjson.decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
 
+        t = first(re.findall(r"certInfo: ?('.+'),", response.text), None)
+        if t is None:
+            return
+        t = literal_eval(t)
+        ret = re.sub(r"\\", "", t)
+        html = etree.HTML(ret)
+        mw = first(html.xpath('//span[text()="Mol. Weight"]/following-sibling::span//text()'), None)
+        mf = ''.join(html.xpath('//span[text()="Mol. Formula"]/following-sibling::span//text()')) or None
+        en_name = first(html.xpath('//span[text()="Product Name"]/following-sibling::span//text()'), None)
+        appearance = first(html.xpath('//span[text()="Appearance"]/following-sibling::span//text()'), None)
+        img_url = first(html.xpath("//div[@class='boxcenterch']//img/@src"), None)
+
         d = {
             'brand': brand,
             'cat_no': cat_no,
             'chs_name': strip(response.xpath('//h2[@class="p-right-title"]/text()').get()),
             'cas': strip(response.xpath(tmp.format("CAS号")).get()),
-
+            'parent': parent,
             'stock_info': good_obj.get('number', 0),
             'expiry_date': good_obj.get('date', 0),
             'purity': strip(response.xpath(tmp.format("标准值")).get()),
-
+            'mw': mw,
+            'mf': mf,
+            "en_name": en_name,
+            "appearance": appearance,
+            "img_url": img_url,
             'info2': strip(response.xpath(tmp.format("储存条件")).get()),
             'info3': strip(response.xpath(tmp.format("规格")).get()),
             'info4': good_obj.get('price', '咨询'),
-
             'prd_url': response.url,
         }
         yield RawData(**d)
