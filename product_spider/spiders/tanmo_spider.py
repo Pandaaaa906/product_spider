@@ -86,8 +86,43 @@ class TanmoSpider(BaseSpider):
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
         good_obj = demjson.decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
 
+        chs_name = strip(response.xpath('//h2[@class="p-right-title"]/text()').get())
+        cas = strip(response.xpath(tmp.format("CAS号")).get())
+        stock_info = good_obj.get('number', 0)
+        expiry_date = good_obj.get('date', 0)
+
+        purity = strip(response.xpath(tmp.format("标准值")).get())
+        info2 = strip(response.xpath(tmp.format("储存条件")).get())
+        info3 = strip(response.xpath(tmp.format("规格")).get())
+        info4 = good_obj.get('price', '咨询')
+
+        d = {
+            'brand': brand,
+            'cat_no': cat_no,
+            'chs_name': chs_name,
+            'cas': cas,
+            'parent': parent,
+            'stock_info': stock_info,
+            'expiry_date': expiry_date,
+            'purity': purity,
+            'info2': info2,
+            'info3': info3,
+            'info4': info4,
+            'prd_url': response.url,
+        }
+
+        dd = {
+            'brand': brand,
+            'cat_no': cat_no,
+            'package': info3,
+            'price': info4,
+            'currency': 'RMB',
+        }
+
         t = first(re.findall(r"certInfo: ?('.+'),", response.text), None)
         if t is None:
+            yield RawData(**d)
+            yield ProductPackage(**dd)
             return
         t = literal_eval(t)
         ret = re.sub(r"\\", "", t)
@@ -98,32 +133,11 @@ class TanmoSpider(BaseSpider):
         appearance = first(html.xpath('//span[text()="Appearance"]/following-sibling::span//text()'), None)
         img_url = first(html.xpath("//div[@class='boxcenterch']//img/@src"), None)
 
-        d = {
-            'brand': brand,
-            'cat_no': cat_no,
-            'chs_name': strip(response.xpath('//h2[@class="p-right-title"]/text()').get()),
-            'cas': strip(response.xpath(tmp.format("CAS号")).get()),
-            'parent': parent,
-            'stock_info': good_obj.get('number', 0),
-            'expiry_date': good_obj.get('date', 0),
-            'purity': strip(response.xpath(tmp.format("标准值")).get()),
-            'mw': mw,
-            'mf': mf,
-            "en_name": en_name,
-            "appearance": appearance,
-            "img_url": img_url,
-            'info2': strip(response.xpath(tmp.format("储存条件")).get()),
-            'info3': strip(response.xpath(tmp.format("规格")).get()),
-            'info4': good_obj.get('price', '咨询'),
-            'prd_url': response.url,
-        }
-        yield RawData(**d)
+        d['mw'] = mw
+        d['mf'] = mf
+        d['en_name'] = en_name
+        d['appearance'] = appearance
+        d['img_url'] = img_url
 
-        dd = {
-            'brand': brand,
-            'cat_no': cat_no,
-            'package': strip(response.xpath(tmp.format("规格")).get()),
-            'price': good_obj.get('price', '咨询'),
-            'currency': 'RMB',
-        }
+        yield RawData(**d)
         yield ProductPackage(**dd)
