@@ -11,7 +11,7 @@ class EDQMSpider(BaseSpider):
     start_urls = ["https://crs.edqm.eu/db/4DCGI/web_catalog_XML.xml", ]
     base_url = "https://crs.edqm.eu/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         xml = XML(response.body)
         prds = xml.xpath('//Reference')
         for prd in prds:
@@ -24,6 +24,7 @@ class EDQMSpider(BaseSpider):
                 "info2": first(prd.xpath('./Storage/text()'), None),
                 "info3": first(prd.xpath('./Quantity_per_vial/text()'), None),
                 "info4": first(prd.xpath('./Price/text()'), None),
+                "shipping_group": first(prd.xpath('./Shipping_group/text()'), None),
                 "prd_url": f"https://crs.edqm.eu/db/4DCGI/View={first(prd.xpath('./Order_Code/text()'), '')}",
             }
             yield RawData(**d)

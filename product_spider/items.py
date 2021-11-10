@@ -117,6 +117,8 @@ class RawData(scrapy.OrderedItem):
     stock_num = scrapy.Field()
     mdl = scrapy.Field()
     einecs = scrapy.Field()
+    shipping_group = scrapy.Field()
+    shipping_info = scrapy.Field()
 
     class Meta:
         indexes = (
