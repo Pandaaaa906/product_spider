@@ -19,7 +19,7 @@ query_template = {
 class TansooleSpider(BaseSpider):
     name = "tansoole"
     allowd_domains = ["tansoole.com/"]
-    base_url = "http://www.acanthusresearch.com/"
+    base_url = "http://www.tansoole.com/"
 
     def start_requests(self):
         brand = 'DR'
@@ -28,7 +28,7 @@ class TansooleSpider(BaseSpider):
             meta={'brand': brand}
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath('//ul[@class="show-list show-list-con"]')
         for row in rows:
             d = {
@@ -43,9 +43,9 @@ class TansooleSpider(BaseSpider):
                 'package': row.xpath('./li[5]/span/text()').get(),
                 'cas': strip(row.xpath('./li[6]/span/text()').get()),
                 'purity': strip(row.xpath('./li[7]/span/text()').get()),
-                'info1': strip(row.xpath('./li[9]//text()').get()),
-                'price': strip(row.xpath('./li[10]/span/span/text()').get()),
-                'delivery': strip(''.join(row.xpath('./li[12]//text()').getall())),
+                'info1': strip(row.xpath('./li[8]//text()').get()),
+                'price': strip(row.xpath('./li[9]/span/span/text()').get()),
+                'delivery': strip(''.join(row.xpath('./li[11]//text()').getall())),
             }
             yield SupplierProduct(**d)
 
