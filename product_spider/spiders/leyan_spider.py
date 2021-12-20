@@ -12,7 +12,7 @@ class LeyanSpider(BaseSpider):
     start_urls = ['http://www.leyan.com.cn/product-center.html', ]
     brand = '乐研'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="row"]/div/a')
         for a in a_nodes:
             parent = a.xpath('./span/text()').get()
@@ -54,10 +54,12 @@ class LeyanSpider(BaseSpider):
 
         rows = response.xpath('//div[@class="table-responsive"]//tr[position()!=1]')
         for row in rows:
+            if not (package := row.xpath('./td[@id="packing"]/text()').get()):
+                continue
             package = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': row.xpath('./td[@id="packing"]/text()').get(),
+                'package': package,
                 'price': row.xpath('./td[@id="money"]/text()').get(),
                 'currency': 'RMB',
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
