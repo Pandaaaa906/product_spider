@@ -9,7 +9,7 @@ from lxml import etree
 from more_itertools import first
 from scrapy import Request, FormRequest
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.middlewares.handle521 import get_params, encrypt_cookies, hash_d
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
@@ -38,7 +38,7 @@ TANMO_OTHER_BRANDS = {
 def is_tanmo(brand: str):
     if not brand:
         return False
-    return '坛墨' in brand or brand.lower().startswith('tm')
+    return brand == 'tanmo' or '坛墨' in brand or brand.lower().startswith('tm')
 
 
 class TanmoSpider(BaseSpider):
@@ -102,15 +102,8 @@ class TanmoSpider(BaseSpider):
         if response.status == 521:
             yield from self.handle_521(response, self.parse_list)
             return
-        brand_index = response.xpath(
-            'count(//table[@id="product_table"]//th[text()="品牌"]//preceding-sibling::*)+1').get()
-        brand_index = int(float(brand_index)) if brand_index else 10
         rows = response.xpath('//table[@id="product_table"]/tbody/tr')
         for row in rows:
-            sub_brand = row.xpath(f'./td[{brand_index}]/div/text()').get()
-            if not is_tanmo(sub_brand) and sub_brand not in TANMO_OTHER_BRANDS:
-                self.other_brands.add(sub_brand)
-                continue
             url = row.xpath('./td[1]//a/@href').get()
             yield Request(url, callback=self.parse_detail)
 
@@ -143,7 +136,7 @@ class TanmoSpider(BaseSpider):
 
         purity = strip(response.xpath(tmp.format("标准值")).get())
         info2 = strip(response.xpath(tmp.format("储存条件")).get())
-        info3 = strip(response.xpath(tmp.format("规格")).get())
+        package = strip(response.xpath(tmp.format("规格")).get(''))
         info4 = good_obj.get('price', '咨询')
         cost = good_obj.get('sell_price', '咨询')
 
@@ -157,7 +150,7 @@ class TanmoSpider(BaseSpider):
             'expiry_date': expiry_date,
             'purity': purity,
             'info2': info2,
-            'info3': info3,
+            'info3': package,
             'info4': info4,
             'prd_url': response.url,
         }
@@ -165,32 +158,40 @@ class TanmoSpider(BaseSpider):
         dd = {
             'brand': brand,
             'cat_no': cat_no,
-            'package': info3,
+            'package': package,
             'price': info4,
             'cost': cost,
             'currency': 'RMB',
+            'stock_num': good_obj.get('number'),
+            'delivery_time': good_obj.get('time_name'),
         }
 
         t = first(re.findall(r"certInfo: ?('.+'),", response.text), None)
-        if t is None:
-            yield RawData(**d)
-            yield ProductPackage(**dd)
+        if t is not None:
+            t = literal_eval(t)
+            ret = re.sub(r"\\", "", t)
+            html = etree.HTML(ret)
+            d['mw'] = first(html.xpath('//span[text()="Mol. Weight"]/following-sibling::span//text()'), None)
+            d['mf'] = ''.join(html.xpath('//span[text()="Mol. Formula"]/following-sibling::span//text()')) or None
+            d['en_name'] = first(html.xpath('//span[text()="Product Name"]/following-sibling::span//text()'), None)
+            d['appearance'] = first(html.xpath('//span[text()="Appearance"]/following-sibling::span//text()'), None)
+            d['img_url'] = first(html.xpath("//div[@class='boxcenterch']//img/@src"), None)
+
+        sp = SupplierProduct(
+            platform=self.name,
+            source_id=f'{brand}_{cat_no}_{package}',
+            vendor=self.name,
+            brand=brand,
+            cat_no=cat_no,
+            package=package,
+            price=cost,
+            stock_num=good_obj.get('number'),
+            delivery=good_obj.get('time_name'),
+        )
+        yield sp
+        if not is_tanmo(brand) and brand not in TANMO_OTHER_BRANDS:
+            self.other_brands.add(brand)
             return
-        t = literal_eval(t)
-        ret = re.sub(r"\\", "", t)
-        html = etree.HTML(ret)
-        mw = first(html.xpath('//span[text()="Mol. Weight"]/following-sibling::span//text()'), None)
-        mf = ''.join(html.xpath('//span[text()="Mol. Formula"]/following-sibling::span//text()')) or None
-        en_name = first(html.xpath('//span[text()="Product Name"]/following-sibling::span//text()'), None)
-        appearance = first(html.xpath('//span[text()="Appearance"]/following-sibling::span//text()'), None)
-        img_url = first(html.xpath("//div[@class='boxcenterch']//img/@src"), None)
-
-        d['mw'] = mw
-        d['mf'] = mf
-        d['en_name'] = en_name
-        d['appearance'] = appearance
-        d['img_url'] = img_url
-
         yield RawData(**d)
         yield ProductPackage(**dd)
 
