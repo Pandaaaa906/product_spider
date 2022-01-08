@@ -1,22 +1,52 @@
 import re
 import time
 from ast import literal_eval
+from os import getenv
+
 import demjson
 import execjs
 from lxml import etree
 from more_itertools import first
-from scrapy import Request
+from scrapy import Request, FormRequest
 
 from product_spider.items import RawData, ProductPackage
 from product_spider.middlewares.handle521 import get_params, encrypt_cookies, hash_d
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
+TANMO_USER = getenv('TANMO_USER')
+TANMO_PWD = getenv('TANMO_PWD')
+
+TANMO_OTHER_BRANDS = {
+    '上海计量院',
+    '中国农业科学院',
+    '中国计量院',
+    '四川中测',
+    '国家地质中心',
+    '国家有色金属',
+    '天津农业部',
+    '安科院',
+    '核工业部',
+    '水科院',
+    '海洋二所',
+    '海洋环境',
+    '环保标样所',
+    '科工委',
+}
+
+
+def is_tanmo(brand: str):
+    if not brand:
+        return False
+    return '坛墨' in brand or brand.lower().startswith('tm')
+
 
 class TanmoSpider(BaseSpider):
     name = "tanmo"
     base_url = "https://www.gbw-china.com/"
     start_urls = ["https://www.gbw-china.com/", ]
+    login_url = 'https://www.gbw-china.com/official_web/customer_front/contacts_login/do_login_password'
+    other_brands = set()
 
     handle_httpstatus_list = [521]
 
@@ -25,6 +55,21 @@ class TanmoSpider(BaseSpider):
     #         'product_spider.middlewares.handle521.Cookie521Middleware': 100,
     #     }
     # }
+    def start_requests(self):
+        if TANMO_USER and TANMO_PWD:
+            yield FormRequest(
+                self.login_url,
+                formdata={
+                    'phone': TANMO_USER,
+                    'password': TANMO_PWD,
+                },
+                callback=self.after_login,
+            )
+        else:
+            yield from super().start_requests()
+
+    def after_login(self, response):
+        yield from super().start_requests()
 
     def parse(self, response, **kwargs):
         a_nodes = response.xpath(
@@ -33,7 +78,7 @@ class TanmoSpider(BaseSpider):
             url = a.xpath('./@href').get()
             yield Request(url, callback=self.parse_list)
 
-    def handle_521(self, response, callback, **kwargs):
+    def handle_521(self, response, callback):
         n = response.meta.get('n', 0)
         if 'document.cookie' in response.text:
             js_clearance = re.findall('cookie=(.*?);location', response.text)[0]
@@ -57,10 +102,14 @@ class TanmoSpider(BaseSpider):
         if response.status == 521:
             yield from self.handle_521(response, self.parse_list)
             return
+        brand_index = response.xpath(
+            'count(//table[@id="product_table"]//th[text()="品牌"]//preceding-sibling::*)+1').get()
+        brand_index = int(float(brand_index)) if brand_index else 10
         rows = response.xpath('//table[@id="product_table"]/tbody/tr')
         for row in rows:
-            sub_brand = row.xpath('./td[10]/div/text()').get()
-            if sub_brand and not ('坛墨' in sub_brand or 'tm' in sub_brand.lower()):
+            sub_brand = row.xpath(f'./td[{brand_index}]/div/text()').get()
+            if not is_tanmo(sub_brand) and sub_brand not in TANMO_OTHER_BRANDS:
+                self.other_brands.add(sub_brand)
                 continue
             url = row.xpath('./td[1]//a/@href').get()
             yield Request(url, callback=self.parse_detail)
@@ -81,8 +130,9 @@ class TanmoSpider(BaseSpider):
             return
         parent = strip(response.xpath("//a[@class='el-breadcrumb__item'][last()]//span/text()").get(), '')
         tmp = '//el-form-item[contains(@label, {!r})]/span/text()'
-        brand = strip(response.xpath(tmp.format("品牌")).get(), "")
-        brand = '_'.join(('Tanmo', brand)).lower()
+        brand = strip(response.xpath(tmp.format("品牌")).get(), "").lower()
+        if is_tanmo(brand):
+            brand = self.name
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
         good_obj = demjson.decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
 
@@ -95,6 +145,7 @@ class TanmoSpider(BaseSpider):
         info2 = strip(response.xpath(tmp.format("储存条件")).get())
         info3 = strip(response.xpath(tmp.format("规格")).get())
         info4 = good_obj.get('price', '咨询')
+        cost = good_obj.get('sell_price', '咨询')
 
         d = {
             'brand': brand,
@@ -116,6 +167,7 @@ class TanmoSpider(BaseSpider):
             'cat_no': cat_no,
             'package': info3,
             'price': info4,
+            'cost': cost,
             'currency': 'RMB',
         }
 
@@ -141,3 +193,6 @@ class TanmoSpider(BaseSpider):
 
         yield RawData(**d)
         yield ProductPackage(**dd)
+
+    def closed(self, reason):
+        self.logger.info(f'其他品牌: {self.other_brands}')
