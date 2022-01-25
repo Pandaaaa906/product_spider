@@ -90,33 +90,35 @@ class NicpbpItem(scrapy.OrderedItem):
 
 
 class RawData(scrapy.OrderedItem):
-    brand = scrapy.Field()  ##品牌
-    parent = scrapy.Field()  ##分类
-    cat_no = scrapy.Field()  ##货号
-    en_name = scrapy.Field()  ##英文名
-    chs_name = scrapy.Field()  ##中文名
-    cas = scrapy.Field()  ##cas号
-    smiles = scrapy.Field()  ##结构式
-    mf = scrapy.Field()  ##分子式
-    mw = scrapy.Field()  ##分子量
-    stock_info = scrapy.Field()  ##库存状态
-    purity = scrapy.Field()  ##纯度
-    appearance = scrapy.Field()  ##外观
-    img_url = scrapy.Field()  ##图片url
-    info1 = scrapy.Field()  ##化学名称
-    info2 = scrapy.Field()  ##储存条件
-    info3 = scrapy.Field()  ##
-    info4 = scrapy.Field()  ##
-    info5 = scrapy.Field()  ##
+    brand = scrapy.Field()  # 品牌
+    parent = scrapy.Field()  # 分类
+    cat_no = scrapy.Field()  # 货号
+    en_name = scrapy.Field()  # 英文名
+    chs_name = scrapy.Field()  # 中文名
+    cas = scrapy.Field()  # cas号
+    smiles = scrapy.Field()  # 结构式
+    mf = scrapy.Field()  # 分子式
+    mw = scrapy.Field()  # 分子量
+    stock_info = scrapy.Field()  # 库存状态
+    purity = scrapy.Field()  # 纯度
+    appearance = scrapy.Field()  # 外观
+    img_url = scrapy.Field()  # 图片url
+    info1 = scrapy.Field()  # 化学名称
+    info2 = scrapy.Field()  # 储存条件
+    info3 = scrapy.Field()  # 
+    info4 = scrapy.Field()  # 
+    info5 = scrapy.Field()  # 
 
     tags = scrapy.Field()
     grade = scrapy.Field()
     mol_text = scrapy.Field()
-    prd_url = scrapy.Field()  ##详情地址
+    prd_url = scrapy.Field()  # 详情地址
     expiry_date = scrapy.Field()
     stock_num = scrapy.Field()
     mdl = scrapy.Field()
     einecs = scrapy.Field()
+    shipping_group = scrapy.Field()
+    shipping_info = scrapy.Field()
 
     class Meta:
         indexes = (
@@ -129,6 +131,7 @@ class ProductPackage(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     cat_no_unit = scrapy.Field()
     package = scrapy.Field()
+    cost = scrapy.Field()
     price = scrapy.Field()
     currency = scrapy.Field()
     delivery_time = scrapy.Field()

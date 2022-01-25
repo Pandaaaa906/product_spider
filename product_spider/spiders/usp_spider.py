@@ -1,11 +1,8 @@
-import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 
-from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
-from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -13,45 +10,54 @@ class USPSpider(BaseSpider):
     name = "usp"
     brand = 'usp'
     start_urls = ["https://store.usp.org/OA_HTML/ibeCCtpSctDspRte.jsp?section=10042", ]
+    store_url = 'https://store.usp.org/ccstoreui/v1/products'
     base_url = "https://store.usp.org/"
 
-    def parse(self, response):
-        rel_urls = response.xpath('//div[@id="alphabrowsekey"]//a/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.parse_list)
+    LIMIT = 250
 
-    def parse_list(self, response):
-        rel_urls = response.xpath('//table[@class="OraBGAccentDark"]//tr[position()>1]/td[2]/a/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.parse_detail)
-
-    def parse_detail(self, response):
-        tmp = '//td[contains(text(), {!r})]/following-sibling::td/text()'
-        cat_no = response.xpath(tmp.format('Catalog #')).get()
+    def start_requests(self):
         d = {
-            'brand': self.brand,
-            'cat_no': cat_no,
-            'en_name': response.xpath('//td[@class="pageTitle"]/text()').get(),
-            'cas': response.xpath(tmp.format('CAS#')).get(),
-            'stock_info': response.xpath(tmp.format('In Stock')).get(),
-            'prd_url': response.url,
+            'totalResults': True,
+            'totalExpandedResults': True,
+            'catalogId': 'cloudCatalog',
+            'limit': self.LIMIT,
+            'offset': 0,
+            'sort': 'displayName:[object Object]',
+            'categoryId': 'USP-1010',
+            'includeChildren': 'true',
+            'storePriceListGroupId': 'defaultPriceGroup'
         }
-        yield RawData(**d)
+        yield Request(f'{self.store_url}?{urlencode(d)}', meta={'data': d})
 
-        raw_price = strip(response.xpath(
-            'normalize-space(//td[contains(text(), "Retail Price:")]/following-sibling::td/text())'
-        ).get())
-        price = None
-        if raw_price:
-            raw_price = re.sub(r'\s+', ' ', raw_price)
-            price = first(map(lambda m: m.group(0) if m is not None else None,
-                              re.finditer(r'(\d+(\.\d+)?)', raw_price)), None)
-        dd = {
-            'brand': self.brand,
-            'cat_no': cat_no,
-            'price': price,
-            'currency': 'USD',
-            'info': raw_price,
-            'delivery_time': response.xpath(tmp.format('In Stock')).get(),
-        }
-        yield ProductPackage(**dd)
+    def parse(self, response, **kwargs):
+        j = response.json()
+        products = j.get('items', [])
+        for product in products:
+            d = {
+                'brand': self.brand,
+                'cat_no': (cat_no := product.get('repositoryId')),
+                'parent': product.get('usp_schedule_b_desc'),
+                'en_name': product.get('description'),
+                'cas': product.get('usp_cas_number'),
+                'mf': product.get('usp_molecular_formula'),
+                'stock_info': product.get('usp_in_stock'),
+                'prd_url': (p := product.get('route')) and urljoin(self.base_url, p),
+            }
+            yield RawData(**d)
+
+            dd = {
+                'brand': self.brand,
+                'cat_no': cat_no,
+                'package': f"{product.get('usp_packing_size', '')}{product.get('usp_uom', '')}",
+                'price': product.get('listPrice'),
+                'currency': 'USD',
+                'delivery_time': product.get('usp_in_stock'),
+            }
+            yield ProductPackage(**dd)
+
+        offset = j.get('offset', 0) + j.get('limit', 250)
+        if offset > j.get('totalResults', 0):
+            return
+        data = response.meta.get('data', {})
+        data['offset'] = offset
+        yield Request(f'{self.store_url}?{urlencode(data)}', meta={'data': data})
