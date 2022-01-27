@@ -8,7 +8,7 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-from os import getenv
+from os import getenv, name
 
 LOG_LEVEL = 'INFO'
 if not getenv('PYTHONUNBUFFERED'):
@@ -94,6 +94,15 @@ ITEM_PIPELINES = {
     'product_spider.pipelines.FilterNAValue': 200,
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
+
+
+if name != 'nt':
+    DOWNLOAD_HANDLERS = {
+        "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    }
+
+    TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
