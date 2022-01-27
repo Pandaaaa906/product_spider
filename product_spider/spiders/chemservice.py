@@ -7,6 +7,11 @@ from product_spider.items import RawData, ProductPackage
 from product_spider.utils.spider_mixin import BaseSpider
 
 
+playwright_page_goto_kwargs = {
+    'wait_until': 'commit',
+}
+
+
 class ChemServicePrdSpider(BaseSpider):
     name = "chemservice"
     base_url = "https://www.chemservice.com/"
@@ -16,21 +21,31 @@ class ChemServicePrdSpider(BaseSpider):
         'CONCURRENT_REQUESTS': 2,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
         'CONCURRENT_REQUESTS_PER_IP': 2,
+        'PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT': 60000,
+        'PLAYWRIGHT_CONTEXT_ARGS': {
+            'java_script_enabled': True
+        }
     }
 
     def start_requests(self):
         yield Request(url=self.base_url, callback=self.home_parse, meta={"playwright": True})
-        for url in self.start_urls:
-            yield Request(url=url, headers=self.headers, callback=self.parse)
 
     def home_parse(self, response):
         self.headers["referer"] = response.url
+        for url in self.start_urls:
+            yield Request(
+                url=url, callback=self.parse,
+                meta={"playwright": True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs}
+            )
 
-    def parse(self, response):
-        x_urls = response.xpath('//h2[@class="product-name"]/a/@href').getall()
-        self.headers['referer'] = response.url
-        for url in x_urls:
-            yield Request(url, callback=self.prd_parse, headers=self.headers, meta={"playwright": True})
+    def parse(self, response, **kwargs):
+        urls = response.xpath('//h2[@class="product-name"]/a/@href').getall()
+        # self.headers['referer'] = response.url
+        for url in urls:
+            yield Request(
+                url, callback=self.prd_parse, headers=self.headers,
+                meta={"playwright": True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs}
+            )
 
     def prd_parse(self, response):
         tmp_x = '//table[@id="product-attribute-specs-table"]//th[contains(text(),{!r})]/following-sibling::td/text()'

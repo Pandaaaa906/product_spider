@@ -1,4 +1,4 @@
-scrapely~=0.14.1
+scrapely~=0.12.0
 scrapy~=2.5.0
 scrapyd~=1.2.1
 slybot
