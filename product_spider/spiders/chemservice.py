@@ -16,20 +16,24 @@ class ChemServicePrdSpider(BaseSpider):
         'CONCURRENT_REQUESTS': 2,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
         'CONCURRENT_REQUESTS_PER_IP': 2,
+        'PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT': 60000,
+        'PLAYWRIGHT_CONTEXT_ARGS': {
+            'java_script_enabled': True
+        }
     }
 
     def start_requests(self):
         yield Request(url=self.base_url, callback=self.home_parse, meta={"playwright": True})
-        for url in self.start_urls:
-            yield Request(url=url, headers=self.headers, callback=self.parse)
 
     def home_parse(self, response):
         self.headers["referer"] = response.url
+        for url in self.start_urls:
+            yield Request(url=url, callback=self.parse, meta={"playwright": True})
 
-    def parse(self, response):
-        x_urls = response.xpath('//h2[@class="product-name"]/a/@href').getall()
-        self.headers['referer'] = response.url
-        for url in x_urls:
+    def parse(self, response, **kwargs):
+        urls = response.xpath('//h2[@class="product-name"]/a/@href').getall()
+        # self.headers['referer'] = response.url
+        for url in urls:
             yield Request(url, callback=self.prd_parse, headers=self.headers, meta={"playwright": True})
 
     def prd_parse(self, response):
