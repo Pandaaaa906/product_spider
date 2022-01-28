@@ -32,6 +32,7 @@ TANMO_OTHER_BRANDS = {
     '海洋环境',
     '环保标样所',
     '科工委',
+    '中国'
 }
 
 
@@ -129,7 +130,7 @@ class TanmoSpider(BaseSpider):
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
         good_obj = demjson.decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
 
-        chs_name = strip(response.xpath('//h2[@class="p-right-title"]/text()').get())
+        chs_name = strip(''.join(response.xpath('//h2[@class="p-right-title"]//text()').getall()))
         cas = strip(response.xpath(tmp.format("CAS号")).get())
         stock_info = good_obj.get('number', 0)
         expiry_date = good_obj.get('date', 0)
