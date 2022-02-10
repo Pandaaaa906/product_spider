@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 playwright_page_goto_kwargs = {
-    'wait_until': 'commit',
+    'wait_until': 'domcontentloaded',
 }
 
 
@@ -24,17 +24,13 @@ class ChemServicePrdSpider(BaseSpider):
         'PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT': 60000,
         'PLAYWRIGHT_CONTEXT_ARGS': {
             'java_script_enabled': True
-        }
+        },
     }
 
     def start_requests(self):
-        yield Request(url=self.base_url, callback=self.home_parse, meta={"playwright": True})
-
-    def home_parse(self, response):
-        self.headers["referer"] = response.url
         for url in self.start_urls:
             yield Request(
-                url=url, callback=self.parse,
+                url=url, callback=self.parse, headers=self.headers,
                 meta={"playwright": True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs}
             )
 
@@ -44,6 +40,13 @@ class ChemServicePrdSpider(BaseSpider):
         for url in urls:
             yield Request(
                 url, callback=self.prd_parse, headers=self.headers,
+                meta={"playwright": True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs}
+            )
+
+        next_page = response.xpath('//li[@class="current"]/following-sibling::li/a/@href').get()
+        if next_page:
+            yield Request(
+                next_page, callback=self.parse, headers=self.headers,
                 meta={"playwright": True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs}
             )
 

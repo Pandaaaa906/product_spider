@@ -98,8 +98,8 @@ ITEM_PIPELINES = {
 
 if name != 'nt':
     DOWNLOAD_HANDLERS = {
-        "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        "http": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
+        "https": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
     }
 
     TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
