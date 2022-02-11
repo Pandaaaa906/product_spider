@@ -1,6 +1,5 @@
 import json
 import os
-import time
 from urllib.parse import urljoin
 import re
 
@@ -32,6 +31,12 @@ class BiopurifySpider(BaseSpider):
     base_url = "http://www.biopurify.cn/"
     other_brands = set()
 
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'CONCURRENT_REQUESTS_PER_IP': 2,
+    }
+
     def parse(self, response):
         rows = response.xpath("//div[@class='cpfl_cont']//li")
         for row in rows:
@@ -42,10 +47,10 @@ class BiopurifySpider(BaseSpider):
             )
 
     def parse_list(self, response):
-        rows = response.xpath("//div[@class='prolist_casinforimg']")
+        rows = response.xpath("//div[@class='pro_casinfor']")
         for row in rows:
-            url = row.xpath(".//a/@href").get()
-            value = row.xpath("//input[@name='productitem']/@value").get()
+            url = row.xpath(".//div[@class='prolist_casinforimg']/a/@href").get()
+            value = row.xpath(".//td[@class='blue']/input[@name='productitem']/@value").get()
             yield scrapy.Request(
                 url=url,
                 meta={"value": value},
@@ -59,7 +64,6 @@ class BiopurifySpider(BaseSpider):
             )
 
     def parse_detail(self, response):
-        time.sleep(5)
         value = response.meta.get("value", None)
         cat_no = response.xpath("//td[contains(text(), '产品编号：')]//following-sibling::td//text()").get()
         cas = response.xpath("//h2[@class='proennametitle']//text()").get()
@@ -92,7 +96,6 @@ class BiopurifySpider(BaseSpider):
         )
 
     def parse_package(self, response):
-        time.sleep(5)
         d = response.meta.get("product", {})
         j_obj = execjs.eval(response.text.strip(';/*'))
         datas = j_obj['ObjResult']
@@ -104,7 +107,7 @@ class BiopurifySpider(BaseSpider):
             package_info = json.loads(data["Goods_info"]).get("goodsinfo")
             package = package_info.get("packaging")
             purity = package_info.get("purity")
-            brand = package_info.get("brand")
+            brand = package_info.get("brand").lower()
 
             d["purity"] = purity
             d["brand"] = brand
@@ -114,7 +117,7 @@ class BiopurifySpider(BaseSpider):
                 "package": package,
                 "price": price,
                 "brand": brand,
-                "currency": "¥",
+                "currency": "RMB",
             }
             if not is_biopurify(brand):
                 self.other_brands.add(brand)
