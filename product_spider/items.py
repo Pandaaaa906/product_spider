@@ -17,6 +17,9 @@ class JkItem(scrapy.OrderedItem):
     package = scrapy.Field()
     price = scrapy.Field()
     purity = scrapy.Field()
+    mf = scrapy.Field()
+    mw = scrapy.Field()
+    prd_url = scrapy.Field()
 
     class Meta:
         indexes = (
@@ -99,22 +102,22 @@ class RawData(scrapy.OrderedItem):
     smiles = scrapy.Field()  # 结构式
     mf = scrapy.Field()  # 分子式
     mw = scrapy.Field()  # 分子量
-    stock_info = scrapy.Field()  # 库存状态
+    stock_info = scrapy.Field()  # 库存状态  Deprecated
     purity = scrapy.Field()  # 纯度
     appearance = scrapy.Field()  # 外观
     img_url = scrapy.Field()  # 图片url
     info1 = scrapy.Field()  # 化学名称
     info2 = scrapy.Field()  # 储存条件
-    info3 = scrapy.Field()  # 
-    info4 = scrapy.Field()  # 
-    info5 = scrapy.Field()  # 
+    info3 = scrapy.Field()
+    info4 = scrapy.Field()
+    info5 = scrapy.Field()
 
     tags = scrapy.Field()
     grade = scrapy.Field()
     mol_text = scrapy.Field()
     prd_url = scrapy.Field()  # 详情地址
     expiry_date = scrapy.Field()
-    stock_num = scrapy.Field()
+    stock_num = scrapy.Field()  # Deprecated
     mdl = scrapy.Field()
     einecs = scrapy.Field()
     shipping_group = scrapy.Field()
