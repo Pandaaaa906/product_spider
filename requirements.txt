@@ -5,7 +5,7 @@ slybot
 logparser~=0.8.2
 more_itertools
 git+https://github.com/Pandaaaa906/ScrapyAutoDb.git
-psycopg2
+psycopg2-binary
 six
 scrapydweb
 tzlocal~=2.1

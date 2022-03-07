@@ -15,6 +15,15 @@ if not getenv('PYTHONUNBUFFERED'):
     LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
 
+
+if name != 'nt':
+    TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
+    DOWNLOAD_HANDLERS = {
+        "http": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
+        "https": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
+    }
+
+
 SPIDER_MODULES = ['product_spider.spiders']
 NEWSPIDER_MODULE = 'product_spider.spiders'
 
@@ -95,14 +104,6 @@ ITEM_PIPELINES = {
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 
-
-if name != 'nt':
-    DOWNLOAD_HANDLERS = {
-        "http": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
-        "https": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
-    }
-
-    TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
