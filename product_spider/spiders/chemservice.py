@@ -69,8 +69,8 @@ class ChemServicePrdSpider(BaseSpider):
             "prd_url": response.url
         }
         yield RawData(**tmp_d)
-        raw_price = response.xpath('//span[@class="price"]/text()').get('')
-        price = raw_price.lstrip('$')
+        raw_price = response.xpath('//div[@class="add-to-cart-wrapper"]//span[@class="price"]/text()').get('')
+        price = (m := re.match(r'', raw_price)) and m.group()
         dd = {
             "brand": self.name,
             "cat_no": cat_no,
