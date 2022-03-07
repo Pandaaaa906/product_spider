@@ -11,7 +11,7 @@ class ChemfacesSpider(BaseSpider):
     start_urls = ["https://www.chemfaces.com/compound/index.php", ]
     base_url = "https://www.chemfaces.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath("//div[@class='com_left']")
         for row in rows:
             url = urljoin(self.base_url, row.xpath(".//a/@href").get())
@@ -77,7 +77,7 @@ class ChemfacesSpider(BaseSpider):
             "cat_no": cat_no,
             "price": price,
             "package": package,
-            "currency": "$",
+            "currency": "USD",
         }
         yield RawData(**d)
         yield ProductPackage(**dd)

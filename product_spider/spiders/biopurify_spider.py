@@ -37,7 +37,7 @@ class BiopurifySpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_IP': 2,
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath("//div[@class='cpfl_cont']//li")
         for row in rows:
             url = urljoin(self.base_url, row.xpath(".//a/@href").get())
@@ -121,6 +121,7 @@ class BiopurifySpider(BaseSpider):
             }
             if not is_biopurify(brand):
                 self.other_brands.add(brand)
+                # TODO yield SupplierProduct
                 return
             yield RawData(**d)
             yield ProductPackage(**dd)

@@ -2,12 +2,13 @@ from scrapy import Request
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.spider_mixin import BaseSpider
 
+
 class AcintsSpider(BaseSpider):
     name = "acints"
     allowed_domains = ["acints.com"]
     start_urls = ["https://www.acints.com/products", ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         urls = response.xpath("//ul[@class='productList']//p[position()>1]/a/@href").getall()
         for url in urls:
             if url:
@@ -53,6 +54,6 @@ class AcintsSpider(BaseSpider):
                 "cat_no": cat_no,
                 "package": package,
                 "price": price,
-                "currency": "£"
+                "currency": "GBP"  # Great Britain Pound
             }
             yield ProductPackage(**dd)

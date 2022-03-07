@@ -75,7 +75,7 @@ class EuropaSpider(BaseSpider):
             "cat_no": cat_no,
             "price": price,
             "package": package,
-            "currency": "£"
+            "currency": "EUR"
         }
         logger.info(f"{dd}")
         yield ProductPackage(**dd)
