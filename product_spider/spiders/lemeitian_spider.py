@@ -10,6 +10,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 space_trans = str.maketrans('', '', '\xa0')
 
+
 class LemeitianSpider(BaseSpider):
     """乐美天医药"""
     name = "lemeitian"
@@ -42,39 +43,38 @@ class LemeitianSpider(BaseSpider):
             )
 
     def parse_detail(self, response):
+        p = re.compile(r'(?<=:).+')
         parent = response.xpath("//div[@class='nav_info']/a[last()]/text()").get()
 
         cat_no = response.xpath("//div[contains(text(), '产品编号:')]/text()").get('').translate(space_trans)
-        cat_no = (m := re.search(r'(?<=:).+', cat_no)) and m.group()
+        cat_no = (m := p.search(cat_no)) and m.group()
 
         cas = response.xpath("//div[contains(text(), 'CAS NO:')]/text()").get('').translate(space_trans)
-        cas = (m := re.search(r'(?<=:).+', cas)) and m.group()
+        cas = (m := p.search(cas)) and m.group()
 
         package = response.xpath("//div[contains(text(), '规 格:')]/text()").get('').translate(space_trans)
-        package = (m := re.search(r'(?<=:).+', package)) and m.group()
+        package = (m := p.search(package)) and m.group()
 
         en_name = response.xpath("//div[contains(text(), '英文名称:')]/text()").get('').translate(space_trans)
-        en_name = (m := re.search(r'(?<=:).+', en_name)) and m.group()
+        en_name = (m := p.search(en_name)) and m.group()
 
         chs_name = response.xpath("//div[@id = 'bfdProductTitle']/text()").get('').split()
         chs_name = first(chs_name, '')
 
         mf = response.xpath("//div[contains(text(), '分子式:')]/text()").get('').translate(space_trans)
-        mf = (m := re.search(r'(?<=:).+', mf)) and m.group()
+        mf = (m := p.search(mf)) and m.group()
 
         mw = response.xpath("//div[contains(text(), '分子量:')]/text()").get('').translate(space_trans)
-        mw = (m := re.search(r'(?<=:).+', mw)) and m.group()
+        mw = (m := p.search(mw)) and m.group()
 
         purity = response.xpath("//td[contains(text(), '纯  度:')]/text()").get('').translate(space_trans)
-        purity = (m := re.search(r'(?<=:).+', purity)) and m.group()
+        purity = (m := p.search(purity)) and m.group()
 
         img_url = response.xpath("//a[@id='zoom1']/@href").get()
 
         price = response.xpath("//span[@id = 'lblBuyPrice']/text()").get()
         if price == 0.00:
             price = None
-        else:
-            pass
 
         d = {
             "brand": self.name,
