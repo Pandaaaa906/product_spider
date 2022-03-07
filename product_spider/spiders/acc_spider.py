@@ -40,8 +40,8 @@ class AccPrdSpider(BaseSpider):
             "mw": response.xpath(tmp.format('molecular_weight')).get(),
             # "stock_info": response.xpath('//meta[@itemprop="availability"]/@content').get(),
             "img_url": response.xpath('//img[@itemprop="image"]/@data-src').get(),
-            "info2": response.xpath(tmp.format('sales_unit_size')).get(),
-            "info3": response.xpath(tmp.format('storage_condition')).get(),
+            "info2": response.xpath(tmp.format('storage_condition')).get(),
+            "info3": response.xpath(tmp.format('sales_unit_size')).get(),
             # "info4": response.xpath('//span[@class="price"]/text()').get(),
             "prd_url": response.url,
         }

@@ -17,7 +17,7 @@ class TCISpider(BaseSpider):
         'CONCURRENT_REQUESTS': '1',
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rel_urls = response.xpath('//div[@class="section-inner"]//p[@class="mark"]/a/@href').getall()
 
         for rel_url in rel_urls:
@@ -26,11 +26,26 @@ class TCISpider(BaseSpider):
     def parse_cat_list(self, response):
         rel_urls = response.xpath('//div[@class="card-header"]/a/@href').getall()
         for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.parse_cat_list)
+            yield Request(urljoin(response.url, rel_url), callback=self.deep_parse_cat_list)
 
-        rel_prds = response.xpath('//div[@class="text-concat"]/a/@href').getall()
-        for rel_prd in rel_prds:
-            yield Request(urljoin(response.url, rel_prd), callback=self.parse_detail)
+    def deep_parse_cat_list(self, response):
+        rel_urls = response.xpath('//div[@class="card-header"]/a/@href').getall()
+        for rel_url in rel_urls:
+            yield Request(urljoin(response.url, rel_url), callback=self.deep_parse_cat_list_v2)
+
+    def deep_parse_cat_list_v2(self, response):
+        rel_urls = response.xpath('//div[@class="card-header"]/a/@href').getall()
+        for rel_url in rel_urls:
+            yield Request(urljoin(response.url, rel_url), callback=self.parse_product_list)
+
+    def parse_product_list(self, response):
+        nodes = response.xpath("//div[@id = 'product-list-wrap']/div")
+        for node in nodes:
+            url = node.xpath(".//a/@href").get()
+            yield Request(
+                url=urljoin(response.url, url),
+                callback=self.parse_detail
+            )
 
     def parse_detail(self, response):
         tmp = '//span[@class={!r}]/text()'
@@ -70,4 +85,3 @@ class TCISpider(BaseSpider):
                 'currency': 'RMB',
             }
             yield ProductPackage(**package)
-
