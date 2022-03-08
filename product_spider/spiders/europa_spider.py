@@ -1,7 +1,6 @@
 from urllib.parse import urljoin
 
 import scrapy
-from loguru import logger
 
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.spider_mixin import BaseSpider
@@ -67,7 +66,6 @@ class EuropaSpider(BaseSpider):
             "prd_url": response.url,
             "info2": info2,
         }
-        logger.info(f"{d}")
         yield RawData(**d)
 
         dd = {
@@ -77,5 +75,4 @@ class EuropaSpider(BaseSpider):
             "package": package,
             "currency": "EUR"
         }
-        logger.info(f"{dd}")
         yield ProductPackage(**dd)
