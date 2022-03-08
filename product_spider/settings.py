@@ -19,8 +19,8 @@ BOT_NAME = 'product_spider'
 if name != 'nt':
     TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
     DOWNLOAD_HANDLERS = {
-        "http": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
-        "https": "product_spider.utils.handler.ScrapyPlaywrightDownloadHandler",
+        "http": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
+        "https": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
     }
 
 
