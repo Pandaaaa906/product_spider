@@ -297,6 +297,7 @@ class SupplierProduct(scrapy.OrderedItem):
     stock_num = scrapy.Field()
     mdl = scrapy.Field()
     einecs = scrapy.Field()
+    currency = scrapy.Field()
 
     class Meta:
         indexes = (
