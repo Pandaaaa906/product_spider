@@ -2,12 +2,13 @@ from scrapy import Request
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.spider_mixin import BaseSpider
 
+
 class AobchemSpider(BaseSpider):
     name = "aobchem"
     allowed_domains = ["aobchem.com.cn"]
     start_urls = ["http://www.aobchem.com.cn/product/466.html"]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         urls = response.xpath("//div[@class='col-lg-2 col-md-3 col-sm-4 col-xs-12 kj_pronyimg']//a/@href").getall()
         for url in urls:
             url = "http:" + url

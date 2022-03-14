@@ -5,10 +5,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 def is_heowns(brand: str):
-    if not brand or brand != '希恩思':
-        return False
-    elif brand == '希恩思':
-        return True
+    return brand == '希恩思'
 
 
 class HeownsSpider(BaseSpider):
@@ -103,6 +100,7 @@ class HeownsSpider(BaseSpider):
                 }
                 if not is_heowns(brand):
                     self.other_brands.add(brand)
+                    # TODO yield SupplierProduct
                     return
                 yield RawData(**d)
                 yield ProductPackage(**dd)
