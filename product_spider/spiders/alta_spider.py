@@ -56,6 +56,7 @@ class AltaSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
-                'price': row.xpath('./td[1]/text()').get(),
+                'price': row.xpath('./td[2]/text()').get(),
+                'currency': 'RMB',
             }
             yield ProductPackage(**dd)
