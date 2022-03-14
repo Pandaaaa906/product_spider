@@ -1,16 +1,14 @@
 # coding=utf-8
 import json
 import re
-from string import ascii_uppercase as uppercase
-from time import time
-from urllib.parse import urljoin, urlencode
+from urllib.parse import urljoin
 
 import scrapy
 from scrapy import FormRequest
 from scrapy.http.request import Request
 from more_itertools import first
 
-from product_spider.items import BestownPrdItem, RawData
+from product_spider.items import BestownPrdItem, RawData, SupplierProduct
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -376,65 +374,106 @@ class CILSpider(BaseSpider):
 class DRESpider(BaseSpider):
     name = "dre"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = [
-        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?currentPage=1&q=&sort=relevance-code&pageSize=20&country=CN&lang=en&fields=FULL", ]
-    base_url = "https://www.lgcstandards.com/CN/en"
+    start_urls = ["https://www.lgcstandards.com/US/en/search/?text=dre"]
+    base_url = "https://www.lgcstandards.com/US/en"
+    base_url_v2 = "https://www.tansoole.com/"
     search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?"
 
-    def parse(self, response):
-        total_page = int(response.xpath('//pagination/totalPages/text()').get())
-        cur_page = int(response.xpath('//pagination/currentPage/text()').get())
-        per_page = int(response.xpath('//pagination/pageSize/text()').get())
-        next_page = cur_page + 1
+    def start_requests(self):
+        yield scrapy.Request(
+            url='https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
+            callback=self.parse,
+        )
 
-        products = response.xpath('//products')
+    def parse(self, response, **kwargs):
+        products = json.loads(response.text).get("products")
+        for prd in products:
+            cat_no = prd.get("code")
+            en_name = prd.get("name")
+            img_url = prd.get("analyteImageUrl")
+            prd_url = '{}{}'.format(self.base_url, prd.get("url"))
+            if (mw := prd.get("listMolecularWeight")) is None:
+                mw = []
+            mw = ''.join(mw)
+            if (mf := prd.get("listMolecularFormula")) is None:
+                mf = ''.join([])
+            else:
+                mf = first(mf).replace(' ', '')
 
-        for product in products:
-            url = product.xpath('./url/text()').get()
-            yield Request(url=self.base_url + url, callback=self.detail_parse)
-
-        if next_page <= total_page:
-            data = {
-                "currentPage": next_page,
-                "q": "DRE",  # INFO hardcoding
-                "sort": "relevance",
-                "pageSize": per_page,
-                "country": "CN",
-                "lang": "en",
-                "fields": "FULL",
+            if (cas := prd.get("listCASNumber")) is None:
+                cas = []
+            cas = ''.join(cas)
+            d = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "en_name": en_name,
+                "mf": mf,
+                "cas": cas,
+                "mw": mw,
+                "prd_url": prd_url,
+                "img_url": img_url,
             }
-            yield Request(self.search_url + urlencode(data), callback=self.parse)
+            yield RawData(**d)
+        # TODO
+        for i in range(1, 190):
+            yield scrapy.Request(
+                url=f'https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={i}&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
+                callback=self.parse
+            )
+        yield scrapy.Request(
+            url='https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString=dre&gloabSearchVo.nav=1&t=0.10001398760159042&page.currentPageNo=1',
+            callback=self.parse_list
+        )
 
-    def detail_parse(self, response):
-        tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
-        parents = response.xpath(
-            '//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
-        parent = "".join(parents)
-        related_categories = response.xpath(
-            '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').get(default="").strip()
+    def parse_list(self, response):
+        """dre价格在泰坦官网获取"""
+        rows = response.xpath("//ul[@class='show-list show-list-head']/following-sibling::ul/li[position()=1]")
+        for row in rows:
+            url = urljoin(self.base_url_v2, row.xpath("./a/@href").get())
+            yield scrapy.Request(
+                url=url,
+                callback=self.parse_package
+            )
+        # 获取下一页
+        next_url = response.xpath("//input[@value='下页']/@onclick").get()
+        if next_url is not None:
+            next_page_number = re.search(r'(?<==)\d+(?=;)', next_url).group()
+            yield scrapy.Request(
+                url=f"https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString=dre&gloabSearchVo.nav=1&t=0.10001398760159042&page.currentPageNo={next_page_number}",
+                callback=self.parse_list
+            )
 
-        color = response.xpath('//h2[text()="Color"]/following-sibling::p/text()').get("")
-        appearance = response.xpath('//h2[text()="Appearance/Form"]/following-sibling::p/text()').get("")
-        d = {
+    def parse_package(self, response):
+        chs_name = response.xpath("//div[@class='title']/text()").get()
+        cat_no = response.xpath("//div[contains(text(), '原始编号：')]/following-sibling::div/text()").get()
+        source_id = response.xpath("//div[contains(text(), '探索编号：')]/following-sibling::div/text()").get()
+        img_url = urljoin(self.base_url_v2, response.xpath("//div[@id='big-box']/img/@src").get())
+        package = response.xpath("//div[contains(text(), '包装规格：')]/following-sibling::div/text()").get('')
+        if package is not None:
+            package = ''.join(package.split())
+
+        price = response.xpath("//span[@id='bigDecimalFormatPriceDesc']/text()").get()
+        delivery = ''.join(response.xpath("//div[contains(text(), '货期：')]/following-sibling::div/span/text()").get('').split())
+        stock_info = response.xpath("//div[contains(text(), '库存：')]/following-sibling::div/span/text()").get()
+        expiry_date = response.xpath("//div[contains(text(), '有效期至：')]/following-sibling::div/text()").get()
+
+        dd = {
             "brand": "dre",
-            "parent": parent or related_categories,
-            "cat_no": response.xpath(tmp.format("Product Code")).get(),
-            "en_name": response.xpath('//h1[@class="product__title"]/text()').get(default="").strip(),
-            "cas": response.xpath(tmp.format("CAS Number")).get(default="").strip() or None,
-            "mf": response.xpath(tmp.format("Molecular Formula")).get("").replace(" ", "") or None,
-            "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "stock_info": response.xpath(
-                '//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').get(
-                "").strip() or None,
-            "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').get(),
-            "info1": response.xpath(tmp.format("IUPAC")).get(default="").strip(),
-            "info2": response.xpath('//h2[text()="Storage Temperature"]/following-sibling::p/text()').get(),
-            "info3": response.xpath('//h2[text()="Shipping Temperature"]/following-sibling::p/text()').get(),
-            "info4": ' '.join((color, appearance)),
-            "prd_url": response.request.url,
+            "cat_no": cat_no,
+            "prd_url": response.url,
+            "platform": "tansoole",
+            "source_id": source_id,
+            "img_url": img_url,
+            "price": price,
+            "chs_name": chs_name,
+            "delivery": delivery,
+            "stock_info": stock_info,
+            "expiry_date": expiry_date,
+            "package": package,
+            "currency": "RMB",
         }
 
-        yield RawData(**d)
+        yield SupplierProduct(**dd)
 
 
 class APIChemSpider(BaseSpider):
@@ -480,5 +519,3 @@ class APIChemSpider(BaseSpider):
                 "ucid": first_cat_no,
             }
             yield FormRequest(self.base_url, formdata=d, callback=self.parse)
-
-
