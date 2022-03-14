@@ -1,4 +1,5 @@
 import json
+from urllib.parse import parse_qsl, urlparse
 import scrapy
 from more_itertools.more import first
 from product_spider.items import RawData, ProductPackage
@@ -18,7 +19,9 @@ class LGCSpider(JsonSpider):
         )
 
     def parse(self, response, **kwargs):
-        products = json.loads(response.text).get("products")
+        products = json.loads(response.text).get("products", [])
+        if products is []:
+            return
         for prd in products:
             cat_no = prd.get("code")
             en_name = prd.get("name")
@@ -54,9 +57,10 @@ class LGCSpider(JsonSpider):
             }
             yield RawData(**d)
             yield ProductPackage(**dd)
-        # TODO 有点怪异pageSize最大为100,只可以改变currentPage
-        for i in range(1, 242):
+        current_page_num = int(dict(parse_qsl(urlparse(response.url).query)).get('currentPage', None))
+        if current_page_num is not None:
+            current_page_num = current_page_num + 1
             yield scrapy.Request(
-                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={i}&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
                 callback=self.parse
             )
