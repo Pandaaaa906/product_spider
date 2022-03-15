@@ -281,6 +281,7 @@ class SupplierProduct(scrapy.OrderedItem):
     storage_condition = scrapy.Field()
     package = scrapy.Field()
     price = scrapy.Field()
+    cost = scrapy.Field()
     delivery = scrapy.Field()
 
     info1 = scrapy.Field()
