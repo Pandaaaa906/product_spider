@@ -1,9 +1,7 @@
 # coding=utf-8
 import json
 import re
-from string import ascii_uppercase as uppercase
-from time import time
-from urllib.parse import urljoin, urlencode
+from urllib.parse import urljoin, parse_qsl, urlparse
 
 import scrapy
 from scrapy import FormRequest
@@ -376,65 +374,53 @@ class CILSpider(BaseSpider):
 class DRESpider(BaseSpider):
     name = "dre"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = [
-        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?currentPage=1&q=&sort=relevance-code&pageSize=20&country=CN&lang=en&fields=FULL", ]
-    base_url = "https://www.lgcstandards.com/CN/en"
-    search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?"
+    start_urls = ["https://www.lgcstandards.com/US/en/search/?text=dre"]
+    base_url = "https://www.lgcstandards.com/US/en"
 
-    def parse(self, response):
-        total_page = int(response.xpath('//pagination/totalPages/text()').get())
-        cur_page = int(response.xpath('//pagination/currentPage/text()').get())
-        per_page = int(response.xpath('//pagination/pageSize/text()').get())
-        next_page = cur_page + 1
+    def start_requests(self):
+        yield scrapy.Request(
+            url='https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
+            callback=self.parse,
+        )
 
-        products = response.xpath('//products')
+    def parse(self, response, **kwargs):
+        products = json.loads(response.text).get("products", [])
+        if products is []:
+            return
+        for prd in products:
+            cat_no = prd.get("code")
+            en_name = prd.get("name")
+            img_url = prd.get("analyteImageUrl")
+            prd_url = '{}{}'.format(self.base_url, prd.get("url"))
+            if (mw := prd.get("listMolecularWeight")) is None:
+                mw = []
+            mw = ''.join(mw)
+            if (mf := prd.get("listMolecularFormula")) is None:
+                mf = ''.join([])
+            else:
+                mf = first(mf).replace(' ', '')
 
-        for product in products:
-            url = product.xpath('./url/text()').get()
-            yield Request(url=self.base_url + url, callback=self.detail_parse)
-
-        if next_page <= total_page:
-            data = {
-                "currentPage": next_page,
-                "q": "DRE",  # INFO hardcoding
-                "sort": "relevance",
-                "pageSize": per_page,
-                "country": "CN",
-                "lang": "en",
-                "fields": "FULL",
+            if (cas := prd.get("listCASNumber")) is None:
+                cas = []
+            cas = ''.join(cas)
+            d = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "en_name": en_name,
+                "mf": mf,
+                "cas": cas,
+                "mw": mw,
+                "prd_url": prd_url,
+                "img_url": img_url,
             }
-            yield Request(self.search_url + urlencode(data), callback=self.parse)
-
-    def detail_parse(self, response):
-        tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
-        parents = response.xpath(
-            '//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
-        parent = "".join(parents)
-        related_categories = response.xpath(
-            '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').get(default="").strip()
-
-        color = response.xpath('//h2[text()="Color"]/following-sibling::p/text()').get("")
-        appearance = response.xpath('//h2[text()="Appearance/Form"]/following-sibling::p/text()').get("")
-        d = {
-            "brand": "dre",
-            "parent": parent or related_categories,
-            "cat_no": response.xpath(tmp.format("Product Code")).get(),
-            "en_name": response.xpath('//h1[@class="product__title"]/text()').get(default="").strip(),
-            "cas": response.xpath(tmp.format("CAS Number")).get(default="").strip() or None,
-            "mf": response.xpath(tmp.format("Molecular Formula")).get("").replace(" ", "") or None,
-            "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "stock_info": response.xpath(
-                '//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').get(
-                "").strip() or None,
-            "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').get(),
-            "info1": response.xpath(tmp.format("IUPAC")).get(default="").strip(),
-            "info2": response.xpath('//h2[text()="Storage Temperature"]/following-sibling::p/text()').get(),
-            "info3": response.xpath('//h2[text()="Shipping Temperature"]/following-sibling::p/text()').get(),
-            "info4": ' '.join((color, appearance)),
-            "prd_url": response.request.url,
-        }
-
-        yield RawData(**d)
+            yield RawData(**d)
+        current_page_num = int(dict(parse_qsl(urlparse(response.url).query)).get('currentPage', None))
+        if current_page_num is not None:
+            current_page_num = current_page_num + 1
+            yield scrapy.Request(
+                url=f'https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
+                callback=self.parse
+            )
 
 
 class APIChemSpider(BaseSpider):
@@ -480,5 +466,3 @@ class APIChemSpider(BaseSpider):
                 "ucid": first_cat_no,
             }
             yield FormRequest(self.base_url, formdata=d, callback=self.parse)
-
-

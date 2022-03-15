@@ -1,76 +1,66 @@
 import json
-from urllib.parse import urlencode
-
-from scrapy import Request
-
-from product_spider.items import RawData
+from urllib.parse import parse_qsl, urlparse
+import scrapy
+from more_itertools.more import first
+from product_spider.items import RawData, ProductPackage
 from product_spider.utils.spider_mixin import JsonSpider
 
 
 class LGCSpider(JsonSpider):
     name = "lgc"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = [
-        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=&country=CN&lang=en",
-    ]
-    base_url = "https://www.lgcstandards.com/CN/en/"
-    search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?"
+    start_urls = ["https://www.lgcstandards.com/US/en/search/?text=LGC"]
+    base_url = "https://www.lgcstandards.com/US/en"
 
     def start_requests(self):
-        url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=&country=GB&lang=en"
-        yield Request(url, callback=self.parse, headers=self.headers)
+        yield scrapy.Request(
+            url="https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+            callback=self.parse,
+        )
 
-    def parse(self, response):
-        obj = json.loads(response.text)
-        pagination = obj.get('pagination', {})
-        current_page = pagination.get('currentPage', 0)
-        total_pages = pagination.get('totalPages', 0)
-        per_page = pagination.get('pageSize', 0)
-
-        if current_page < total_pages:
-            data = {
-                "currentPage": current_page + 1,
-                "q": "",  # INFO hardcoding
-                "sort": "relevance-code",
-                "pageSize": per_page,
-                "country": "GB",
-                "lang": "en",
-                "fields": "FULL",
-                "defaultB2BUnit": "",
-            }
-            print(response.request.headers)
-            yield Request(self.search_url + urlencode(data), callback=self.parse, headers=self.headers)
-
-        products = obj.get('products', [])
-        for product in products:
-            url = product.get('url')
-            yield Request(self.base_url + url, callback=self.detail_parse)
-
-    def detail_parse(self, response):
-        tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
-        cat_no = response.xpath(tmp.format("Product Code")).get('')
-        if not cat_no.upper().startswith('MM'):
+    def parse(self, response, **kwargs):
+        products = json.loads(response.text).get("products", [])
+        if products is []:
             return
-        parents = response.xpath(
-            '//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
-        parent = "".join(parents)
-        related_categories = response.xpath(
-            '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').get(default="").strip()
-        d = {
-            "brand": 'lgc',
-            "parent": parent or related_categories,
-            "cat_no": cat_no,
-            "en_name": response.xpath('//h1[@class="product__title"]/text()').get(default="").strip(),
-            "cas": response.xpath(tmp.format("CAS Number")).get(default="").strip() or None,
-            "mf": response.xpath(tmp.format("Molecular Formula")).get("").replace(" ", "") or None,
-            "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "stock_info": response.xpath(
-                '//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').get(
-                "").strip() or None,
-            "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').get(),
-            "info1": response.xpath(tmp.format("IUPAC")).get(default="").strip(),
-            "info3": response.xpath('//span[text()="Pack Size:"]/following-sibling::p/text()').get(),
-            "prd_url": response.request.url,
-        }
-        yield RawData(**d)
+        for prd in products:
+            cat_no = prd.get("code")
+            en_name = prd.get("name")
+            img_url = prd.get("analyteImageUrl")
+            prd_url = '{}{}'.format(self.base_url, prd.get("url"))
+            if (mw := prd.get("listMolecularWeight")) is None:
+                mw = []
+            mw = ''.join(mw)
+            if (mf := prd.get("listMolecularFormula")) is None:
+                mf = ''.join([])
+            else:
+                mf = first(mf).replace(' ', '')
 
+            if (cas := prd.get("listCASNumber")) is None:
+                cas = []
+            cas = ''.join(cas)
+            package = ''.join(prd.get("uom", '').split())
+            d = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "en_name": en_name,
+                "mf": mf,
+                "cas": cas,
+                "mw": mw,
+                "prd_url": prd_url,
+                "img_url": img_url,
+            }
+            dd = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "package": package,
+                "currency": "USD",
+            }
+            yield RawData(**d)
+            yield ProductPackage(**dd)
+        current_page_num = int(dict(parse_qsl(urlparse(response.url).query)).get('currentPage', None))
+        if current_page_num is not None:
+            current_page_num = current_page_num + 1
+            yield scrapy.Request(
+                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+                callback=self.parse
+            )
