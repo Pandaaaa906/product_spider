@@ -119,7 +119,6 @@ class AladdinSpider(BaseSpider):
                 "cat_no": d['cat_no'],
                 "package": package,
                 "cost": price,
-                "price": price,
                 "delivery_time": delivery_time,
                 "currency": "RMB"
             }

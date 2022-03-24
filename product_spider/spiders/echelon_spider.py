@@ -70,7 +70,7 @@ class EchelonSpider(BaseSpider):
                 "cat_no": cat_no,
                 "package": row.xpath(".//td[@class='woocommerce-grouped-product-list-item__label']/label/text()").get(),
                 "currency": 'USD',
-                "price": row.xpath(".//span[@class='woocommerce-Price-currencySymbol']//parent::bdi/text()").get(),
+                "cost": row.xpath(".//span[@class='woocommerce-Price-currencySymbol']//parent::bdi/text()").get(),
             }
             dd["package"] = first(re.findall(r'[^(]+', dd["package"]), None)
 

@@ -75,6 +75,6 @@ class TenovapharmalSpider(BaseSpider):
                 "cat_no": cat_no,
                 "package": package,
                 "currency": "USD",
-                "price": price
+                "cost": price
             }
             yield ProductPackage(**dd)

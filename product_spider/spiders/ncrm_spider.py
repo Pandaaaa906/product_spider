@@ -82,7 +82,6 @@ class NcrmSpider(BaseSpider):
         dd = {
             "brand": self.name,
             "cat_no": cat_no,
-            "price": price,
             "cost": price,
             "package": package,
             "delivery_time": delivery_time,

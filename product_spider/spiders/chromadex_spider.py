@@ -15,7 +15,7 @@ class ChromaDexSpider(BaseSpider):
     base_url = "https://standards.chromadex.com/"
     brand = "chromadex"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rel_urls = response.xpath('//h5[@class="sub_title"]/a/@href').getall()
         for url in rel_urls:
             yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
@@ -66,7 +66,7 @@ class ChromaDexSpider(BaseSpider):
             'cat_no_unit': cat_no_unit,
             'cat_no': cat_no,
             'package': package and package.lower(),
-            'price': response.xpath('//span[@itemprop="price"]/@content').get(),
+            'cost': response.xpath('//span[@itemprop="price"]/@content').get(),
             'currency': 'USD',
             'stock_num': stock_num and first(re.findall(r'\d+', stock_num), None),
         }

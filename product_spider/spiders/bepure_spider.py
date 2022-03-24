@@ -8,7 +8,6 @@ from more_itertools import first
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct
-from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 BEPURE_USER = getenv('BEPURE_USER')
@@ -31,7 +30,7 @@ class BepureSpider(BaseSpider):
     def after_login(self, response):
         yield from super().start_requests()
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         j_obj = json.loads(response.text)
         rows = j_obj.get('table', [])
         for row in rows:
@@ -85,7 +84,7 @@ class BepureSpider(BaseSpider):
                 'brand': brand,
                 'cat_no': cat_no,
                 'package': product.get('pack'),
-                'price': product.get('price'),
+                'cost': product.get('price'),
                 'currency': 'RMB',
                 'delivery_time': product.get('cnum')
             }

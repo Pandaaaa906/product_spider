@@ -14,7 +14,7 @@ class FluorochemSpider(BaseSpider):
     base_url = "http://www.fluorochem.co.uk/"
     brand = 'fluorochem'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath('//table[@id="tblSearchResults"]//tr[position()>1]')
         for row in rows:
             prd = {
@@ -52,7 +52,7 @@ class FluorochemSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': response.meta.get('cat_no'),
                 'package': strip(row.xpath('./td[1]/text()').get()),
-                'price': price and first(first(p.findall(price), None), None),
+                'cost': price and first(first(p.findall(price), None), None),
                 'stock_num': strip(row.xpath('./td[4]/text()').get()),
                 'currency': 'GBP',
             }

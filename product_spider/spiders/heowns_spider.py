@@ -93,7 +93,7 @@ class HeownsSpider(BaseSpider):
                 d["purity"] = purity
                 dd = {
                     "cat_no": cat_no,
-                    "price": price,
+                    "cost": price,
                     "currency": "RMB",
                     "package": package,
                     "brand": brand

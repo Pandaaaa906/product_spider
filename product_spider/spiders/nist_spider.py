@@ -11,7 +11,7 @@ class NistSpider(BaseSpider):
     base_url = "https://www-s.nist.gov/"
     brand = 'nist'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath('//table//tr[position()>2 and @class]')
         for row in rows:
             cat_no = row.xpath('./td[2]/a/text()').get()
@@ -31,7 +31,7 @@ class NistSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[4]/text()').get(),
-                'price': strip(row.xpath('./td[5]/text()').get()),
+                'cost': strip(row.xpath('./td[5]/text()').get()),
                 'currency': 'USD',
             }
             yield ProductPackage(**dd)

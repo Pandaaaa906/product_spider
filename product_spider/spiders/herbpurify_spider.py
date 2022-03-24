@@ -1,8 +1,6 @@
 import json
-from urllib.parse import urljoin
 
 import scrapy
-import re
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -14,7 +12,7 @@ class HerbpurifySpider(BaseSpider):
     start_urls = ["http://www.herbpurify.com/"]
     base_url = "http://www.herbpurify.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath("//div[@class='indexprolist_cont'][last()]//li")
         for row in rows:
             url = row.xpath(".//@href").get()
@@ -91,7 +89,7 @@ class HerbpurifySpider(BaseSpider):
                     "brand": self.name,
                     "cat_no": d["cat_no"],
                     "currency": 'RMB',
-                    "price": price,
+                    "cost": price,
                     "package": package
                 }
                 d['purity'] = purity

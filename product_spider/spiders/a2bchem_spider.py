@@ -48,7 +48,7 @@ class A2bchemSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": row.xpath(".//td[1]/text()").get(),
-                "price": price,
+                "cost": price,
                 "currency": 'USD',
             }
             yield ProductPackage(**dd)

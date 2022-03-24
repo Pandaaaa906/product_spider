@@ -18,7 +18,7 @@ class LemeitianSpider(BaseSpider):
     start_urls = ["http://www.lemeitian.cn/SubCategory", ]
     base_url = "http://www.lemeitian.cn/SubCategory"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath("//div[@class='category_list']//div")
         for row in rows:
             url = urljoin(self.base_url, row.xpath("./a/@href").get())
@@ -94,7 +94,7 @@ class LemeitianSpider(BaseSpider):
             "brand": self.name,
             "cat_no": cat_no,
             "package": package,
-            "price": price,
+            "cost": price,
             "currency": "RMB",
         }
 

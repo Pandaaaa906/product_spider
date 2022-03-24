@@ -14,7 +14,7 @@ class PhytolabSpider(BaseSpider):
 
     base_url = 'https://phyproof.phytolab.com/'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         datas = json.loads(response.text.strip('\n'))
         for data in datas:
             cat_no = str(data['productId'])
@@ -41,7 +41,7 @@ class PhytolabSpider(BaseSpider):
                 dd = {
                     "brand": self.name,
                     "cat_no": str(data['productId']),
-                    "price": round(value, 2),
+                    "cost": round(value, 2),
                     "package": f'{m["quantity"]}{m["unit"].lower()}',
                     "currency": "€"
                 }

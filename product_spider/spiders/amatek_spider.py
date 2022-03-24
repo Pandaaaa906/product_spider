@@ -13,7 +13,7 @@ class AmatekSpider(BaseSpider):
     start_urls = ["http://www.amatekbio.com/cn/product.html", ]
     brand = 'amatek'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="produtimg"]/following-sibling::ul/li/a')
         for a in a_nodes:
             rel_urls = a.xpath('./@href').get()
@@ -66,7 +66,7 @@ class AmatekSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
-                'price': price,
+                'cost': price,
                 'currency': 'RMB',
                 'delivery_time': delivery_time,
                 'stock_num': stock_num,

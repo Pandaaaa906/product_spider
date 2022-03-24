@@ -69,6 +69,6 @@ class AaronchemSpider(CrawlSpider):
                 "cat_no": cat_no,
                 "package": row.xpath('./td[1]/text()').get(),
                 "currency": "USD",
-                "price": price,
+                "cost": price,
             }
             yield ProductPackage(**dd)

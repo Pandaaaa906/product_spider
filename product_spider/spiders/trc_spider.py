@@ -23,7 +23,7 @@ class TRCSpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_IP': 2,
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         api_names = response.xpath('//table[contains(@id, "table")]//td/input/@value').getall()
         for parent in api_names:
             d = {
@@ -72,7 +72,7 @@ class TRCSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': strip(row.xpath('./td[1]/text()').get()),
-                'price': strip(row.xpath('./td[3]/text()').get()),
+                'cost': strip(row.xpath('./td[3]/text()').get()),
                 'currency': 'USD',
             }
             yield ProductPackage(**dd)

@@ -74,7 +74,6 @@ class TsbiochemSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": package,
-                "price": price,
                 "cost": price,
                 "currency": "RMB",
             }
@@ -123,7 +122,7 @@ class TsbiochemSpider(BaseSpider):
                 "cat_no": cat_no,
                 "package": package,
                 "delivery_time": delivery_time,
-                "price": price,
+                "cost": price,
                 "currency": "RMB",
             }
             yield RawData(**d)

@@ -17,7 +17,7 @@ class MacklinSpider(BaseSpider):
         'DOWNLOAD_DELAY': 2,
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="list"]//a')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
@@ -72,7 +72,7 @@ class MacklinSpider(BaseSpider):
                 'cat_no': cat_no,
                 'package': package,
                 'cat_no_unit': cat_no_unit,
-                'price': strip(row.xpath('./td[5]/text()').get()),
+                'cost': strip(row.xpath('./td[5]/text()').get()),
                 'currency': 'RMB',
             }
             yield ProductPackage(**dd)

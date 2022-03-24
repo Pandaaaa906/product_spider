@@ -16,7 +16,7 @@ class CDNPrdSpider(BaseSpider):
     start_urls = [
         "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50", ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         urls = response.xpath('//ol[@id="products-list"]/li/div[@class="col-11"]/a/@href').extract()
         for url in urls:
             yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
@@ -60,7 +60,7 @@ class CDNPrdSpider(BaseSpider):
                 'cat_no': cat_no,
                 'cat_no_unit': sku,
                 'package': strip(package),
-                'price': item.get('price'),
+                'cost': item.get('price'),
                 'currency': 'USD',
                 'delivery_time': 'In-stock' if item.get('is_in_stock') else None
             }

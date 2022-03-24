@@ -13,7 +13,7 @@ class AltaSpider(BaseSpider):
     base_url = "http://www.altascientific.com/"
     start_urls = ['http://www.altascientific.com/', ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//li[position()<7]//li[not(ul)]/a')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
@@ -56,7 +56,7 @@ class AltaSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
-                'price': row.xpath('./td[2]/text()').get(),
+                'cost': row.xpath('./td[2]/text()').get(),
                 'currency': 'RMB',
             }
             yield ProductPackage(**dd)

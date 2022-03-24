@@ -14,7 +14,7 @@ class MCESpider(BaseSpider):
     base_url = "https://www.medchemexpress.cn/"
     start_urls = ['https://www.medchemexpress.cn/products.html', ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//td/a')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
@@ -71,7 +71,7 @@ class MCESpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': tmp_package and tmp_package.replace('\xa0', ' '),
-                'price': price and price.strip('￥'),
+                'cost': price and price.strip('￥'),
                 'delivery_time': strip(''.join(row.xpath('./td[@class="pro_price_3"]/span//text()').getall())) or None,
                 'currency': 'RMB',
             }

@@ -53,7 +53,7 @@ class AcintsSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": package,
-                "price": price,
+                "cost": price,
                 "currency": "GBP"  # Great Britain Pound
             }
             yield ProductPackage(**dd)

@@ -13,7 +13,7 @@ class ExtrasyntheseSpider(BaseSpider):
     allow_domain = ["extrasynthese.com"]
     start_urls = ["https://www.extrasynthese.com/4-chemical-families"]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rows = response.xpath("//a[contains(text(), 'See all products')]")
         for row in rows:
             url = row.xpath(".//@href").get()
@@ -73,7 +73,7 @@ class ExtrasyntheseSpider(BaseSpider):
             "brand": self.name,
             "cat_no": cat_no,
             "package": package,
-            "price": price,
+            "cost": price,
             "currency": '€',
         }
         yield ProductPackage(**dd)

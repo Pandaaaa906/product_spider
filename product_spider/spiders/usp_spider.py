@@ -49,7 +49,7 @@ class USPSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': f"{product.get('usp_packing_size', '')}{product.get('usp_uom', '')}",
-                'price': product.get('listPrice'),
+                'cost': product.get('listPrice'),
                 'currency': 'USD',
                 'delivery_time': product.get('usp_in_stock'),
             }

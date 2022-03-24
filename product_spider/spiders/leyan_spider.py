@@ -60,7 +60,7 @@ class LeyanSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': package,
-                'price': row.xpath('./td[@id="money"]/text()').get(),
+                'cost': row.xpath('./td[@id="money"]/text()').get(),
                 'currency': 'RMB',
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
