@@ -1,6 +1,6 @@
 import time
 from urllib.parse import urljoin
-
+import json
 from scrapy import Request
 import re
 from product_spider.items import RawData, ProductPackage
@@ -28,8 +28,21 @@ class BPSpider(BaseSpider):
 
     def parse_detail(self, response):
         time.sleep(3)
-        tmp = '//th[contains(text(), {!r})]/following-sibling::td/text()'
+        tmp = '//th[contains(text(), {!r})]/following-sibling::td//text()'
         cat_no = response.xpath(tmp.format('Catalogue Number:')).get()
+        batch_num = response.xpath(tmp.format('Batch Number:')).get()  # 批号
+        shipping_info = response.xpath(tmp.format('Shipping Conditions:')).get()  # 运输条件
+        controlled_drug = response.xpath(tmp.format('Controlled Drug:')).get()  # 管控产品
+        expiry_date = response.xpath(tmp.format('Expiry Date:')).get()  # 有效期
+
+        attrs = json.dumps({
+            'controlled_drug': controlled_drug,
+        })
+
+        package_attrs = json.dumps({
+            'batch_num': batch_num,
+            'expiry_date': expiry_date,
+        })
 
         package = response.xpath(tmp.format('Pack Size:')).get()
         if package:
@@ -43,9 +56,11 @@ class BPSpider(BaseSpider):
             'cat_no': cat_no,
             'en_name': ''.join(response.xpath('//header/h1//text()').getall()),
             "cas": response.xpath(tmp.format('CAS Number:')).get(),
-            "info2": response.xpath(tmp.format('Long-Term Storage')).get(),
+            "info2": ''.join(response.xpath(tmp.format('Long-Term Storage')).getall()),
             "stock_info": response.xpath(tmp.format('Availability:')).get(),
             "prd_url": response.url,
+            "shipping_info": shipping_info,
+            "attrs": attrs
         }
 
         dd = {
@@ -54,6 +69,7 @@ class BPSpider(BaseSpider):
             "package": package,
             "cost": cost,
             "currency": "GBP",
+            "attrs": package_attrs,
         }
         yield RawData(**d)
         yield ProductPackage(**dd)
