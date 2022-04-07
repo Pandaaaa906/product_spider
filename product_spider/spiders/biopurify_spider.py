@@ -115,7 +115,7 @@ class BiopurifySpider(BaseSpider):
             dd = {
                 "cat_no": cat_no,
                 "package": package,
-                "price": price,
+                "cost": price,
                 "brand": brand,
                 "currency": "RMB",
             }

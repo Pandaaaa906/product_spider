@@ -65,4 +65,3 @@ class NistSpider(BaseSpider):
         dd["attrs"] = package_attrs
         yield RawData(**d)
         yield ProductPackage(**dd)
-

@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 
 from scrapy import FormRequest, Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -40,15 +40,15 @@ class NifdcSpider(BaseSpider):
         tmp = './/input[@name={!r}]/@value'
         rows = response.xpath('//table[@class="list_tab"]/tr')
         for row in rows:
-            coa = row.xpath('.//td[14]/a/@href').get()
+            coa = row.xpath('.//td[last()]/a/@href').get()
             d = {
                 'brand': self.brand,
-                'cat_no': (cat_no := rows.xpath(tmp.format('sgoods_no')).get()),
+                'cat_no': (cat_no := row.xpath(tmp.format('sgoods_no')).get()),
                 'parent': row.xpath(tmp.format('sgoods_type')).get(),
-                'chs_name': rows.xpath(tmp.format('sgoods_name')).get(),
-                'en_name': rows.xpath(tmp.format('english_name')).get(),
-                'info2': rows.xpath(tmp.format('save_condition')).get(),
-                'stock_info': rows.xpath(tmp.format('zdgmshu')).get(),
+                'chs_name': row.xpath(tmp.format('sgoods_name')).get(),
+                'en_name': row.xpath(tmp.format('english_name')).get(),
+                'info2': row.xpath(tmp.format('save_condition')).get(),
+                'stock_info': row.xpath(tmp.format('zdgmshu')).get(),
                 'prd_url': coa and urljoin(response.url, coa),
             }
             yield RawData(**d)
@@ -56,11 +56,22 @@ class NifdcSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath(tmp.format('standard')).get(),
-                'price': row.xpath(tmp.format('unit_price')).get(),
+                'cost': row.xpath(tmp.format('unit_price')).get(),
                 'info': row.xpath(tmp.format('xsBatch_no')).get(),
+                'stock_num': row.xpath(tmp.format('zdgmshu')).get(),
                 'currency': 'RMB'
             }
             yield ProductPackage(**dd)
+            ddd = {
+                'platform': self.brand,
+                'vendor': self.brand,
+                'brand': self.brand,
+                'cat_no': cat_no,
+                'package': dd['package'],
+                'price': dd['cost'],
+                'stock_num': dd['stock_num'],
+            }
+            yield SupplierProduct(**ddd)
 
         m = re.search(r'(?:buildPageCtrlOne001\()(\d+),(\d+),(\d+)', response.text)
         if not m:

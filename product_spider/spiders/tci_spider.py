@@ -80,7 +80,7 @@ class TCISpider(BaseSpider):
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
                 'delivery_time': '现货' if stock_num != '0' else None,
-                'price': strip(row.xpath('./td[2]/div/text()').get()),
+                'cost': strip(row.xpath('./td[2]/div/text()').get()),
                 'stock_num': stock_num,
                 'currency': 'RMB',
             }

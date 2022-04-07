@@ -63,7 +63,7 @@ class AobchemSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": package,
-                "price": price,
+                "cost": price,
                 "currency": "USD"
             }
             yield ProductPackage(**dd)

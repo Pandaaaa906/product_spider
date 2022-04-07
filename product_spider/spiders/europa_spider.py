@@ -71,7 +71,7 @@ class EuropaSpider(BaseSpider):
         dd = {
             "brand": self.name,
             "cat_no": cat_no,
-            "price": price,
+            "cost": price,
             "package": package,
             "currency": "EUR"
         }

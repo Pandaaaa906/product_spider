@@ -76,7 +76,6 @@ class ChemServicePrdSpider(BaseSpider):
             "cat_no": cat_no,
             "package": response.xpath('//span[@class="size"]/text()').get('').lower(),
             "cost": price,
-            "price": price,
             "currency": 'USD',
             "delivery_time": response.xpath('//p[contains(@class, "availability")]/span/text()').get(),
             "stock_num": response.xpath('//p[@class="avail-count"]/span/text()').get(),

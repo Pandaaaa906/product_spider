@@ -53,7 +53,7 @@ class AbacipharmaSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": row.xpath(".//td[@class='attribute_name']/span/text()").get(),
-                "price": row.xpath(".//td[@class='attribute_price']/input/@value").get(),
+                "cost": row.xpath(".//td[@class='attribute_price']/input/@value").get(),
                 "currency": "USD",
 
             }
