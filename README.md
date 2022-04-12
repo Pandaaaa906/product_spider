@@ -1,30 +1,21 @@
 # product_spider
 
-LGC
+Product attributes definitions
 
-postgresql
+|        code_name       |     synonym    |  related_brands  |
+|       -----------      |   -----------  |    -----------   |
+|       sales_status     |     销售状态     |      nist        |
+|        feature         |      特性值      |    cdn, acc      |
+|      product_info      |    产品其他信息   |      nibsc, chromadex |       | 
+|         api_name       |      所属API     |   lgc, dre       | 
+|       danger_desc      |      危险标识     |      cdn         | 
 
-debug off
-CONCURRENT_REQUESTS 16 default
-{'downloader/request_bytes': 4336256,
- 'downloader/request_count': 6311,
- 'downloader/request_method_count/GET': 6311,
- 'downloader/response_bytes': 98982638,
- 'downloader/response_count': 6311,
- 'downloader/response_status_count/200': 6250,
- 'downloader/response_status_count/302': 60,
- 'downloader/response_status_count/500': 1,
- 'dupefilter/filtered': 11205,
- 'finish_reason': 'finished',
- 'finish_time': datetime.datetime(2017, 9, 26, 17, 13, 29, 880000),
- 'item_scraped_count': 4553,
- 'log_count/INFO': 16,
- 'request_depth_max': 3,
- 'response_received_count': 6250,
- 'scheduler/dequeued': 6311,
- 'scheduler/dequeued/memory': 6311,
- 'scheduler/enqueued': 6311,
- 'scheduler/enqueued/memory': 6311,
- 'start_time': datetime.datetime(2017, 9, 26, 17, 4, 0, 843000)}
+Product Package attributes definitions
 
-
+|    code_name   |    synonym    |  related_brands   |
+|   -----------  |   ----------- |    -----------    |
+|   batch_name   |   批次, 批号    |     nifdc         |
+|  expiry_date   |   批次有效期    |                    |
+| function_group |     官能团      |         cdn       |
+|   stability    |  稳定状态(条件)  |                   |
+|    coa_url     |   产品证书地址   |    nibsc, nifdc   | 
