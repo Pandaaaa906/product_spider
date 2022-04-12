@@ -116,12 +116,13 @@ class RawData(scrapy.OrderedItem):
     grade = scrapy.Field()
     mol_text = scrapy.Field()
     prd_url = scrapy.Field()  # 详情地址
-    expiry_date = scrapy.Field()
+    expiry_date = scrapy.Field()  # Deprecated
     stock_num = scrapy.Field()  # Deprecated
     mdl = scrapy.Field()
     einecs = scrapy.Field()
-    shipping_group = scrapy.Field()
-    shipping_info = scrapy.Field()
+    shipping_group = scrapy.Field()  # 运输方式
+    shipping_info = scrapy.Field()  # 运输条件
+    attrs = scrapy.Field()  # 产品额外信息
 
     class Meta:
         indexes = (
@@ -140,6 +141,8 @@ class ProductPackage(scrapy.OrderedItem):
     delivery_time = scrapy.Field()
     stock_num = scrapy.Field()
     info = scrapy.Field()
+
+    attrs = scrapy.Field()  # 产品规格额外信息
 
     class Meta:
         indexes = (
