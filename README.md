@@ -9,6 +9,7 @@ Product attributes definitions
 |      product_info      |    产品其他信息   |      nibsc, chromadex |       | 
 |         api_name       |      所属API     |   lgc, dre       | 
 |       danger_desc      |      危险标识     |      cdn         | 
+|       usage      |      用途     |      nifdc         | 
 
 Product Package attributes definitions
 
