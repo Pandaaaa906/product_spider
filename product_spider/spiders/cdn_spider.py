@@ -16,7 +16,7 @@ class CDNPrdSpider(BaseSpider):
     start_urls = [
         "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50", ]
 
-    def parse(self, response, **kwargs):
+    def parse(self, response, *args, **kwargs):
         urls = response.xpath('//ol[@id="products-list"]/li/div[@class="col-11"]/a/@href').extract()
         for url in urls:
             yield Request(urljoin(self.base_url, url), callback=self.detail_parse)
@@ -29,6 +29,21 @@ class CDNPrdSpider(BaseSpider):
         tmp = '//th[contains(text(),{0!r})]/following-sibling::td/descendant-or-self::text()'
         img_url = response.xpath('//th[contains(text(),"Structure")]/following-sibling::td/img/@src').get()
         cat_no = strip(response.xpath(tmp.format("Product No.")).get())
+        feature = response.xpath(tmp.format('Isotopic Enrichment')).get()  # 特性值
+        function_group = response.xpath(tmp.format("Functional Groups")).get()  # 官能团
+
+        stability = response.xpath(tmp.format('Stability')).get()  # 稳定状态
+        danger_desc = response.xpath(tmp.format("Shipping Hazards")).get()  # 危险标识
+        prd_attrs = json.dumps({
+            "feature": feature,
+            "danger_desc": danger_desc,
+        })
+
+        package_attrs = json.dumps({
+            "function_group": function_group,
+            "stability": stability,
+        })
+
         d = {
             "brand": self.brand,
             "cat_no": cat_no,
@@ -42,9 +57,10 @@ class CDNPrdSpider(BaseSpider):
             "img_url": img_url and urljoin(self.base_url, img_url),
             "stock_info": response.xpath(
                 '//table[@id="product-matrix"]//td[@class="unit-price"]/text()').get(),
+            "info2": response.xpath(tmp.format("Storage Conditions")).get(),  # 储存条件
+            "attrs": prd_attrs,
             "prd_url": response.url,
         }
-        yield RawData(**d)
 
         matrix = first(re.findall(r'var matrixChildrenProducts = ({.+});', response.text), None)
         if not matrix:
@@ -62,6 +78,8 @@ class CDNPrdSpider(BaseSpider):
                 'package': strip(package),
                 'cost': item.get('price'),
                 'currency': 'USD',
-                'delivery_time': 'In-stock' if item.get('is_in_stock') else None
+                'delivery_time': 'In-stock' if item.get('is_in_stock') else None,
+                "attrs": package_attrs,
             }
+            yield RawData(**d)
             yield ProductPackage(**dd)

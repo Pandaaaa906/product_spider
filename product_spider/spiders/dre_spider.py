@@ -1,21 +1,23 @@
 import json
 import time
 from urllib.parse import parse_qsl, urlparse
+
 import scrapy
-from more_itertools.more import first
+from more_itertools import first
+
 from product_spider.items import RawData, ProductPackage
-from product_spider.utils.spider_mixin import JsonSpider
+from product_spider.utils.spider_mixin import BaseSpider
 
 
-class LGCSpider(JsonSpider):
-    name = "lgc"
+class DRESpider(BaseSpider):
+    name = "dre"
     allowd_domains = ["lgcstandards.com"]
-    start_urls = ["https://www.lgcstandards.com/US/en/search/?text=LGC"]
+    start_urls = ["https://www.lgcstandards.com/US/en/search/?text=dre"]
     base_url = "https://www.lgcstandards.com/US/en"
 
     def start_requests(self):
         yield scrapy.Request(
-            url="https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+            url='https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
             callback=self.parse,
         )
 
@@ -65,7 +67,7 @@ class LGCSpider(JsonSpider):
         if current_page_num is not None:
             current_page_num = current_page_num + 1
             yield scrapy.Request(
-                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+                url=f'https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
                 callback=self.parse
             )
 

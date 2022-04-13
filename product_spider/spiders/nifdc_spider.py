@@ -1,12 +1,11 @@
+import json
 import re
 from os import getenv
 from urllib.parse import urljoin
 
 from scrapy import FormRequest, Request
-
 from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
-
 
 NIFDC_USER = getenv('NIFDC_USER', '')
 NIFDC_PASS = getenv('NIFDC_PASS', '')
@@ -21,6 +20,12 @@ class NifdcSpider(BaseSpider):
     ]
     code_url = 'http://aoc.nifdc.org.cn/sell/regwwuser.do?formAction=qdyanzm'
     login_url = 'http://aoc.nifdc.org.cn/sell/loginwaiw.do?formAction=index'
+
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'CONCURRENT_REQUESTS_PER_IP': 2,
+    }
 
     def start_requests(self):
         yield Request(self.code_url, callback=self.login)
@@ -41,6 +46,11 @@ class NifdcSpider(BaseSpider):
         rows = response.xpath('//table[@class="list_tab"]/tr')
         for row in rows:
             coa = row.xpath('.//td[last()]/a/@href').get()
+            batch_name = row.xpath(tmp.format('xsBatch_no')).get()  # 批号
+            usage = row.xpath(tmp.format('used')).get()  # 用途
+            prd_attrs = json.dumps({
+                "usage": usage,
+            })
             d = {
                 'brand': self.brand,
                 'cat_no': (cat_no := row.xpath(tmp.format('sgoods_no')).get()),
@@ -50,8 +60,12 @@ class NifdcSpider(BaseSpider):
                 'info2': row.xpath(tmp.format('save_condition')).get(),
                 'stock_info': row.xpath(tmp.format('zdgmshu')).get(),
                 'prd_url': coa and urljoin(response.url, coa),
+                "attrs": prd_attrs,
             }
             yield RawData(**d)
+            package_attrs = json.dumps({
+                "batch_name": batch_name,
+            })
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
@@ -59,7 +73,8 @@ class NifdcSpider(BaseSpider):
                 'cost': row.xpath(tmp.format('unit_price')).get(),
                 'info': row.xpath(tmp.format('xsBatch_no')).get(),
                 'stock_num': row.xpath(tmp.format('zdgmshu')).get(),
-                'currency': 'RMB'
+                'currency': 'RMB',
+                "attrs": package_attrs,
             }
             yield ProductPackage(**dd)
             ddd = {
@@ -84,4 +99,3 @@ class NifdcSpider(BaseSpider):
             "toPage": str(cur_page),
         }
         yield FormRequest(response.url, formdata=form_data, callback=self.parse_list)
-
