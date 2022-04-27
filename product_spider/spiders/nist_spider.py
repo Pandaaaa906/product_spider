@@ -57,10 +57,10 @@ class NistSpider(BaseSpider):
     def parse_detail(self, response):
         d = response.meta.get("product")
         dd = response.meta.get("package")
-        status = response.xpath("//*[contains(text(), 'Status:')]/following-sibling::td/text()").get().strip()  # 销售状态
+        sales_status = response.xpath("//*[contains(text(), 'Status:')]/following-sibling::td/text()").get().strip()  # 销售状态
 
         package_attrs = json.dumps({
-            "status": status
+            "sales_status": sales_status
         })
         dd["attrs"] = package_attrs
         yield RawData(**d)
