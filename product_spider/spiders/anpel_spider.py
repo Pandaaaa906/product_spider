@@ -1,11 +1,12 @@
 import re
+import time
 from html import unescape
 from urllib.parse import urljoin
 
 from more_itertools import first
 from scrapy import Request, FormRequest
 
-from product_spider.items import AnpelItem
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -322,7 +323,7 @@ brands_urls = [
     {"href": "Brands_0385.html", "alt": "广州牧高"},
 ]
 
-
+# TODO 破解图片验证码
 class AnpelSpider(BaseSpider):
     name = "anpel"
     base_url = 'https://www.labsci.com.cn/'
@@ -332,6 +333,12 @@ class AnpelSpider(BaseSpider):
         # 'https://www.anpel.com.cn/Brands_0181.html',  # o2si
     ]
 
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'CONCURRENT_REQUESTS_PER_IP': 2,
+    }
+
     def start_requests(self):
         for item in brands_urls:
             url = item.get('href')
@@ -340,7 +347,7 @@ class AnpelSpider(BaseSpider):
                 continue
             yield Request(urljoin(self.base_url, url), callback=self.parse, meta={'sub_brand': brand})
 
-    def parse(self, response):
+    def parse(self, response, *args, **kwargs):
         rel_urls = response.xpath('//a[@class="Stkno"]/@href').extract()
         for rel_url in rel_urls:
             yield Request(
@@ -370,18 +377,50 @@ class AnpelSpider(BaseSpider):
         )
 
     def detail_parse(self, response):
-        d = {
-            'cat_no': response.xpath('//span[@id="lblStkNo"]//text()').get(),
-            'cn_name': response.xpath('//span[@id="lblProductName"]//text()').get(),
-            'en_name': response.xpath('//span[@id="lblProductNameEng"]//text()').get(),
-            'brand': response.xpath('//span[@id="lblBrandName"]//text()').get(),
-            'sub_brand': response.meta.get('sub_brand'),
-            'cas': response.xpath('//span[@id="lblCasNo"]//text()').get(),
-            'package': response.xpath('//span[@id="lblSpec"]//text()').get(),
-            'unit': response.xpath('//span[@id="lblUnit"]//text()').get(),
-            'price': response.xpath('//span[@id="lblPrice1"]/text()').get(),
-            'delivery_time': response.xpath('//span[@id="lblTotalQtyMeo"]/text()').get(),
-            'storage': response.xpath('//span[@id="lblStorageCondition"]/text()').get(),
+        time.sleep(10)
+        sub_brand = response.meta.get('sub_brand')
+        cat_no = response.xpath('//span[@id="lblStkNo"]//text()').get()
+        cn_name = response.xpath('//span[@id="lblProductName"]//text()').get()
+        en_name = response.xpath('//span[@id="lblProductNameEng"]//text()').get()
+        cas = response.xpath('//span[@id="lblCasNo"]//text()').get()
+        package = response.xpath('//span[@id="lblSpec"]//text()').get()
+        unit = response.xpath('//span[@id="lblUnit"]//text()').get()
+        cost = response.xpath('//span[@id="lblPrice1"]/text()').get()
+        delivery_time = response.xpath('//span[@id="lblTotalQtyMeo"]/text()').get()
+        storage = response.xpath('//span[@id="lblStorageCondition"]/text()').get()
+
+        if sub_brand == 'ANPEL':
+            d = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "cn_name": cn_name,
+                "en_name": en_name,
+                "cas": cas,
+                "delivery_time": delivery_time,
+                "storage": storage,
+                "prd_url": response.url,
+            }
+            dd = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "package": package,
+                "cost": cost,
+                "currency": 'RMB',
+            }
+            yield RawData(**d)
+            yield ProductPackage(**dd)
+
+        ddd = {
+            "platform": sub_brand,
+            "brand": sub_brand,
+            'cat_no': cat_no,
+            'chs_name': cn_name,
+            'en_name': en_name,
+            'cas': cas,
+            'package': package,
+            'cost': cost,
+            "delivery": delivery_time,
+            'storage_condition': storage,
             'prd_url': response.url,
         }
-        yield AnpelItem(**d)
+        yield SupplierProduct(**ddd)
