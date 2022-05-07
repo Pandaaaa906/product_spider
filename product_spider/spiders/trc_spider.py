@@ -68,11 +68,16 @@ class TRCSpider(BaseSpider):
 
         rows = response.xpath('//table[@id="orderProductTable"]/tbody/tr')
         for row in rows:
+            package = strip(row.xpath('./td[1]/text()').get())
+            if package == 'Exact Weight Packaging':
+                return
+            cost = strip(row.xpath('./td[3]/text()').get())
+
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': strip(row.xpath('./td[1]/text()').get()),
-                'cost': strip(row.xpath('./td[3]/text()').get()),
+                'package': package,
+                'cost': cost,
                 'currency': 'USD',
             }
             yield ProductPackage(**dd)
