@@ -17,3 +17,4 @@ playwright~=1.18.1
 scrapy-playwright~=0.0.8
 playwright_stealth~=1.0.5
 jsonpath~=0.82
+git@192.168.1.223:system-improve/scrapydweb.git
