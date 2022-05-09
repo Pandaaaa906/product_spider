@@ -7,7 +7,6 @@ more_itertools
 git+https://github.com/Pandaaaa906/ScrapyAutoDb.git
 psycopg2-binary
 six
-scrapydweb
 tzlocal~=2.1
 itemadapter
 requests_html
@@ -17,4 +16,4 @@ playwright~=1.18.1
 scrapy-playwright~=0.0.8
 playwright_stealth~=1.0.5
 jsonpath~=0.82
-git@192.168.1.223:system-improve/scrapydweb.git
+git+http://192.168.1.223:8088/system-improve/scrapydweb.git
