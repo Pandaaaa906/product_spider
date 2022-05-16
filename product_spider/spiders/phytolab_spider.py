@@ -43,6 +43,6 @@ class PhytolabSpider(BaseSpider):
                     "cat_no": str(data['productId']),
                     "cost": round(value, 2),
                     "package": f'{m["quantity"]}{m["unit"].lower()}',
-                    "currency": "€"
+                    "currency": "EUR"
                 }
                 yield ProductPackage(**dd)
