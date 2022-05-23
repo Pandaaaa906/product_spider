@@ -10,6 +10,25 @@ from product_spider.utils.spider_mixin import BaseSpider
 NIFDC_USER = getenv('NIFDC_USER', '')
 NIFDC_PASS = getenv('NIFDC_PASS', '')
 
+units = (
+    ('/ ?[支瓶]$', ''),
+    ('^约?', ''),
+    ('(?<=\d) ', ''),
+
+    (' ?毫克$', 'mg'),
+    (' ?毫升$', 'mL'),
+    (' ?克$', 'g'),
+    (' ?升$', 'L'),
+)
+
+
+def parse_package(package: str):
+    """用于处理中检所规格信息"""
+    ret = package
+    for pattern, repl in units:
+        ret = re.sub(pattern, repl, ret)
+    return ret.strip()
+
 
 class NifdcSpider(BaseSpider):
     name = 'nifdc'
@@ -66,10 +85,11 @@ class NifdcSpider(BaseSpider):
             package_attrs = json.dumps({
                 "batch_name": batch_name,
             })
+            package = parse_package(row.xpath(tmp.format('standard')).get())
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': row.xpath(tmp.format('standard')).get(),
+                'package': package,
                 'cost': row.xpath(tmp.format('unit_price')).get(),
                 'info': row.xpath(tmp.format('xsBatch_no')).get(),
                 'stock_num': row.xpath(tmp.format('zdgmshu')).get(),
