@@ -5,29 +5,11 @@ from urllib.parse import urljoin
 
 from scrapy import FormRequest, Request
 from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
 NIFDC_USER = getenv('NIFDC_USER', '')
 NIFDC_PASS = getenv('NIFDC_PASS', '')
-
-units = (
-    ('/ ?[支瓶]$', ''),
-    ('^约?', ''),
-    ('(?<=\d) ', ''),
-
-    (' ?毫克$', 'mg'),
-    (' ?毫升$', 'mL'),
-    (' ?克$', 'g'),
-    (' ?升$', 'L'),
-)
-
-
-def parse_package(package: str):
-    """用于处理中检所规格信息"""
-    ret = package
-    for pattern, repl in units:
-        ret = re.sub(pattern, repl, ret)
-    return ret.strip()
 
 
 class NifdcSpider(BaseSpider):
