@@ -9,7 +9,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class SVAKLifeSciencesSpider(BaseSpider):
-    name = "svaklifesciences"
+    name = "svak"
     start_urls = ["https://www.svaklifesciences.com/products.aspx"]
     base_url = "https://www.svaklifesciences.com/"
 
@@ -46,10 +46,10 @@ class SVAKLifeSciencesSpider(BaseSpider):
             cas = res.get("CasNo", None)
             mf = res.get("MFormula", '').replace(" ", "")
             mw = res.get("MWeight", None)
-            img_url = urljoin(
-                "https://www.svaklifesciences.com/images/Uploads_Images/", res.get("ImageName", None)
-            )
             prd_url = urljoin(self.base_url, res.get("seo_url", None))
+            if not (img_url := res.get("ImageName", None)):
+                continue
+            img_url = urljoin("https://www.svaklifesciences.com/images/Uploads_Images/", img_url)
 
             d = {
                 "parent": parent,
