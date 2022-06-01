@@ -45,19 +45,25 @@ class USPSpider(BaseSpider):
             }
             yield RawData(**d)
 
+            package_size = product.get('usp_packing_size', '')
+            unit = product.get('usp_uom', '')
+
+            package = '{}{}'.format(package_size, unit)
+            if (package_size is None) or (unit is None):
+                return
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': f"{product.get('usp_packing_size', '')}{product.get('usp_uom', '')}",
+                'package': package,
                 'cost': product.get('listPrice'),
                 'currency': 'USD',
                 'delivery_time': product.get('usp_in_stock'),
             }
             yield ProductPackage(**dd)
 
-        offset = j.get('offset', 0) + j.get('limit', 250)
-        if offset > j.get('totalResults', 0):
-            return
-        data = response.meta.get('data', {})
-        data['offset'] = offset
-        yield Request(f'{self.store_url}?{urlencode(data)}', meta={'data': data})
+            offset = j.get('offset', 0) + j.get('limit', 250)
+            if offset > j.get('totalResults', 0):
+                return
+            data = response.meta.get('data', {})
+            data['offset'] = offset
+            yield Request(url=f'{self.store_url}?{urlencode(data)}', meta={'data': data}, callback=self.parse)

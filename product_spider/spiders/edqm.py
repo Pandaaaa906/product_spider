@@ -3,6 +3,7 @@ from lxml.etree import XML
 from more_itertools import first
 import json
 from product_spider.items import RawData, ProductPackage
+from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -55,7 +56,7 @@ class EDQMSpider(BaseSpider):
             "//*[contains(text(), 'Unit quantity per vial')]/parent::td/following-sibling::td/font/text()"
         ).get()
         if package is not None:
-            package = package.strip().replace(' ', '')
+            package = parse_package(package)
 
         cost = response.xpath(
             "//*[contains(text(), 'Price*')]/parent::td/following-sibling::td/font[last()-1]/text()"
