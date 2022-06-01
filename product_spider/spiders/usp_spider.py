@@ -27,7 +27,7 @@ class USPSpider(BaseSpider):
             'includeChildren': 'true',
             'storePriceListGroupId': 'defaultPriceGroup'
         }
-        yield Request(f'{self.store_url}?{urlencode(d)}', meta={'data': d})
+        yield Request(f'{self.store_url}?{urlencode(d)}', meta={'data': d}, callback=self.parse)
 
     def parse(self, response, **kwargs):
         j = response.json()
@@ -50,7 +50,7 @@ class USPSpider(BaseSpider):
 
             package = '{}{}'.format(package_size, unit)
             if (package_size is None) or (unit is None):
-                return
+                continue
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
@@ -61,9 +61,9 @@ class USPSpider(BaseSpider):
             }
             yield ProductPackage(**dd)
 
-            offset = j.get('offset', 0) + j.get('limit', 250)
-            if offset > j.get('totalResults', 0):
-                return
-            data = response.meta.get('data', {})
-            data['offset'] = offset
-            yield Request(url=f'{self.store_url}?{urlencode(data)}', meta={'data': data}, callback=self.parse)
+        offset = j.get('offset', 0) + j.get('limit', 250)
+        if offset > j.get('totalResults', 0):
+            return
+        data = response.meta.get('data', {})
+        data['offset'] = offset
+        yield Request(url=f'{self.store_url}?{urlencode(data)}', meta={'data': data}, callback=self.parse)
