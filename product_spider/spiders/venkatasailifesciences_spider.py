@@ -8,7 +8,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 class VenKaTaSaiLifeSciencesSpider(BaseSpider):
-    name = "venkatasailifesciences"
+    name = "venkatasai"
     start_urls = ["https://www.venkatasailifesciences.com/category/a"]
     base_url = "https://www.venkatasailifesciences.com/"
 
