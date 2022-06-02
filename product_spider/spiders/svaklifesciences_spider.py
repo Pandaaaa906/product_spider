@@ -47,9 +47,9 @@ class SVAKLifeSciencesSpider(BaseSpider):
             mf = res.get("MFormula", '').replace(" ", "")
             mw = res.get("MWeight", None)
             prd_url = urljoin(self.base_url, res.get("seo_url", None))
-            if not (img_url := res.get("ImageName", None)):
-                continue
-            img_url = urljoin("https://www.svaklifesciences.com/images/Uploads_Images/", img_url)
+            img_url = res.get("ImageName", None)
+            if img_url:
+                img_url = urljoin("https://www.svaklifesciences.com/images/Uploads_Images/", img_url)
 
             d = {
                 "parent": parent,
