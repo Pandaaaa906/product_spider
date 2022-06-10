@@ -24,7 +24,7 @@ class SincoSpider(BaseSpider):
         for url in urls:
             yield Request(url, meta=response.meta, callback=self.detail_parse)
         next_page = response.xpath("//li[@class='pro_fyq_next']/a/@href").get()
-        if next_page:
+        if next_page and next_page != "javascript:":
             yield Request(urljoin(self.base_url, next_page), meta=response.meta, callback=self.list_parse)
 
     def detail_parse(self, response):
@@ -34,7 +34,7 @@ class SincoSpider(BaseSpider):
                  or response.xpath("//*[contains(text(), 'CAT#:')]/following-sibling::td/text()").get() \
                  or tmp_cat_no.replace('CAT#:', '') \
                  or re.search(r"(?<=\t)\w\d{5}",
-                              ''.join(response.xpath("//div[@class='pro_det_jj']/p[position()=1]/text()")))
+                              ''.join(response.xpath("//div[@class='pro_det_jj']/p[position()=1]/text()").get()))
 
         d = {
             "brand": "sinco",
