@@ -1,7 +1,8 @@
 from scrapy import Request
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
-
+import re
 
 class AcintsSpider(BaseSpider):
     name = "acints"
@@ -42,18 +43,39 @@ class AcintsSpider(BaseSpider):
 
         yield RawData(**d)
 
-        rows = response.xpath("//form[@class='cartform ajaxform']//p")
+        rows = response.xpath("//form[@class='cartform ajaxform']//p/label")
         for row in rows:
-            price = row.xpath('//span[@class="baseprice"]/text()').get()
-            price = price.replace("£", '')
-            package = row.xpath("//label[@for='qty1']//span[@class='pParam']/text()").get()
-            package = package.split(" ")[-1]
+            price = row.xpath('.//span[@class="baseprice"]/text()').get()
+            package = re.search(
+                r'(?<=per ).*(?=:)', row.xpath(".//span[@class='pParam']/text()").get()
+            )
+            if not package:
+                continue
+            package = package.group()
 
             dd = {
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": package,
-                "cost": price,
+                "cost": parse_cost(price),
                 "currency": "GBP"  # Great Britain Pound
             }
             yield ProductPackage(**dd)
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                "purity": d["purity"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": response.url,
+            }
+            yield SupplierProduct(**ddd)
