@@ -1,4 +1,4 @@
-from string import ascii_uppercase
+import json
 from urllib.parse import urljoin
 
 from scrapy import Request
@@ -16,35 +16,54 @@ def cus_strip(s):
 class AnaxlabSpider(BaseSpider):
     name = "anaxlab"
     allowd_domains = ["anaxlab.com"]
-    start_urls = [f"http://anaxlab.com/DrugImpuritiesindex?Index={a}/" for a in ascii_uppercase]
+    start_urls = ["https://www.anaxlab.com/products"]
     base_url = "http://anaxlab.com/"
 
-    def parse(self, response):
-        parents = response.xpath('//option[position()>1]/text()').getall()
-        for parent in parents:
-            url = f'http://anaxlab.com/parent-api/{parent.lower().replace(" ", "-")}'
-            yield Request(url, callback=self.parse_list, meta={'parent': parent})
+    def parse(self, response, **kwargs):
+        rows = response.xpath("//div[@class='field-content']/a/@href").getall()
+        for url in rows:
+            yield Request(
+                url=urljoin(self.base_url, url),
+                callback=self.parse_list,
+            )
 
     def parse_list(self, response):
-        rel_urls = response.xpath('//h2[@class="title"]/a/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(self.base_url, rel_url), callback=self.parse_detail, meta=response.meta)
+        parent = response.xpath("//*[@class='title page-title']/text()").get()
+        rows = response.xpath("//h6/a/@href").getall()
+        for url in rows:
+            yield Request(
+                url=urljoin(self.base_url, url),
+                callback=self.parse_detail,
+                meta={"parent": parent},
+            )
+        next_url = response.xpath("//*[contains(text(), 'Next page')]/parent::a/@href").get()
+        if next_url:
+            yield Request(
+                url=urljoin(response.url, next_url),
+                callback=self.parse_list,
+            )
 
     def parse_detail(self, response):
-        tmp_cat_no = '//b[contains(text(), "Product Code")]/../following-sibling::li[1]/text()'
-        tmp = '//b[contains(text(), {!r})]/../following-sibling::li[1]//span[@itemprop]/text()'
-        rel_img = response.xpath('//img[@class="productDetailsImage"]/@src').get()
+        parent = response.meta.get("parent", None)
+        tmp_xpath = "//*[contains(text(), {!r})]/parent::td/following-sibling::td/text()"
+
+        prd_attrs = json.dumps({
+            "synonyms": response.xpath(tmp_xpath.format("Synonyms")).get(),
+        })
+
         d = {
-            'brand': "anaxlab",
-            'en_name': response.xpath('//h1[@class="title"]/text()').get(),
-            'prd_url': response.request.url,  # 产品详细连接
-            'cat_no': cus_strip(response.xpath(tmp_cat_no).get()),
-            'cas': cus_strip(response.xpath(tmp.format('CAS Number')).get()),
-            'mf': cus_strip(response.xpath(tmp.format('Molecular Formula')).get()),
-            'mw': cus_strip(response.xpath(tmp.format('Molecular Weight')).get()),
-            'smiles': response.xpath('//li[contains(text(), "Smile Code")]/following-sibling::li[1]/text()').get(),
-            'info1': cus_strip(response.xpath(tmp.format('Synonyms')).get()),
-            'parent': response.meta.get('parent'),
-            'img_url': rel_img and urljoin(self.base_url, rel_img),
+            "brand": "anaxlab",
+            "parent": parent,
+            "en_name": response.xpath("//*[@class='title page-title']/span/text()").get(),
+            "cat_no": response.xpath(tmp_xpath.format("Product Code")).get(),
+            "cas": response.xpath(tmp_xpath.format("CAS Number")).get(),
+            "mf": response.xpath(tmp_xpath.format("Molecular Formula")).get(),
+            "mw": response.xpath(tmp_xpath.format("Molecular Weight")).get(),
+            "purity": response.xpath(tmp_xpath.format("Purity")).get(),
+            "mdl": response.xpath(tmp_xpath.format("MDL No.")).get(),
+            "smiles": ''.join(response.xpath(tmp_xpath.format("Smile Code")).getall()),
+            "attrs": prd_attrs,
+            "prd_url": response.url,
+            "img_url": urljoin(self.base_url, response.xpath("//*[@class='field__item']/img/@src").get())
         }
         yield RawData(**d)

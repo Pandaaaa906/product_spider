@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -72,3 +72,24 @@ class AmatekSpider(BaseSpider):
                 'stock_num': stock_num,
             }
             yield ProductPackage(**dd)
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                "purity": d["purity"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "stock_info": dd["delivery_time"],
+                "img_url": d["img_url"],
+                "prd_url": response.url,
+            }
+            yield SupplierProduct(**ddd)
+

@@ -3,6 +3,7 @@ import json
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
+from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -34,9 +35,6 @@ class AccPrdSpider(BaseSpider):
         tmp = '//div[contains(@class, {!r})]/div[contains(@class, "value")]//text()'
         cat_no = response.xpath('//div[@itemprop="sku"]/text()').get()
         package = response.xpath(tmp.format('sales_unit_size')).get()
-        if package is not None:
-            package = package.replace(" ", '')
-
         feature = response.xpath("//*[contains(text(), 'Matrix')]/parent::div/following-sibling::div/text()").get()  # 特性值
 
         prd_attrs = json.dumps({
@@ -61,7 +59,7 @@ class AccPrdSpider(BaseSpider):
         dd = {
             "brand": "accustandard",
             "cat_no": cat_no,
-            "package": package,
+            "package": parse_package(package),
             "currency": "USD",
         }
 
