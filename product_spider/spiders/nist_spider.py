@@ -5,7 +5,7 @@ import scrapy
 
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.functions import strip
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 
 
 class NistSpider(BaseSpider):
@@ -63,5 +63,19 @@ class NistSpider(BaseSpider):
             "sales_status": sales_status
         })
         dd["attrs"] = package_attrs
+
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "en_name": d["en_name"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "prd_url": d["prd_url"],
+        }
+
         yield RawData(**d)
         yield ProductPackage(**dd)
+        yield SupplierProduct(**ddd)

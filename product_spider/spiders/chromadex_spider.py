@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlencode
 import scrapy
 from more_itertools import first
 import jsonpath
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -94,8 +94,10 @@ class ChromaDexSpider(BaseSpider):
         d["attrs"] = prd_attrs
 
         if "matrixchilditems_detail" not in item:
-            d['cat_no'] = re.match(r'[A-Z]{3}-\d+', item.get("itemid", '')).group()
-            yield RawData(**d)
+            raw_cat_no = re.match(r'[A-Z]{3}-\d+', item.get("itemid", ''))
+            if raw_cat_no:
+                d["cat_no"] = raw_cat_no.group()
+                yield RawData(**d)
         res = item.get("matrixchilditems_detail", [])
         if not res:
             return None
@@ -116,11 +118,29 @@ class ChromaDexSpider(BaseSpider):
                 "currency": "USD",
                 "attrs": package_attrs,
             }
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
             if cat_no not in self.cat_no_set:
                 yield RawData(**d)
                 self.cat_no_set.add(cat_no)
 
     def close(self, spider, reason):
         print(self.cat_no_set)
-

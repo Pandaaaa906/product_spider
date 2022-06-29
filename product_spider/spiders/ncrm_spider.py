@@ -1,7 +1,7 @@
 import scrapy
 from urllib.parse import urljoin, urlencode
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -88,5 +88,20 @@ class NcrmSpider(BaseSpider):
             'currency': 'RMB',
         }
 
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "parent": d["parent"],
+            "en_name": d["en_name"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "img_url": d["img_url"],
+            "prd_url": d["prd_url"],
+        }
+
         yield RawData(**d)
         yield ProductPackage(**dd)
+        yield SupplierProduct(**ddd)
