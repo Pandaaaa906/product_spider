@@ -2,7 +2,7 @@ import re
 from urllib.parse import urljoin
 
 import scrapy
-from product_spider.items import ProductPackage, RawData
+from product_spider.items import ProductPackage, RawData, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -77,8 +77,23 @@ class TsbiochemSpider(BaseSpider):
                 "cost": price,
                 "currency": "RMB",
             }
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+
             yield RawData(**d)
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
 
     def parse_detail_v2(self, response):
         cat_no = response.meta.get("cat_no")
@@ -89,7 +104,9 @@ class TsbiochemSpider(BaseSpider):
         ).get()
         mw = response.xpath(
             "//table[@class='table-cpd-info']//td[contains(text(), '分子量')]/following-sibling::td/text()"
-        ).get().strip()
+        ).get()
+        if mw:
+            mw = mw.strip()
         mf = response.xpath(
             "//table[@class='table-cpd-info']//td[contains(text(), '分子式')]/following-sibling::td/text()"
         ).get()
@@ -125,5 +142,22 @@ class TsbiochemSpider(BaseSpider):
                 "cost": price,
                 "currency": "RMB",
             }
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
             yield RawData(**d)
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
