@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 import json
 from scrapy import Request
 import re
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 class BPSpider(BaseSpider):
@@ -11,7 +11,7 @@ class BPSpider(BaseSpider):
     start_urls = ["https://www.pharmacopoeia.com/Catalogue/Products", ]
     base_url = "https://www.pharmacopoeia.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         for url in self.start_urls:
             yield Request(url, callback=self.dummy_parse)
 
@@ -71,5 +71,20 @@ class BPSpider(BaseSpider):
             "currency": "GBP",
             "attrs": package_attrs,
         }
+
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "en_name": d["en_name"],
+            "cas": d["cas"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "prd_url": d["prd_url"],
+        }
+
         yield RawData(**d)
         yield ProductPackage(**dd)
+        yield SupplierProduct(**ddd)
