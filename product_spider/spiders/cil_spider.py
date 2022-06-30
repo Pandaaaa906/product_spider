@@ -1,8 +1,7 @@
 from urllib.parse import urljoin
 
 import scrapy
-import re
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -12,7 +11,7 @@ class CILSpider(BaseSpider):
     base_url = "https://shop.isotope.com/"
     start_urls = ["https://shop.isotope.com/category.aspx", ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         urls = response.xpath('//div[@class="tcat"]//a/@href').extract()
         for url in urls:
             if "10032191" not in url:
@@ -85,7 +84,6 @@ class CILSpider(BaseSpider):
         yield RawData(**d)
         rows = response.xpath("//tr[@class='ChildItemWrap']")
         for row in rows:
-            print(response.url)
             cost = row.xpath("./td[position()=2]/span/text()").get()
             if cost is not None:
                 cost = cost.replace('$', '')
@@ -99,4 +97,21 @@ class CILSpider(BaseSpider):
                 "package": package,
                 "currency": "USD",
             }
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "prd_url": d["prd_url"],
+            }
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
