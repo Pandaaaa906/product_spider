@@ -2,8 +2,8 @@ import json
 import time
 from urllib.parse import parse_qsl, urlparse
 import scrapy
-from more_itertools.more import first
 from product_spider.items import RawData, ProductPackage
+from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import JsonSpider
 
 
@@ -24,32 +24,22 @@ class LGCSpider(JsonSpider):
         if products is []:
             return
         for prd in products:
-            cat_no = prd.get("code")
-            en_name = prd.get("name")
-            img_url = prd.get("analyteImageUrl")
+            brand = prd.get("brand", {}).get("name", None).lower()
+            cat_no = prd.get("code", None)
+            en_name = prd.get("name", None)
+            img_url = prd.get("analyteImageUrl", None)
             prd_url = '{}{}'.format(self.base_url, prd.get("url"))
-            if (mw := prd.get("listMolecularWeight")) is None:
-                mw = []
-            mw = ''.join(mw)
-            if (mf := prd.get("listMolecularFormula")) is None:
-                mf = ''.join([])
-            else:
-                mf = first(mf).replace(' ', '')
 
-            package = ''.join(prd.get("uom", '').split())
             d = {
-                "brand": self.name,
+                "brand": brand,
                 "cat_no": cat_no,
                 "en_name": en_name,
-                "mf": mf,
-                "mw": mw,
                 "prd_url": prd_url,
                 "img_url": img_url,
             }
             dd = {
-                "brand": self.name,
+                "brand": brand,
                 "cat_no": cat_no,
-                "package": package,
                 "currency": "USD",
             }
             yield scrapy.Request(
@@ -88,6 +78,11 @@ class LGCSpider(JsonSpider):
         parent = ''.join(
             response.xpath("//*[contains(text(), 'Product Categories')]/following-sibling::p//a/text()").getall())
 
+        mw = response.xpath("//*[contains(text(), 'Molecular Weight')]/following-sibling::p/text()").get()
+
+        mf = response.xpath("//*[contains(text(), 'Product Format')]/following-sibling::p/text()").get()
+        package = parse_package(response.xpath("//*[contains(text(), 'Pack Size:')]/following-sibling::p/text()").get())
+
         prd_attrs = json.dumps({
             "api_name": api_name,
             "inchi": inchi,
@@ -96,10 +91,13 @@ class LGCSpider(JsonSpider):
         d["parent"] = parent
         d["info2"] = info2
         d["cas"] = cas
+        d["mw"] = mw
+        d['mf'] = mf
         d["en_name"] = en_name
         d["shipping_info"] = shipping_info
         d["smiles"] = smiles
         d["attrs"] = prd_attrs
+        dd["package"] = package
         dd["stock_num"] = stock_num
         yield RawData(**d)
         yield ProductPackage(**dd)
