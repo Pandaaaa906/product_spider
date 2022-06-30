@@ -2,7 +2,7 @@ from urllib.parse import urljoin, urlencode
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -59,7 +59,23 @@ class USPSpider(BaseSpider):
                 'currency': 'USD',
                 'delivery_time': product.get('usp_in_stock'),
             }
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "prd_url": d["prd_url"],
+            }
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
 
         offset = j.get('offset', 0) + j.get('limit', 250)
         if offset > j.get('totalResults', 0):

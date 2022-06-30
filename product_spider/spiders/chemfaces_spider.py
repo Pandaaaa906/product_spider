@@ -1,6 +1,7 @@
 from urllib.parse import urljoin
 import scrapy
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -51,13 +52,6 @@ class ChemfacesSpider(BaseSpider):
         package_info2 = response.xpath("//td[contains(text(), 'Price')]//following-sibling::td/input/@value").get()
         package_info = package_info1 or package_info2
 
-        if package_info != 'Inquiry':
-            price, *_, package = package_info.split()
-            price = price.replace("$", '')
-        else:
-            price = None
-            package = None
-
         d = {
             "brand": self.name,
             "cat_no": cat_no,
@@ -72,12 +66,36 @@ class ChemfacesSpider(BaseSpider):
             "prd_url": response.url
         }
 
-        dd = {
-            "brand": self.name,
-            "cat_no": cat_no,
-            "cost": price,
-            "package": package,
-            "currency": "USD",
-        }
-        yield RawData(**d)
-        yield ProductPackage(**dd)
+        if package_info == 'Inquiry':
+            yield RawData(**d)
+        elif package_info is not None and package_info != 'Inquiry':
+            price, *_, package = package_info.split()
+            price = parse_cost(price)
+
+            dd = {
+                "brand": self.name,
+                "cat_no": cat_no,
+                "cost": price,
+                "package": package,
+                "currency": "USD",
+            }
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+
+            yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
