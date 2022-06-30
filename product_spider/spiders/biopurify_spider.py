@@ -3,7 +3,7 @@ import os
 from urllib.parse import urljoin
 import re
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 
 if os.name == 'nt':
     import subprocess
@@ -100,33 +100,47 @@ class BiopurifySpider(BaseSpider):
         j_obj = execjs.eval(response.text.strip(';/*'))
         datas = j_obj['ObjResult']
         for data in datas:
-            price = data["Goods_Price"]
-            if price == 0:
-                price = None
-            cat_no = data["Goods_no"]
             package_info = json.loads(data["Goods_info"]).get("goodsinfo")
-            package = package_info.get("packaging")
-            purity = package_info.get("purity")
             brand = package_info.get("brand").lower()
-
+            purity = package_info.get("purity")
             d["purity"] = purity
             d["brand"] = brand
+            for i in data.get("Inventores", []):
+                price = i.get("Price", None)
+                raw_cat_no = i.get("Goods_no", None)
+                cat_no, package = raw_cat_no.split("-")
 
-            dd = {
-                "cat_no": cat_no,
-                "package": package,
-                "cost": price,
-                "brand": brand,
-                "currency": "RMB",
-            }
-            if not is_biopurify(brand):
-                self.other_brands.add(brand)
-                # TODO yield SupplierProduct
-                return
-            yield RawData(**d)
-            yield ProductPackage(**dd)
+                dd = {
+                    "cat_no": cat_no,
+                    "package": package,
+                    "cost": price,
+                    "brand": brand,
+                    "currency": "RMB",
+                }
+
+                ddd = {
+                    "platform": self.name,
+                    "vendor": self.name,
+                    "brand": self.name,
+                    "parent": d["parent"],
+                    "en_name": d["en_name"],
+                    "cas": d["cas"],
+                    "mf": d["mf"],
+                    "mw": d["mw"],
+                    'cat_no': d["cat_no"],
+                    'package': dd['package'],
+                    'cost': dd['cost'],
+                    "currency": dd["currency"],
+                    "img_url": d["img_url"],
+                    "prd_url": d["prd_url"],
+                }
+
+                if not is_biopurify(brand):
+                    self.other_brands.add(brand)
+                    return
+                yield RawData(**d)
+                yield ProductPackage(**dd)
+                yield SupplierProduct(**ddd)
 
     def closed(self, reason):
         self.logger.info(f'其他品牌: {self.other_brands}')
-
-
