@@ -9,7 +9,7 @@ deploy_dev:
   stage: deploy
   script:
     - cat "$DEV_ENV" > "$(pwd)/test.env"
-    - docker-compose -f docker-compose-test.yml -H $DEV_DOCKER_URL up -d --build
+    - docker-compose -f docker-compose-test.yaml -H $DEV_DOCKER_URL up -d --build
   rules:
     - if: '$CI_COMMIT_BRANCH == "dev"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -22,7 +22,7 @@ deploy_prod:
     - cat "$PROD_DOCKER_CERT" > "$(pwd)/.docker_ssl/cert.pem"
     - cat "$PROD_DOCKER_KEY" > "$(pwd)/.docker_ssl/key.pem"
     - >
-      docker-compose -f docker-compose.yml -H $PROD_DOCKER_URL
+      docker-compose -f docker-compose.yaml -H $PROD_DOCKER_URL
         --tlscacert "./.docker_ssl/ca.pem" --tlscert "./.docker_ssl/cert.pem" --tlskey "./.docker_ssl/key.pem"
         up -d --build
   rules:
