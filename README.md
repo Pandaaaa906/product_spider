@@ -14,7 +14,7 @@ Product attributes definitions
 |       iupac     |       iupac     |     dre            |     [amino(methylsulfanyl)phosphoryl]oxymethane           |
 |       inchlkey     |       inchikey     |     dre,a2bchem            |     OXNZWNNMJBOZQO-UHFFFAOYSA-N           |
 |     synonyms      |     同义词        |         alta     |  2-Naphthacenecarboxamide    |
-
+|     bio_level     |     生物安全等级    |        atcc     |    BSL 2   |
 
 Product Package attributes definitions
 
