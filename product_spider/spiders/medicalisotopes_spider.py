@@ -2,7 +2,8 @@ from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -12,7 +13,7 @@ class MedicalIsotopesSpider(BaseSpider):
     base_url = "https://www.medicalisotopes.com/"
     start_urls = ['https://www.medicalisotopes.com/productsbycategories.php', ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[contains(@class, "main-content")]//a')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
@@ -45,3 +46,29 @@ class MedicalIsotopesSpider(BaseSpider):
             'prd_url': response.url,
         }
         yield RawData(**d)
+        if not d["info3"]:
+            return
+        dd = {
+            'brand': 'medicalisotopes',
+            'cat_no': d["cat_no"],
+            'package': ''.join(d["info3"].split()),
+            'cost': parse_cost(d["info4"]),
+            'currency': "USD",
+        }
+        yield ProductPackage(**dd)
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "parent": d["parent"],
+            "en_name": d["en_name"],
+            "cas": d["cas"],
+            "mf": d["mf"],
+            "mw": d["mw"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "prd_url": d["prd_url"],
+        }
+        yield SupplierProduct(**ddd)
