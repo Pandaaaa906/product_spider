@@ -3,7 +3,8 @@ from urllib.parse import urljoin, urlencode
 from lxml import etree
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
@@ -106,6 +107,11 @@ class ClearsynthSpider(BaseSpider):
         img_url = response.xpath("//*[@class='p_details1']/img/@src").get()
         usage = response.xpath(tmp_xpath.format("Primary Usage :")).get()
 
+        cat_no = strip(response.xpath(tmp_xpath.format('CAT No. :')).get())
+        cas = strip(response.xpath(tmp_xpath.format('CAS Registry No. :')).get())
+        mw = strip(response.xpath(tmp_xpath.format('Molecular Weight: ')).get())
+        mf = formula_trans(strip(response.xpath(tmp_xpath.format('Molecular Formula :')).get()))
+
         prd_attrs = json.dumps({
             "api_name": parent,
             "usage": usage,
@@ -114,11 +120,11 @@ class ClearsynthSpider(BaseSpider):
         d = {
             "brand": "clearsynth",
             "en_name": response.xpath(tmp_xpath.format('Compound :')).get(),
-            "cat_no": response.xpath("//*[@class='show_on-mobile']//span[@class='font-small text-muted']/text()").get(),
-            "cas": response.xpath(tmp_xpath.format("CAS No. :")).get(),
+            "cat_no": cat_no,
+            "cas": cas,
             "parent": category or parent,
-            "mw": response.xpath(tmp_xpath.format('Mol. Weight: ')).get(),
-            "mf": formula_trans(strip("".join(response.xpath(tmp_xpath.format('Mol. Formula :')).getall()))),
+            "mw": mw,
+            "mf": mf,
             "purity": response.xpath(tmp_xpath.format('Purity :')).get(),
             "info1": strip(response.xpath(tmp_xpath.format('Synonyms')).get()),
             "info2": strip(response.xpath(tmp_xpath.format('Storage Condition :')).get()),
@@ -128,3 +134,37 @@ class ClearsynthSpider(BaseSpider):
             "prd_url": response.url,
         }
         yield RawData(**d)
+        rows = response.xpath("//div[@class='col-md-12']//tr")
+        for row in rows:
+            raw_package = row.xpath(".//td[last()-4]/span/text()").get()
+            raw_cost = parse_cost(row.xpath(".//td[last()-1]//span/text()").get())
+            if raw_package is None or raw_cost is None:
+                continue
+            package = ''.join(raw_package.split()).lower()
+            cost = raw_cost
+            dd = {
+                "brand": d["brand"],
+                "cat_no": d["cat_no"],
+                "package": package,
+                "cost": cost,
+                "currency": "USD",
+            }
+            yield ProductPackage(**dd)
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+            yield SupplierProduct(**ddd)
