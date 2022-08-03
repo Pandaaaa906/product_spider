@@ -3,7 +3,7 @@ import re
 
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -17,7 +17,7 @@ class SyninnovaSpider(BaseSpider):
     prds_url = 'https://www.syninnova.com/products_ajax.php?spoint={spoint}&pcid={pcid}'
     prd_url = 'https://www.syninnova.com/catalog/product/{cat_no}'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//ul[@class="nav_menu"]/li/a')
         for a in a_nodes:
             category = a.xpath('./text()').get()
@@ -80,4 +80,29 @@ class SyninnovaSpider(BaseSpider):
             'img_url': response.xpath('//div[@class="prodImage"]/img/@src').get(),
             'prd_url': response.url,
         }
+        dd = {
+            'brand': 'syninnova',
+            'cat_no': d["cat_no"],
+            'package': d['info3'].lower(),
+            'cost': price,
+            'currency': 'USD',
+        }
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "parent": d["parent"],
+            "en_name": d["en_name"],
+            "cas": d["cas"],
+            "mf": d["mf"],
+            "mw": d["mw"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "img_url": d["img_url"],
+            "prd_url": d["prd_url"],
+        }
         yield RawData(**d)
+        yield ProductPackage(**dd)
+        yield SupplierProduct(**ddd)
