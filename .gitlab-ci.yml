@@ -22,7 +22,7 @@ deploy_prod:
     - cat "$PROD_DOCKER_CERT" > "$(pwd)/.docker_ssl/cert.pem"
     - cat "$PROD_DOCKER_KEY" > "$(pwd)/.docker_ssl/key.pem"
     - >
-      docker-compose -f docker-compose.yaml -H $PROD_DOCKER_URL
+      docker-compose -f docker-compose.yaml -H $PROD_DOCKER_URL --tlsverify
         --tlscacert "./.docker_ssl/ca.pem" --tlscert "./.docker_ssl/cert.pem" --tlskey "./.docker_ssl/key.pem"
         up -d --build
   rules:
