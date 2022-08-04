@@ -1,4 +1,5 @@
 # TODO easily get blocked
+import re
 from urllib.parse import urlencode, urljoin
 
 from scrapy import Request
@@ -7,6 +8,10 @@ from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
+
+
+p_reversed_pkg = re.compile(r'^[mM][gGlL]\d+(\.\d+)?$')
+p_normalize_pkg = re.compile(r'([mM][gGlL])(\d+(\.\d+)?)')
 
 
 class TRCSpider(BaseSpider):
@@ -69,8 +74,12 @@ class TRCSpider(BaseSpider):
         rows = response.xpath('//table[@id="orderProductTable"]/tbody/tr')
         for row in rows:
             package = strip(row.xpath('./td[1]/text()').get())
+            if not package:
+                continue
             if package == 'Exact Weight Packaging':
                 continue
+            if p_reversed_pkg.match(package):
+                package = p_normalize_pkg.sub(r'\2\1', package)
             cost = strip(row.xpath('./td[3]/text()').get())
 
             dd = {
