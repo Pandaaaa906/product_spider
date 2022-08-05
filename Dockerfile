@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright:v1.18.1-focal as prd_spider_base
+FROM mcr.microsoft.com/playwright:v1.24.0-focal as prd_spider_base
 
 RUN apt update && apt-get install python3-dev -y
 RUN mkdir -p ~/.pip
