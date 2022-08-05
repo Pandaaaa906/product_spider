@@ -10,6 +10,7 @@ services:
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/dbs:/app/dbs
       - /www/prd_spider/eggs:/app/eggs
+      - /www/prd_spider/ms-playwright:/ms-playwright
     env_file:
       - test.env
   scrapydweb:
