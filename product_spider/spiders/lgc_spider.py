@@ -7,6 +7,17 @@ from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import JsonSpider
 
 
+def parse_brand(raw_brand):
+    if not raw_brand:
+        return None
+    mapping = {
+        "easi-tab™": "easi-tab",
+        "dr. ehrenstorfer": "dre",
+    }
+    brand = mapping.get(raw_brand, raw_brand)
+    return brand
+
+
 class LGCSpider(JsonSpider):
     name = "lgc"
     allowd_domains = ["lgcstandards.com"]
@@ -24,7 +35,7 @@ class LGCSpider(JsonSpider):
         if products is []:
             return
         for prd in products:
-            brand = prd.get("brand", {}).get("name", None).lower()
+            brand = parse_brand(prd.get("brand", {}).get("name", None).lower())
             cat_no = prd.get("code", None)
             en_name = prd.get("name", None)
             img_url = prd.get("analyteImageUrl", None)
