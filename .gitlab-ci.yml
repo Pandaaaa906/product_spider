@@ -21,10 +21,11 @@ deploy_prod:
     - mkdir -p "$(pwd)/.docker_ssl" && cat "$PROD_DOCKER_CA" > "$(pwd)/.docker_ssl/ca.pem"
     - cat "$PROD_DOCKER_CERT" > "$(pwd)/.docker_ssl/cert.pem"
     - cat "$PROD_DOCKER_KEY" > "$(pwd)/.docker_ssl/key.pem"
+    - echo $PROD_DOCKER_URL
     - >
       docker-compose -f docker-compose.yaml -H $PROD_DOCKER_URL --tlsverify
-        --tlscacert "./.docker_ssl/ca.pem" --tlscert "./.docker_ssl/cert.pem" --tlskey "./.docker_ssl/key.pem"
-        up -d --build
+      --tlscacert "./.docker_ssl/ca.pem" --tlscert "./.docker_ssl/cert.pem" --tlskey "./.docker_ssl/key.pem"
+      up -d --build
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
