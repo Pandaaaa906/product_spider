@@ -41,3 +41,16 @@ class StripPipeline:
         for key, value in adapter.items():
             adapter[key] = strip(value) or None
         return item
+
+
+class ParseCostPipeline:
+
+    def process_item(self, item, spider):
+        adapter = ItemAdapter(item)
+        if 'cost' not in adapter:
+            return item
+        cost = adapter.get('cost')
+        if "," not in cost:
+            return item
+        adapter["cost"] = ''.join(strip(cost.split(",")))
+        return item
