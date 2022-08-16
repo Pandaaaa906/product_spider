@@ -4,11 +4,15 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
+import re
+
 from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
 
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 
+T_COMMA = str.maketrans('', '', ',')
 
 class DropNullCatNoPipeline:
 
@@ -50,7 +54,10 @@ class ParseCostPipeline:
         if 'cost' not in adapter:
             return item
         cost = adapter.get('cost')
-        if "," not in cost:
+        if not cost:
             return item
-        adapter["cost"] = ''.join(strip(cost.split(",")))
+        cost = cost.translate(T_COMMA)
+        if raw_cost := re.search(r'(\d+(\.\d+)?)', parse_cost(cost)):
+            cost = raw_cost.group()
+        adapter["cost"] = cost
         return item
