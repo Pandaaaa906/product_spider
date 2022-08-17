@@ -1,3 +1,4 @@
+import json
 import re
 from random import random
 from urllib.parse import urlsplit, parse_qsl, urlencode, urljoin
@@ -89,31 +90,50 @@ class TansooleDreSpider(BaseSpider):
             )
 
     def parse_package(self, response):
-        chs_name = response.xpath("//div[@class='title']/text()").get()
-        cat_no = response.xpath("//div[contains(text(), '原始编号：')]/following-sibling::div/text()").get()
-        source_id = response.xpath("//div[contains(text(), '探索编号：')]/following-sibling::div/text()").get()
-        img_url = urljoin(self.base_url, response.xpath("//div[@id='big-box']/img/@src").get())
-        package = response.xpath("//div[contains(text(), '包装规格：')]/following-sibling::div/text()").get('')
-        if package is not None:
-            package = ''.join(package.split())
+        prd_num = response.xpath("//input[@id='productNumEntryId']/@value").get()
+        token = response.xpath("//input[@id='productNumTokenEntry']/@value").get()
 
-        cost = response.xpath("//span[@id='bigDecimalFormatPriceDesc']/text()").get()
-        delivery = ''.join(
-            response.xpath("//div[contains(text(), '货期：')]/following-sibling::div/span/text()").get('').split())
-        stock_info = response.xpath("//div[contains(text(), '库存：')]/following-sibling::div/span/text()").get()
-        expiry_date = response.xpath("//div[contains(text(), '有效期至：')]/following-sibling::div/text()").get()
+        yield scrapy.FormRequest(
+            url="https://www.tansoole.com/detail/loadone.htm",
+            formdata={
+                "productNum": prd_num,
+                "tokenEntry": token,
+                "province": "4896",
+                "city": "4897",
+                "area": "5070",
+            },
+            callback=self.parse_cost,
+            meta={"prd_url": response.url}
+        )
+
+    def parse_cost(self, response):
+        prd_url = response.meta.get("prd_url", None)
+        res = json.loads(response.text).get("data", None)
+        if not res:
+            return
+        source_id = res.get("id", None)
+        cat_no = res.get("oldNum", None)
+        chs_name = res.get("productName", None)
+        package = res.get("packType", None)
+        expiry_date = res.get("expireDate", None)
+        delivery = res.get("deliveryDay", None)
+
+        price = res.get("rebateDisCountPrice", None)
+        cost = res.get("bigDecimalFormatPriceDesc", None)
+        stock_num = res.get("transportDesc", None)
 
         dd = {
+            "platform": "tansoole",
+            "vendor": "tansoole",
             "brand": "dre",
             "cat_no": cat_no,
-            "prd_url": response.url,
-            "platform": "tansoole",
+            "prd_url": prd_url,
             "source_id": source_id,
-            "img_url": img_url,
+            "price": price,
             "cost": cost,
+            "stock_num": stock_num,
             "chs_name": chs_name,
             "delivery": delivery,
-            "stock_info": stock_info,
             "expiry_date": expiry_date,
             "package": package,
             "currency": "RMB",
