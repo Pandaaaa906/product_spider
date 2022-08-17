@@ -1,7 +1,9 @@
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
+from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -39,11 +41,15 @@ class IsoSciencesSpider(BaseSpider):
             'prd_url': response.url,
         }
         yield RawData(**d)
+        package = response.xpath('//label[contains(@for, "pa_size_")]/text()').get()
+        cost = response.xpath('//span[@class="price"]/span/text()').get()
+        if not package:
+            return
         dd = {
             'brand': self.name,
             'cat_no': cat_no,
-            'package': response.xpath('//label[contains(@for, "pa_size_")]/text()').get(),
-            'cost': response.xpath('//span[@class="price"]/span/text()').get(),
+            'package': parse_package(package),
+            'cost': parse_cost(cost),
             'currency': 'USD',
         }
         yield ProductPackage(**dd)

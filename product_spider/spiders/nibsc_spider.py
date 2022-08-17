@@ -13,9 +13,9 @@ class NibscPrdSpider(BaseSpider):
     start_urls = ["https://www.nibsc.org/products.aspx", ]
 
     def parse(self, response, **kwargs):
-        rows = response.xpath("//*[@class='products-sidebar']//li")
-        for row in rows:
-            url = urljoin(self.base_url, row.xpath("./ul//a/@href").get())
+        urls = response.xpath("//aside[@class='products-sidebar']//ul/li/ul/li/a/@href").getall()
+        for url in urls:
+            url = urljoin(self.base_url, url)
             yield scrapy.Request(
                 url=url,
                 callback=self.parse_list
