@@ -25,16 +25,29 @@ class AltaSpider(BaseSpider):
 
     def parse_list(self, response):
         parent = response.meta.get('parent')
+        children_urls = response.xpath("//div[@class='featured-products']//a/@href").getall()
         rel_urls = response.xpath('//a[@class="linkall"]/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.parse_detail, meta={'parent': parent})
-        next_url = response.xpath('//a[contains(text(), "下一页")]/@href').get()
-        if next_url:
-            yield Request(
-                url=urljoin("https://www.altascientific.cn/product/", next_url),
-                callback=self.parse_list,
-                meta={'parent': parent},
-            )
+        if children_urls:
+            for url in children_urls:
+                yield Request(
+                    url=urljoin("https://www.altascientific.cn/product/", url),
+                    callback=self.parse_list,
+                    meta={'parent': parent},
+                )
+        else:
+            for rel_url in rel_urls:
+                yield Request(
+                    urljoin(response.url, rel_url),
+                    callback=self.parse_detail,
+                    meta={'parent': parent}
+                )
+            next_url = response.xpath('//a[contains(text(), "下一页")]/@href').get()
+            if next_url:
+                yield Request(
+                    url=urljoin("https://www.altascientific.cn/product/", next_url),
+                    callback=self.parse_list,
+                    meta={'parent': parent},
+                )
 
     def parse_detail(self, response):
         tmp = 'normalize-space(//td[contains(div/text(), {!r})]/following-sibling::td/text())'
