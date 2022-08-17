@@ -17,4 +17,5 @@ scrapy-playwright~=0.0.8
 playwright_stealth~=1.0.5
 jsonpath~=0.82
 werkzeug~=2.0.3
+flask~=2.1.0
 git+https://github.com/Pandaaaa906/scrapydweb.git@dev
