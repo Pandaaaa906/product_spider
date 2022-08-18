@@ -13,16 +13,21 @@ from product_spider.utils.spider_mixin import BaseSpider
 class ClearsynthSpider(BaseSpider):
     name = "clearsynth"
     base_url = "https://www.clearsynth.com/en/"
-    start_urls = ["https://www.clearsynth.com/en/api.asp?c=API%20Standards", "https://www.clearsynth.com/en/categories"]
+    start_urls = [
+        "https://www.clearsynth.com/en/api.asp",
+        "https://www.clearsynth.com/en/categories",
+    ]
 
     def start_requests(self):
         for url in self.start_urls:
-            if url == "https://www.clearsynth.com/en/api.asp?c=API%20Standards":
+            # 解析api分类
+            if url == "https://www.clearsynth.com/en/api.asp":
                 yield Request(
                     url=url,
                     callback=self.parse_api,
                 )
             else:
+                # 解析普通分类
                 yield Request(
                     url=url,
                     callback=self.parse_catalog,
@@ -63,27 +68,8 @@ class ClearsynthSpider(BaseSpider):
             url = urljoin(self.base_url, url)
             yield Request(
                 url=url,
-                callback=self.parse_catalog_list
-            )
-
-    def parse_catalog_list(self, response):
-        """获取当前分类的子分类"""
-        rows = response.xpath("//div[@class='col-lg-3 col-md-4 col-sm-6']//a/@href").getall()
-        for row in rows:
-            url = urljoin(self.base_url, row)
-            yield Request(
-                url=url,
                 callback=self.parse_prd_list
             )
-        urls = response.xpath(
-            "//div[@class='product-badges product-badges-position product-badges-mrg']//a/@href"
-        ).getall()
-        if urls:
-            for url in urls:
-                yield Request(
-                    url=url,
-                    callback=self.parse_detail,
-                )
 
     def parse_prd_list(self, response):
         """解析产品列表"""
@@ -101,7 +87,7 @@ class ClearsynthSpider(BaseSpider):
             )
 
     def parse_detail(self, response):
-        tmp_xpath = "//*[contains(text(), {!r})]/following-sibling::td/text()"
+        tmp_xpath = "//*[contains(text(), {!r})]/following-sibling::td//text()"
         parent = response.xpath(tmp_xpath.format('Parent API')).get()
         category = response.xpath(tmp_xpath.format("Category")).get()
         img_url = response.xpath("//*[@class='p_details1']/img/@src").get()
@@ -110,7 +96,7 @@ class ClearsynthSpider(BaseSpider):
         cat_no = strip(response.xpath(tmp_xpath.format('CAT No. :')).get())
         cas = strip(response.xpath(tmp_xpath.format('CAS Registry No. :')).get())
         mw = strip(response.xpath(tmp_xpath.format('Molecular Weight: ')).get())
-        mf = formula_trans(strip(response.xpath(tmp_xpath.format('Molecular Formula :')).get()))
+        mf = formula_trans(''.join(strip(response.xpath(tmp_xpath.format('Molecular Formula :')).getall())))
 
         prd_attrs = json.dumps({
             "api_name": parent,
@@ -138,7 +124,7 @@ class ClearsynthSpider(BaseSpider):
         for row in rows:
             raw_package = row.xpath(".//td[last()-4]/span/text()").get()
             raw_cost = parse_cost(row.xpath(".//td[last()-1]//span/text()").get())
-            if raw_package is None or raw_cost is None:
+            if raw_package is None:
                 continue
             package = ''.join(raw_package.split()).lower()
             cost = raw_cost
