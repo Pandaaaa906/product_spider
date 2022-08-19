@@ -87,20 +87,24 @@ class ClearsynthSpider(BaseSpider):
             )
 
     def parse_detail(self, response):
-        tmp_xpath = "//*[contains(text(), {!r})]/following-sibling::td//text()"
-        parent = response.xpath(tmp_xpath.format('Parent API')).get()
+        tmp_xpath = "//*[contains(text(), {!r})]/following-sibling::td[last()]//text()"
         category = response.xpath(tmp_xpath.format("Category")).get()
-        img_url = response.xpath("//*[@class='p_details1']/img/@src").get()
-        usage = response.xpath(tmp_xpath.format("Primary Usage :")).get()
+        img_url = response.xpath("//div[@class='compound_name3']/a/@href").get()
 
-        cat_no = strip(response.xpath(tmp_xpath.format('CAT No. :')).get())
-        cas = strip(response.xpath(tmp_xpath.format('CAS Registry No. :')).get())
-        mw = strip(response.xpath(tmp_xpath.format('Molecular Weight: ')).get())
-        mf = formula_trans(''.join(strip(response.xpath(tmp_xpath.format('Molecular Formula :')).getall())))
+        cat_no = strip(response.xpath(tmp_xpath.format('Catalog Number')).get())
+        cas = strip(response.xpath(tmp_xpath.format('CAS Number')).get())
+        mw = strip(response.xpath(tmp_xpath.format('Molecular Weight')).get())
+        mf = strip(formula_trans(''.join(response.xpath(tmp_xpath.format('Molecular Formula')).getall())))
+
+        inchl = response.xpath(tmp_xpath.format('InChI')).get()
+        iupac = response.xpath(tmp_xpath.format('IUPAC Name')).get()
+        inchlkey = response.xpath(tmp_xpath.format('InchIKey')).get()
 
         prd_attrs = json.dumps({
-            "api_name": parent,
-            "usage": usage,
+            "api_name": category,
+            "inchl": inchl,
+            "iupac": iupac,
+            "inchlkey": inchlkey,
         })
 
         d = {
@@ -108,7 +112,7 @@ class ClearsynthSpider(BaseSpider):
             "en_name": response.xpath(tmp_xpath.format('Compound :')).get(),
             "cat_no": cat_no,
             "cas": cas,
-            "parent": category or parent,
+            "parent": category,
             "mw": mw,
             "mf": mf,
             "purity": response.xpath(tmp_xpath.format('Purity :')).get(),
@@ -120,10 +124,12 @@ class ClearsynthSpider(BaseSpider):
             "prd_url": response.url,
         }
         yield RawData(**d)
-        rows = response.xpath("//div[@class='col-md-12']//tr")
+        rows = response.xpath("//div[@class='compound_name5']//tr")
+        if not rows:
+            return
         for row in rows:
-            raw_package = row.xpath(".//td[last()-4]/span/text()").get()
-            raw_cost = parse_cost(row.xpath(".//td[last()-1]//span/text()").get())
+            raw_package = row.xpath(".//td[last()-2]//text()").get()
+            raw_cost = parse_cost(row.xpath(".//td[last()-3]//text()").get())
             if raw_package is None:
                 continue
             package = ''.join(raw_package.split()).lower()
