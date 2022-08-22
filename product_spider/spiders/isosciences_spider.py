@@ -41,15 +41,17 @@ class IsoSciencesSpider(BaseSpider):
             'prd_url': response.url,
         }
         yield RawData(**d)
-        package = response.xpath('//label[contains(@for, "pa_size_")]/text()').get()
-        cost = response.xpath('//span[@class="price"]/span/text()').get()
-        if not package:
-            return
-        dd = {
-            'brand': self.name,
-            'cat_no': cat_no,
-            'package': parse_package(package),
-            'cost': parse_cost(cost),
-            'currency': 'USD',
-        }
-        yield ProductPackage(**dd)
+        rows = response.xpath("//label[contains(text(), 'Size')]/parent::div/following-sibling::div")
+        for row in rows:
+            package = parse_package(row.xpath('./label/text()').get())
+            cost = parse_cost(row.xpath(".//span[@class='woocommerce-Price-amount amount']/text()").get())
+            if not package:
+                continue
+            dd = {
+                'brand': self.name,
+                'cat_no': cat_no,
+                'package': package,
+                'cost': cost,
+                'currency': 'USD',
+            }
+            yield ProductPackage(**dd)
