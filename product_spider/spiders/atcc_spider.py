@@ -44,7 +44,7 @@ class ATCCSpider(BaseSpider):
                 "siteName": site_name
             })),
             formdata={
-                "firstResult": f"{offset * limit}",
+                "firstResult": f"{offset}",
                 "numberOfResults": f"{limit}",
             },
             callback=self.parse_detail,
@@ -84,7 +84,6 @@ class ATCCSpider(BaseSpider):
                 "prd_url": prd_url,
                 "attrs": prd_attrs,
             }
-
             yield RawData(**d)
 
-        yield from self._fetch_page(site_core_item_uri, site_name, offset=cur_offset + 1)
+        yield from self._fetch_page(site_core_item_uri, site_name, offset=cur_offset + 1000)
