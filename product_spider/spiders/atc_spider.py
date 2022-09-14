@@ -21,7 +21,7 @@ class ATCSpider(BaseSpider):
         for row in rows:
             d = {
                 'atc_code': row.xpath('./td[1]/text()').get(),
-                'drug_name': row.xpath('./td[2]//text()').get(),
+                'drug_name': ''.join(row.xpath('./td[2]//text()').getall()),
                 'ddd': row.xpath('./td[3]//text()').get(),
                 'unit': row.xpath('./td[4]//text()').get(),
                 'adm': row.xpath('./td[5]//text()').get(),
