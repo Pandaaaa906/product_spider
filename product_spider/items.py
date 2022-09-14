@@ -307,3 +307,18 @@ class SupplierProduct(scrapy.OrderedItem):
         indexes = (
             (('platform', 'source_id',), True),
         )
+
+
+class ATCIndex(scrapy.OrderedItem):
+    atc_code = scrapy.Field()
+    drug_name = scrapy.Field()
+    ddd = scrapy.Field()
+    unit = scrapy.Field()
+    adm = scrapy.Field()
+    note = scrapy.Field()
+    url = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('atc_code', 'drug_name',), True),
+        )
