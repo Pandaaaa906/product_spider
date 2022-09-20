@@ -29,6 +29,7 @@ class EDQMSpider(BaseSpider):
                 "info3": first(prd.xpath('./Quantity_per_vial/text()'), None),
                 "info4": first(prd.xpath('./Price/text()'), None),
                 "shipping_group": first(prd.xpath('./Shipping_group/text()'), None),
+                "sales_unit": first(prd.xpath('./Sale_Unit/text()'), None),
                 "prd_url": prd_url,
             }
             yield scrapy.Request(
@@ -70,16 +71,28 @@ class EDQMSpider(BaseSpider):
         if currency is not None:
             currency = currency.strip()
 
-        prd_attrs = json.dumps({
+        sales_unit = d.pop('sales_unit', '1')
+        d["shipping_info"] = shipping_info
+        d["attrs"] = json.dumps({
             "controlled_drug": controlled_drug,
         })
-        package_attrs = json.dumps({
-            "batch_num": batch_num
-        })
-        dd = {"brand": self.name, "cat_no": d["cat_no"], "package": package, "cost": cost, "currency": currency}
-        d["shipping_info"] = shipping_info
-        d["attrs"] = prd_attrs
-        dd["attrs"] = package_attrs
+        yield RawData(**d)
+
+        if not package:
+            return
+
+        package = package if sales_unit == '1' else f'{package}*{sales_unit}'
+        dd = {
+            "brand": self.name,
+            "cat_no": d["cat_no"],
+            "package": package,
+            "cost": cost,
+            "currency": currency,
+            "attrs": json.dumps({
+                "batch_num": batch_num
+            })
+        }
+        yield ProductPackage(**dd)
 
         ddd = {
             "platform": self.name,
@@ -93,7 +106,4 @@ class EDQMSpider(BaseSpider):
             "currency": dd["currency"],
             "prd_url": d["prd_url"],
         }
-
-        yield RawData(**d)
-        yield ProductPackage(**dd)
         yield SupplierProduct(**ddd)
