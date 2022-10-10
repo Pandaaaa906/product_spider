@@ -18,30 +18,29 @@ class ShunQiWebsiteSpider(BaseSpider):
 
     }
 
+    def start_requests(self):
+        """当前只获取关键字为ROHS"""
+        yield scrapy.Request(
+            url="https://b2b.11467.com/search/7044.htm",
+            callback=self.parse_list
+        )
+
     def parse(self, response, **kwargs):
         rows = response.xpath('//div[contains(text(), "公司行业分类")]/following-sibling::div//li')
         for row in rows:
             url = urljoin(self.base_url, row.xpath("./a/@href").get())
-            first_catalog = row.xpath("./a/text()").get()
             yield scrapy.Request(
                 url=url,
                 callback=self.parse_list,
-                meta={
-                    "first_catalog": first_catalog
-                }
             )
 
     def parse_list(self, response):
-        first_catalog = response.meta.get("first_catalog", None)
-        rows = response.xpath("//ul[@class='companylist']/li")
-        for row in rows:
-            url = urljoin(self.base_url, row.xpath("./div[@class='f_l']//a/@href").get())
+        urls = response.xpath("//ul[@class='companylist']/li/div[@class='f_l']//h4//a/@href").getall()
+        for raw_url in urls:
+            url = urljoin(self.base_url, raw_url)
             yield scrapy.Request(
                 url=url,
                 callback=self.parse_detail,
-                meta={
-                    "first_catalog": first_catalog
-                },
             )
         next_url = response.xpath('//a[contains(text(), "下一页")]/@href').get()
         if next_url:
