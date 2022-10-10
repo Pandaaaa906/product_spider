@@ -322,3 +322,28 @@ class ATCIndex(scrapy.OrderedItem):
         indexes = (
             (('atc_code', 'drug_name',), True),
         )
+
+
+class RawCompany(scrapy.OrderedItem):
+    """顺企网"""
+    parent = scrapy.Field()  # 公司分类
+    company_info = scrapy.Field()  # 公司信息
+    company_name = scrapy.Field()  # 公司名称
+    main_product = scrapy.Field()  # 主要经营产品
+    business_license_number = scrapy.Field()  # 营业执照号码
+    issuing_authority = scrapy.Field()  # 发证机关
+    approval_date = scrapy.Field()  # 核准日期
+    business_status = scrapy.Field()  # 经营状态
+    business_model = scrapy.Field()  # 经营模式
+    registered_capital = scrapy.Field()  # 注册资本
+    company_url = scrapy.Field()  # 公司官网
+    source_id = scrapy.Field()  # 顺企编码
+    source = scrapy.Field()  # 来源
+    source_url = scrapy.Field()  # 来源网址
+    company_city = scrapy.Field()  # 所属城市
+    company_created_time = scrapy.Field()  # 公司成立时间
+
+    class Meta:
+        indexes = (
+            (('source_id', 'source',), True),
+        )
