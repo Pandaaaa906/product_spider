@@ -1,12 +1,17 @@
 # TODO easily get blocked
+import re
 from urllib.parse import urlencode, urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
+
+
+p_reversed_pkg = re.compile(r'^[mM][gGlL]\d+(\.\d+)?$')
+p_normalize_pkg = re.compile(r'([mM][gGlL])(\d+(\.\d+)?)')
 
 
 class TRCSpider(BaseSpider):
@@ -23,7 +28,7 @@ class TRCSpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_IP': 2,
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         api_names = response.xpath('//table[contains(@id, "table")]//td/input/@value').getall()
         for parent in api_names:
             d = {
@@ -68,11 +73,39 @@ class TRCSpider(BaseSpider):
 
         rows = response.xpath('//table[@id="orderProductTable"]/tbody/tr')
         for row in rows:
+            package = strip(row.xpath('./td[1]/text()').get())
+            if not package:
+                continue
+            if package == 'Exact Weight Packaging':
+                continue
+            if p_reversed_pkg.match(package):
+                package = p_normalize_pkg.sub(r'\2\1', package)
+            cost = strip(row.xpath('./td[3]/text()').get())
+
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': strip(row.xpath('./td[1]/text()').get()),
-                'price': strip(row.xpath('./td[3]/text()').get()),
+                'package': package,
+                'cost': cost,
                 'currency': 'USD',
             }
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)

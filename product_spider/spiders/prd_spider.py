@@ -1,9 +1,6 @@
 # coding=utf-8
-import json
 import re
-from string import ascii_uppercase as uppercase
-from time import time
-from urllib.parse import urljoin, urlencode
+from urllib.parse import urljoin
 
 import scrapy
 from scrapy import FormRequest
@@ -297,188 +294,54 @@ class HICSpider(BaseSpider):  # dead website 20200522
         yield RawData(**d)
 
 
-class CILSpider(BaseSpider):
-    name = "cil"
-    base_url = "https://shop.isotope.com/"
-    start_urls = ["https://shop.isotope.com/category.aspx", ]
-
-    def parse(self, response):
-        urls = response.xpath('//div[@class="tcat"]//a/@href').extract()
-        for url in urls:
-            if "10032191" not in url:
-                continue
-            yield Request(url, callback=self.get_all_list)
-
-    # There is one category having too much products, fetching all of them will cause timeout
-    def get_all_list(self, response):
-        x_query = '//form[@name="aspnetForm"]/div/input[@id="{0}"]/@value'
-        d = {
-            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(
-                x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).get(),
-            "__EVENTTARGET": response.xpath(x_query.format("__EVENTTARGET")).get(),
-            "__EVENTARGUMENT": response.xpath(x_query.format("__EVENTARGUMENT")).get(),
-            "__LASTFOCUS": response.xpath(x_query.format("__LASTFOCUS")).get(),
-            "__VIEWSTATE": response.xpath(x_query.format("__VIEWSTATE")).get(),
-            "__VIEWSTATEENCRYPTED": response.xpath(x_query.format("__VIEWSTATEENCRYPTED")).get(),
-            "__EVENTVALIDATION": response.xpath(x_query.format("__EVENTVALIDATION")).get(),
-            "addtocartconfirmresult": "",
-            "ctl00$topSectionctl$SearchBar1$txtkeyword": "Product Search...",
-            "ctl00$cpholder$ctl00$ItemList1$SortByCtl$dbsort": "Name",
-            "ctl00$cpholder$ctl00$ItemList1$PageSizectl$dlPageSize": "9999",
-        }
-        yield FormRequest(response.url, formdata=d, callback=self.list_parse)
-
-    def list_parse(self, response):
-        urls = response.xpath('//td[@class="itemnotk"]/a/@href').extract()
-        meta = {"parent": response.xpath('//td[@class="product_text"]/h3/text()').get()}
-        for url in urls:
-            yield Request(url, callback=self.detail_parse, meta=meta)
-        x_query = '//form[@name="aspnetForm"]/div/input[@id="{0}"]/@value'
-        next_page = response.xpath('//input[@class="pageon"]/following-sibling::input[1]/@value').get()
-        if not next_page:
-            return
-        d = {
-            "ctl00_ToolkitScriptManager1_HiddenField": response.xpath(
-                x_query.format("ctl00_ToolkitScriptManager1_HiddenField")).get(),
-            "__EVENTTARGET": response.xpath(x_query.format("__EVENTTARGET")).get(),
-            "__EVENTARGUMENT": response.xpath(x_query.format("__EVENTARGUMENT")).get(),
-            "__LASTFOCUS": response.xpath(x_query.format("__LASTFOCUS")).get(),
-            "__VIEWSTATE": response.xpath(x_query.format("__VIEWSTATE")).get(),
-            "__VIEWSTATEENCRYPTED": response.xpath(x_query.format("__VIEWSTATEENCRYPTED")).get(),
-            "__EVENTVALIDATION": response.xpath(x_query.format("__EVENTVALIDATION")).get(),
-            "addtocartconfirmresult": "",
-            "ctl00$topSectionctl$SearchBar1$txtkeyword": "Product Search...",
-            "ctl00$cpholder$ctl00$ItemList1$SortByCtl$dbsort": "Name",
-            "ctl00$cpholder$ctl00$ItemList1$ctlPaging$btn2": next_page,
-            "ctl00$cpholder$ctl00$ItemList1$PageSizectl$dlPageSize": "20",
-        }
-        yield FormRequest(response.url, formdata=d, callback=self.list_parse)
-
-    def detail_parse(self, response):
-        tmp = '//td[@class="dleft" and contains(./p/text(), "{}")]/following-sibling::td/p/text()'
-        cas = response.xpath(tmp.format("Labeled CAS#")).get()
-        unlabeled_cas = response.xpath(tmp.format("Unlabeled CAS#")).get()
-        r_img_url = response.xpath('//div[@class="image-section"]/p//img/@src').get()
-        d = {
-            "brand": "cil",
-            "parent": response.meta.get("parent"),
-            "cat_no": response.xpath(tmp.format("Item Number")).get(),
-            "cas": f"{cas}; Unlabeled Cas:{unlabeled_cas}",
-            "en_name": response.xpath('//h1[@class="ldescription"]/text()').get(),
-            "img_url": urljoin(response.url, r_img_url),
-            "mf": formula_trans(response.xpath(tmp.format("Chemical Formula")).get()),
-            "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "prd_url": response.url,
-        }
-        yield RawData(**d)
-
-
-class DRESpider(BaseSpider):
-    name = "dre"
-    allowd_domains = ["lgcstandards.com"]
-    start_urls = [
-        "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/categories/279492/products?currentPage=1&q=&sort=relevance-code&pageSize=20&country=CN&lang=en&fields=FULL", ]
-    base_url = "https://www.lgcstandards.com/CN/en"
-    search_url = "https://www.lgcstandards.com/lgccommercewebservices/v2/lgcstandards/products/search?"
-
-    def parse(self, response):
-        total_page = int(response.xpath('//pagination/totalPages/text()').get())
-        cur_page = int(response.xpath('//pagination/currentPage/text()').get())
-        per_page = int(response.xpath('//pagination/pageSize/text()').get())
-        next_page = cur_page + 1
-
-        products = response.xpath('//products')
-
-        for product in products:
-            url = product.xpath('./url/text()').get()
-            yield Request(url=self.base_url + url, callback=self.detail_parse)
-
-        if next_page <= total_page:
-            data = {
-                "currentPage": next_page,
-                "q": "DRE",  # INFO hardcoding
-                "sort": "relevance",
-                "pageSize": per_page,
-                "country": "CN",
-                "lang": "en",
-                "fields": "FULL",
-            }
-            yield Request(self.search_url + urlencode(data), callback=self.parse)
-
-    def detail_parse(self, response):
-        tmp = '//div[contains(@class,"product__item")]/h2[text()={!r}]/following-sibling::*/descendant-or-self::text()'
-        parents = response.xpath(
-            '//div[contains(@class,"product page-section")]//div[contains(@class,"product__item")]/h2[contains(text(),"API Family")]/following-sibling::*/descendant-or-self::text()').extract()
-        parent = "".join(parents)
-        related_categories = response.xpath(
-            '//ul[contains(@class,"breadcrumb")]/li[position()=last()-1]/a/text()').get(default="").strip()
-
-        color = response.xpath('//h2[text()="Color"]/following-sibling::p/text()').get("")
-        appearance = response.xpath('//h2[text()="Appearance/Form"]/following-sibling::p/text()').get("")
-        d = {
-            "brand": "dre",
-            "parent": parent or related_categories,
-            "cat_no": response.xpath(tmp.format("Product Code")).get(),
-            "en_name": response.xpath('//h1[@class="product__title"]/text()').get(default="").strip(),
-            "cas": response.xpath(tmp.format("CAS Number")).get(default="").strip() or None,
-            "mf": response.xpath(tmp.format("Molecular Formula")).get("").replace(" ", "") or None,
-            "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "stock_info": response.xpath(
-                '//h4[contains(@class,"orderbar__stock-title")]/descendant-or-self::text()').get(
-                "").strip() or None,
-            "img_url": response.xpath('//div[contains(@class, "product__brand-img")]/img/@src').get(),
-            "info1": response.xpath(tmp.format("IUPAC")).get(default="").strip(),
-            "info2": response.xpath('//h2[text()="Storage Temperature"]/following-sibling::p/text()').get(),
-            "info3": response.xpath('//h2[text()="Shipping Temperature"]/following-sibling::p/text()').get(),
-            "info4": ' '.join((color, appearance)),
-            "prd_url": response.request.url,
-        }
-
-        yield RawData(**d)
-
-
-class APIChemSpider(BaseSpider):
-    name = "apichem"
-    base_url = "http://chemmol.com/chemmol/suppliers/apichemistry/texts.php"
-    start_urls = [base_url, ]
-
-    def parse(self, response):
-        rows = response.xpath('//table[@class="tableborder"]//tr[position() mod 2=1]')
-        first_cat_no = None
-        for row in rows:
-            en_name = row.xpath('./td/font/text()').get("").replace("Name:", "")
-            rel_img_url = row.xpath('./following-sibling::tr[1]//img/@src').get()
-            cat_no = row.xpath(
-                './following-sibling::tr[1]//font[contains(text(), "Catalog No: ")]/text()').get().replace(
-                "Catalog No: ", "").strip()
-            if not first_cat_no:
-                first_cat_no = cat_no
-            d = {
-                "brand": "apichem",
-                "parent": None,
-                "cat_no": cat_no,
-                "en_name": en_name,
-                "cas": row.xpath(
-                    './following-sibling::tr[1]//font[contains(text(), "CAS No: ")]/text()').get().replace(
-                    "CAS No: ", ""),
-                "mf": None,
-                "mw": None,
-                "img_url": rel_img_url and urljoin(self.base_url, rel_img_url),
-                "info1": en_name,
-                "prd_url": response.request.url,
-            }
-            print(d)
-            yield RawData(**d)
-        next_page = response.xpath('//img[@src="/images/aaanext.gif"]/../@onclick').get("")
-        if next_page:
-            page = re.findall("\d+", next_page)[0]
-            d = {
-                "cdelete": "No",
-                "page": page,
-                "keywords": "",
-                "mid": '30122898',
-                "ucid": first_cat_no,
-            }
-            yield FormRequest(self.base_url, formdata=d, callback=self.parse)
-
+# class DRESpider(BaseSpider):
+#     name = "dre"
+#     allowd_domains = ["lgcstandards.com"]
+#     start_urls = ["https://www.lgcstandards.com/US/en/search/?text=dre"]
+#     base_url = "https://www.lgcstandards.com/US/en"
+#
+#     def start_requests(self):
+#         yield scrapy.Request(
+#             url='https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
+#             callback=self.parse,
+#         )
+#
+#     def parse(self, response, **kwargs):
+#         products = json.loads(response.text).get("products", [])
+#         if products is []:
+#             return
+#         for prd in products:
+#             cat_no = prd.get("code")
+#             en_name = prd.get("name")
+#             img_url = prd.get("analyteImageUrl")
+#             prd_url = '{}{}'.format(self.base_url, prd.get("url"))
+#             if (mw := prd.get("listMolecularWeight")) is None:
+#                 mw = []
+#             mw = ''.join(mw)
+#             if (mf := prd.get("listMolecularFormula")) is None:
+#                 mf = ''.join([])
+#             else:
+#                 mf = first(mf).replace(' ', '')
+#
+#             if (cas := prd.get("listCASNumber")) is None:
+#                 cas = []
+#             cas = ''.join(cas)
+#             d = {
+#                 "brand": self.name,
+#                 "cat_no": cat_no,
+#                 "en_name": en_name,
+#                 "mf": mf,
+#                 "cas": cas,
+#                 "mw": mw,
+#                 "prd_url": prd_url,
+#                 "img_url": img_url,
+#             }
+#             yield RawData(**d)
+#         current_page_num = int(dict(parse_qsl(urlparse(response.url).query)).get('currentPage', None))
+#         if current_page_num is not None:
+#             current_page_num = current_page_num + 1
+#             yield scrapy.Request(
+#                 url=f'https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
+#                 callback=self.parse
+#             )
 

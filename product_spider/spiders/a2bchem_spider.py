@@ -1,5 +1,9 @@
-from product_spider.items import RawData, ProductPackage
+import json
+
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 import scrapy
+
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -25,6 +29,17 @@ class A2bchemSpider(BaseSpider):
 
     def parse_detail(self, response):
         cat_no = response.xpath("//td[contains(text(), 'Catalog Number:')]/following-sibling::td/text()").get()
+        mdl = response.xpath("//td[contains(text(), 'MDL Number:')]/following-sibling::td/text()").get()
+        inchl = response.xpath("//td[contains(text(), 'InChl:')]/following-sibling::td/text()").get()
+        inchl_key = response.xpath("//td[contains(text(), 'InChl Key:')]/following-sibling::td/text()").get()
+        iupac = response.xpath("//td[contains(text(), 'IUPAC Name:')]/following-sibling::td/text()").get()
+
+        prd_attrs = json.dumps({
+            "inchl": inchl,
+            "inchl_key": inchl_key,
+            "iupac": iupac,
+        })
+
         d = {
             "brand": self.name,
             "parent": response.xpath("//div[@class='crumbs']//a[last()]/text()").get(),
@@ -37,19 +52,40 @@ class A2bchemSpider(BaseSpider):
             "prd_url": response.url,
             "img_url": response.xpath("//div[@class='pd_f1']/img/@src").get(),
             "info1": response.xpath("//td[contains(text(), 'IUPAC Name:')]/following-sibling::td/text()").get(),
+            "mdl": mdl,
+            "attrs": prd_attrs,
         }
         yield RawData(**d)
 
-        rows = response.xpath("//table[@class='q_table']//tbody//tr[position()>0]")
+        rows = response.xpath("//table[@class='q_table']/tbody/tr")
         for row in rows:
-            price = row.xpath(".//td[5]/text()").get()
-            price = price.replace("$", '')
+            price = row.xpath(".//td[5]/text()").get('')
+            stock_info = row.xpath(".//td[3]/text()").get()
             dd = {
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": row.xpath(".//td[1]/text()").get(),
-                "price": price,
+                "cost": parse_cost(price),
                 "currency": 'USD',
-
             }
             yield ProductPackage(**dd)
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "smiles": d["smiles"],
+                "currency": dd["currency"],
+                "stock_info": stock_info,
+                "img_url": d["img_url"],
+                "prd_url": response.url,
+            }
+            yield SupplierProduct(**ddd)

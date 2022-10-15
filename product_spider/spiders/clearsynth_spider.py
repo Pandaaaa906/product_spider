@@ -1,9 +1,10 @@
-from time import time
+import json
 from urllib.parse import urljoin, urlencode
-
+from lxml import etree
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
@@ -12,56 +13,150 @@ from product_spider.utils.spider_mixin import BaseSpider
 class ClearsynthSpider(BaseSpider):
     name = "clearsynth"
     base_url = "https://www.clearsynth.com/en/"
-    start_urls = ["https://www.clearsynth.com/en/", ]
+    start_urls = [
+        "https://www.clearsynth.com/en/api.asp",
+        "https://www.clearsynth.com/en/categories",
+    ]
 
-    def parse(self, response):
-        categories = response.xpath('//ul[@class="menu"]//a/text()').extract()
-        for category in categories:
-            params = {
-                "search": category,
-                "Therapeutic": "",
-                "api": "",
-                "industry": "",
-                "category": "",
-                "t": "",
-                "limit": 20,
-                "start": 1,
-                "_": int(time() * 1000),
-            }
-            url = "https://www.clearsynth.com/en/fetch.asp?" + urlencode(params)
-            yield Request(url, callback=self.list_parse, meta={'params': params})
+    def start_requests(self):
+        for url in self.start_urls:
+            # 解析api分类
+            if url == "https://www.clearsynth.com/en/api.asp":
+                yield Request(
+                    url=url,
+                    callback=self.parse_api,
+                )
+            else:
+                # 解析普通分类
+                yield Request(
+                    url=url,
+                    callback=self.parse_catalog,
+                )
 
-    def list_parse(self, response):
-        rel_urls = response.xpath('//div[@class="product-image"]//a/@href').extract()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.request.url, rel_url), callback=self.detail_parse)
-        if rel_urls:
-            params = response.meta.get('params')
-            params["start"] = params["start"] + params["limit"]
-            url = "https://www.clearsynth.com/en/fetch.asp?" + urlencode(params)
-            yield Request(url, callback=self.list_parse, meta={'params': params})
+    def parse_api(self, response, **kwargs):
+        """请求api"""
+        params = response.xpath("//div[@align='center']/text()").getall()
+        for param in params:
+            url = '{}{}'.format(
+                "https://www.clearsynth.com/en/search.asp?",
+                urlencode({"s": param})
+            )
+            yield Request(
+                url=url,
+                callback=self.parse_api_list,
+            )
 
-    def detail_parse(self, response):
-        tmp = 'normalize-space(//td[contains(text(),{!r})]/following-sibling::td//text())'
-        tmp2 = '//strong[contains(text(), {!r})]/../following-sibling::td/text()'
-        parent = response.xpath(tmp.format("Parent API")).get()
-        category = response.xpath(tmp.format("Category")).get()
-        img_rel_url = response.xpath('//div[@class="product-media"]//img/@src').get()
+    def parse_api_list(self, response):
+        html_response = etree.HTML(response.text)
+        urls = html_response.xpath("//*[@class='product-img-action-wrap']/a/@href")
+        for url in urls:
+            yield Request(
+                url=url,
+                callback=self.parse_detail
+            )
+        next_url = response.xpath("//*[contains(text(), 'Next >')]/@href").get()
+        if next_url:
+            yield Request(
+                url=urljoin(self.base_url, next_url),
+                callback=self.parse_api_list,
+            )
+
+    def parse_catalog(self, response, **kwargs):
+        """获取全部分类(包含其他分类)"""
+        urls = response.xpath("//div[@class='icon-box-title']//a/@href").getall()
+        for url in urls:
+            url = urljoin(self.base_url, url)
+            yield Request(
+                url=url,
+                callback=self.parse_prd_list
+            )
+
+    def parse_prd_list(self, response):
+        """解析产品列表"""
+        urls = response.xpath("//*[@class='product-img-action-wrap']/a/@href").getall()
+        for url in urls:
+            yield Request(
+                url=url,
+                callback=self.parse_detail
+            )
+        next_url = response.xpath("//*[contains(text(), 'Next >')]/@href").get()
+        if next_url:
+            yield Request(
+                url=urljoin(self.base_url, next_url),
+                callback=self.parse_prd_list,
+            )
+
+    def parse_detail(self, response):
+        tmp_xpath = "//*[contains(text(), {!r})]/following-sibling::td[last()]//text()"
+        category = response.xpath(tmp_xpath.format("Category")).get()
+        img_url = response.xpath("//div[@class='compound_name3']/a/@href").get()
+
+        cat_no = strip(response.xpath(tmp_xpath.format('Catalog Number')).get())
+        cas = strip(response.xpath(tmp_xpath.format('CAS Number')).get())
+        mw = strip(response.xpath(tmp_xpath.format('Molecular Weight')).get())
+        mf = strip(formula_trans(''.join(response.xpath(tmp_xpath.format('Molecular Formula')).getall())))
+
+        inchl = response.xpath(tmp_xpath.format('InChI')).get()
+        iupac = response.xpath(tmp_xpath.format('IUPAC Name')).get()
+        inchlkey = response.xpath(tmp_xpath.format('InchIKey')).get()
+
+        prd_attrs = json.dumps({
+            "api_name": category,
+            "inchl": inchl,
+            "iupac": iupac,
+            "inchlkey": inchlkey,
+        })
+
         d = {
             "brand": "clearsynth",
-            "parent": parent or category,
-            "cat_no": response.xpath(tmp.format("CAT No.")).get(),
-            "en_name": ''.join(response.xpath('//div[@class="product-name"]//text()').getall()),
-            "cas": response.xpath(tmp.format("CAS")).get(),
-            "mf": formula_trans(strip("".join(
-                response.xpath("//td[contains(text(),'Mol. Formula')]/following-sibling::td//text()").extract()))),
-
-            "mw": response.xpath(tmp.format("Mol. Weight")).get(),
-            "img_url": img_rel_url and urljoin(response.request.url, img_rel_url),
-            "info1": strip(response.xpath(tmp2.format('Synonyms')).get()),
-            "info2": strip(response.xpath(tmp2.format("Storage Conditions")).get()),
-            "smiles": strip(response.xpath(tmp2.format("Smiles")).get()),
-            "prd_url": response.request.url,
-            "stock_info": strip(response.xpath(tmp2.format("Stock Status")).get()),
+            "en_name": response.xpath(tmp_xpath.format('Compound :')).get(),
+            "cat_no": cat_no,
+            "cas": cas,
+            "parent": category,
+            "mw": mw,
+            "mf": mf,
+            "purity": response.xpath(tmp_xpath.format('Purity :')).get(),
+            "info1": strip(response.xpath(tmp_xpath.format('Synonyms')).get()),
+            "info2": strip(response.xpath(tmp_xpath.format('Storage Condition :')).get()),
+            "stock_info": strip(response.xpath("//*[@class='stock-status stt']/text()").get()),
+            "attrs": prd_attrs,
+            "img_url": img_url,
+            "prd_url": response.url,
         }
         yield RawData(**d)
+        rows = response.xpath("//div[@class='compound_name5']//tr")
+        if not rows:
+            return
+        for row in rows:
+            raw_package = row.xpath(".//td[last()-2]//text()").get()
+            raw_cost = parse_cost(row.xpath(".//td[last()-3]//text()").get())
+            if raw_package is None:
+                continue
+            package = ''.join(raw_package.split()).lower()
+            cost = raw_cost
+            dd = {
+                "brand": d["brand"],
+                "cat_no": d["cat_no"],
+                "package": package,
+                "cost": cost,
+                "currency": "USD",
+            }
+            yield ProductPackage(**dd)
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+            yield SupplierProduct(**ddd)

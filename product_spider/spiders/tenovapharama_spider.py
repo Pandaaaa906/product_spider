@@ -1,8 +1,9 @@
 from urllib.parse import urljoin
 from more_itertools import first
 from scrapy import Request
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 import re
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -69,12 +70,29 @@ class TenovapharmalSpider(BaseSpider):
         rows = response.xpath('//select[@id="product-select-product-template"]/option/text()').getall()
         for row in rows:
             package, price = row.split("-")
-            price = price.replace("$", '')
+            price = parse_cost(price)
             dd = {
                 "brand": self.name,
                 "cat_no": cat_no,
                 "package": package,
                 "currency": "USD",
-                "price": price
+                "cost": price
+            }
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "parent": d["parent"],
+                "en_name": d["en_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
             }
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)

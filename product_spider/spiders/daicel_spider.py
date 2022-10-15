@@ -1,39 +1,71 @@
 from urllib.parse import urljoin
-
 from scrapy import Request
-
 from product_spider.items import RawData
-from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class DaicelSpider(BaseSpider):
     name = "daicel"
-    base_url = "http://www.daicelpharmastandards.com/"
-    start_urls = ["http://www.daicelpharmastandards.com/products.php", ]
+    base_url = "https://daicelpharmastandards.com/"
+    base_url_v2 = "https://daicelpharmastandards.com/categories/"
+    start_urls = ["https://daicelpharmastandards.com/zh/categories/", ]
 
-    def parse(self, response):
-        rel_urls = response.xpath('//div[@class="Catalogue"]/a/@href').extract()
-        for rel_url in rel_urls:
-            yield Request(urljoin(self.base_url, rel_url), callback=self.detail_parse)
+    def parse(self, response, **kwargs):
+        rows = response.xpath("//ul[@class='az-links']//li//a")
+        for row in rows:
+            yield Request(
+                url=urljoin(self.base_url_v2, row.xpath("./@href").get()),
+                callback=self.parse_v2
+            )
 
-    def detail_parse(self, response):
-        tmp = '//td[contains(text(), {!r})]/following-sibling::td/text()'
-        img_rel_url = response.xpath('//div[@class="modal-body"]/img/@src').get()
+    def parse_v2(self, response, **kwargs):
+        rows = response.xpath("//div[@class='elementor-container elementor-column-gap-default dddd']/div")
+        for row in rows:
+            url = row.xpath(".//a/@href").get()
+            yield Request(
+                url=url,
+                callback=self.parse_list
+            )
+
+    def parse_list(self, response):
+        rows = response.xpath("//ul[@class='products columns-3']//li")
+        for row in rows:
+            yield Request(
+                url=row.xpath("./a/@href").get(),
+                callback=self.parse_detail
+            )
+        next_url = response.xpath("//ul[@class='page-numbers']/li[last()]/a/@href").get()
+        if next_url:
+            yield Request(
+                url=urljoin(self.base_url, next_url),
+                callback=self.parse_list
+            )
+
+    def parse_detail(self, response):
+        parent = response.xpath("//nav[@class='woocommerce-breadcrumb']/a[last()]/text()").get()
+        cat_no = response.xpath("//th[contains(text(), 'CAT Number')]/following-sibling::td/p/text()").get()
+        en_name = response.xpath("//th[contains(text(), 'API Category')]/following-sibling::td/p/text()").get()
+        cas = response.xpath("//th[contains(text(), 'CAS Number')]/following-sibling::td/p/text()").get()
+        mf = response.xpath("//th[contains(text(), 'Molecular Formula')]/following-sibling::td/p/text()").get()
+        mw = response.xpath("//th[contains(text(), 'Molecular Weight')]/following-sibling::td/p/text()").get()
+        info1 = response.xpath("//th[contains(text(), 'IUPAC Name')]/following-sibling::td/p/text()").get()
+        appearance = response.xpath("//th[contains(text(), 'Appearance')]/following-sibling::td/p/text()").get()
+        info2 = response.xpath("//th[contains(text(), 'Storage Condition ')]/following-sibling::td/p/text()").get()
+        img_url = response.xpath("//figure[@class='woocommerce-product-gallery__wrapper']//a/@href").get()
+
         d = {
-            "brand": "daicel",
-            "parent": strip(response.xpath(tmp.format("API Name :")).get()),
-            "cat_no": response.xpath('//div[@class="Catalogue"]/text()').get().split(': ')[-1],
-            "en_name": response.xpath(tmp.format("Name of Compound :")).get(),
-            "cas": strip(response.xpath('//b[text()="CAS number : "]/following-sibling::text()[1]').get()),
-            "mf": strip(response.xpath('//b[text()="Mol. Formula : "]/following-sibling::text()[1]').get()),
-            "mw": response.xpath(tmp.format("Molecular Weight :")).get(),
-            "img_url": img_rel_url and urljoin(self.base_url, img_rel_url),
-            "info1": strip(response.xpath(tmp.format('IUPAC Name :')).get()),
-            "info2": strip(response.xpath(tmp.format('Storage Condition :')).get()),
-            "appearance": strip(response.xpath(tmp.format('Appearance :')).get()),
-            "prd_url": response.request.url,
-            "stock_info": strip(response.xpath(tmp.format('Stock Status :')).get()),
+            "brand": self.name,
+            "cat_no": cat_no,
+            "parent": parent,
+            "en_name": en_name,
+            "cas": cas,
+            "mf": mf,
+            "mw": mw,
+            "appearance": appearance,
+            "info1": info1,
+            "info2": info2,
+            "img_url": img_url,
+            "prd_url": response.url,
         }
         yield RawData(**d)
 

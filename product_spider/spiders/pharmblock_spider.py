@@ -42,7 +42,7 @@ class PharmBlockSpider(BaseSpider):
             else:
                 yield category
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         j_obj = json.loads(response.text)
         for category in self._iter_end_category(j_obj):
             category_id = category.get('CategoryId')
@@ -92,7 +92,7 @@ class PharmBlockSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
-                'price': strip(row.xpath('./td[2]/text()').get()),
+                'cost': strip(row.xpath('./td[2]/text()').get()),
                 'stock_num': row.xpath('./td[5]/text()').get(),
                 'currency': 'RMB',
             }

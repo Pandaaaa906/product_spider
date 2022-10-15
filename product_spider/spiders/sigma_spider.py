@@ -6,6 +6,10 @@ from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
+IGNORE_BRANDS = {
+    'cerillian'
+}
+
 
 class SigmaSpider(BaseSpider):
     name = "sigma"
@@ -32,12 +36,15 @@ class SigmaSpider(BaseSpider):
 
     def parse_detail(self, response):
         brand = strip(response.xpath('//input[@id="brand"]/@value').get())
+        brand = brand and brand.lower()
+        if brand in IGNORE_BRANDS:
+            return
         cat_no = strip(response.xpath('//strong[@itemprop="productID"]/text()').get())
         tmp = '//p[contains(text(), {!r})]/span//text()'
         tmp2 = '//td[contains(text(),{!r})]/following-sibling::td//text()[parent::a[not(@id="relatedCategoryLink")]]'
         rel_img = response.xpath('//div[@class="productMedia"]//img/@src').get()
         d = {
-            'brand': brand and brand.lower() or self.name,
+            'brand': brand or self.name,
             'cat_no': cat_no,
             'en_name': strip(''.join(response.xpath('//h1[@itemprop="name"]//text()').getall())),
             'cas': strip(''.join(response.xpath(tmp.format("CAS")).getall())),
