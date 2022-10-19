@@ -76,7 +76,7 @@ class CDNPrdSpider(BaseSpider):
                 'cat_no': cat_no,
                 'cat_no_unit': sku,
                 'package': strip(package),
-                'cost': item.get('price'),
+                'cost': str(item.get('price')),
                 'currency': 'USD',
                 'delivery_time': 'In-stock' if item.get('is_in_stock') else None,
                 "attrs": package_attrs,
