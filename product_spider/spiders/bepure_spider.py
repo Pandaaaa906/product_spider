@@ -18,7 +18,10 @@ class BepureSpider(BaseSpider):
     name = "bepure"
     base_url = "http://www.bepurestandards.com/"
     api_url = 'http://www.bepurestandards.com/a.aspx?'
-    start_urls = ["http://www.bepurestandards.com/a.aspx?oper=getSubNav", ]
+    start_urls = [
+        "http://www.bepurestandards.com/a.aspx?oper=getSubNav",
+        "http://www.bepurestandards.com/gsearch/cdn//false"
+    ]
     brand = 'bepure'
 
     def start_requests(self):
@@ -31,29 +34,49 @@ class BepureSpider(BaseSpider):
         yield from super().start_requests()
 
     def parse(self, response, **kwargs):
-        j_obj = json.loads(response.text)
-        rows = j_obj.get('table', [])
-        for row in rows:
-            parent = row.get('title')
-            if not parent:
-                continue
+        if response.url == "http://www.bepurestandards.com/gsearch/cdn//false":
             params = {
-                'oper': 'Product_list',
+                'oper': 'getAllSearchList',
                 'time': str(random()),
-                'title': parent,
+                'title': "cdn",
                 'page': '1',
-                'oderby': '品牌',
-                'sort': '降序',
+                'orderby': '品牌',
+                'sorder': '降序',
                 'brand': '',
+                "userid:": '',
             }
             yield Request(
                 self.api_url + urlencode(params),
                 callback=self.parse_list,
                 meta={
-                    'parent': parent,
+                    'parent': "cdn",
                     'params': params,
                 }
             )
+        else:
+            j_obj = json.loads(response.text)
+            rows = j_obj.get('table', [])
+            for row in rows:
+                parent = row.get('title')
+                if not parent:
+                    continue
+                params = {
+                    'oper': 'Product_list',
+                    'time': str(random()),
+                    'title': parent,
+                    'page': '1',
+                    'oderby': '品牌',
+                    'sort': '降序',
+                    'brand': '',
+                }
+                yield Request(
+                    self.api_url + urlencode(params),
+                    callback=self.parse_list,
+                    meta={
+                        'parent': parent,
+                        'params': params,
+                    }
+                )
 
     def parse_list(self, response):
         j_obj = json.loads(response.text)
