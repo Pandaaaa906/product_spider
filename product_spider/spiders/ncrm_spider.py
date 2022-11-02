@@ -1,7 +1,9 @@
+import json
 import scrapy
 from urllib.parse import urljoin, urlencode
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -64,9 +66,28 @@ class NcrmSpider(BaseSpider):
         package = response.xpath("//span[contains(text(), '规格')]/parent::td/following-sibling::td/text()").get()
         delivery_time = response.xpath("//td[contains(text(), '状态')]/following-sibling::td/text()").get()
         shipping_info = response.xpath("//td[contains(text(), '物流')]/following-sibling::td/text()").get()
-        price = response.xpath("//h4[@class='orange']/text()").get()
-        if price:
-            price = price.replace("￥", '')
+        price = parse_cost(response.xpath("//h4[@class='orange']/text()").get())
+
+        info2 = response.xpath("//span[contains(text(), '保存条件')]/parent::td/following-sibling::td/text()").get()
+
+        precautions_for_use = response.xpath(
+            "//span[contains(text(), '使用注意事项')]/parent::td/following-sibling::td/text()"
+        ).get()
+        substrate = response.xpath("//span[contains(text(), '基体')]/parent::td/following-sibling::td/text()").get()
+
+        main_analysis_method = response.xpath(
+            "//span[contains(text(), '主要分析方法')]/parent::td/following-sibling::td/text()"
+        ).get()
+
+        fixed_unit = response.xpath("//span[contains(text(), '定值单位')]/parent::td/following-sibling::td/text()").get()
+
+        prd_attrs = json.dumps({
+            "precautions_for_use": precautions_for_use,  # 使用注意事项
+            "substrate": substrate,  # 基体
+            "main_analysis_method": main_analysis_method,  # 主要分析方法
+            "fixed_unit": fixed_unit,  # 定值单位
+        })
+
         d = {
             "brand": self.name,
             "cat_no": cat_no,
@@ -77,6 +98,8 @@ class NcrmSpider(BaseSpider):
             "img_url": img_url,
             "shipping_info": shipping_info,
             "prd_url": response.url,
+            "info2": info2,
+            "attrs": prd_attrs,
         }
 
         dd = {
