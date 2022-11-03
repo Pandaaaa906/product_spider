@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from functools import partial
 # Scrapy settings for product_spider project
 #
 # For simplicity, this file contains only settings considered important or
@@ -9,6 +9,11 @@
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 from os import getenv, name
+import json
+
+_json_dumps = json.dumps
+json.dumps = partial(_json_dumps, ensure_ascii=False)
+
 
 LOG_LEVEL = 'INFO'
 if not getenv('PYTHONUNBUFFERED'):
