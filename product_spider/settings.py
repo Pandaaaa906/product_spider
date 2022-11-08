@@ -88,11 +88,13 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #    'product_spider.middlewares.JkSpiderMiddleware': 543,
 # }
 
+PROXY_POOL_URL = "http://192.168.5.246:5555/random"
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    'product_spider.middlewares.MyCustomDownloaderMiddleware': 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+    # 'product_spider.middlewares.MyCustomDownloaderMiddleware': 543,
+    'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 400,
+}
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html

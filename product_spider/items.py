@@ -322,3 +322,16 @@ class ATCIndex(scrapy.OrderedItem):
         indexes = (
             (('atc_code', 'drug_name',), True),
         )
+
+
+class ChemicalItem(scrapy.OrderedItem):
+    """chemical"""
+    cas = scrapy.Field()
+    source = scrapy.Field()  # 来源
+    prd_url = scrapy.Field()
+    attrs = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('source', 'cas',), True),
+        )
