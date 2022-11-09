@@ -115,6 +115,7 @@ class ChemicalBookSpider(BaseSpider):
         chemical_item_attrs = json.dumps({
             "chemical_attrs": chemical_attrs,
             "safety_attrs": safety_attrs,
+            "pacakges": packages,
         }, ensure_ascii=False)
 
         dddd = {
@@ -122,7 +123,6 @@ class ChemicalBookSpider(BaseSpider):
             "source": self.name,
             "prd_url": response.url,
             "attrs": chemical_item_attrs,
-            "pacakges": packages,
         }
         yield ChemicalItem(**dddd)
 
