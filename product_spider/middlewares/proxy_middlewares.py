@@ -51,7 +51,7 @@ class RandomProxyMiddleWare:
 
     def process_exception(self, request, exception, spider):
         # TODO might need add some proxy retry marks
-        if isinstance(exception, (error.ConnectionRefusedError, error.TCPTimedOutError, TunnelError)):
+        if isinstance(exception, (error.ConnectionRefusedError, error.TCPTimedOutError, TunnelError, error.TimeoutError)):
             self.refresh_proxy()
             return wrap_failed_request(request)
         return
