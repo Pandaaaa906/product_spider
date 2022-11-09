@@ -38,9 +38,6 @@ class ChemicalBookSpider(BaseSpider):
 
     def parse(self, response, **kwargs):
         catalog_num = response.meta.get("catalog_num")
-        raw_current_page = response.xpath("//div[@class='page_jp']/b[last()]/text()").get()
-        raw_max_page = response.xpath("//div[@class='page_jp']/a[last()]/text()").get()
-
         urls = response.xpath("//div[@id='mainDiv']//tr/td[last()]/a/@href").getall()
         if not urls:
             logger.warning(f"product urls : {response.url} get urls fail")
@@ -105,39 +102,15 @@ class ChemicalBookSpider(BaseSpider):
         }
 
         rows = response.xpath("//th[contains(text(), '产品编号')]/parent::tr/following-sibling::tr")
-        for row in rows:
-            cost = parse_cost(row.xpath("./td[last()]/text()").get())
-            package = row.xpath("./td[last()-1]/text()").get()
-            dd = {
-                "brand": self.name,
+        packages = [
+            {
                 "cat_no": d["cas"],
-                "cost": cost,
-                "package": package,
+                "cost": parse_cost(row.xpath("./td[last()]/text()").get()),
+                "package": row.xpath("./td[last()-1]/text()").get(),
                 "currency": "RMB",
             }
-
-            nodes = response.xpath("//th[contains(text(), '供应商')]/parent::tr/following-sibling::tr")
-            for node in nodes:
-                vendor = node.xpath("./td[position()=1]/a/text()").get()
-                email = strip(node.xpath("./td[position()=3]/text()").get())
-                country = strip(node.xpath("./td[position()=4]/text()").get())
-                ddd = {
-                    "platform": self.name,
-                    "vendor": vendor,
-                    "source_id": f"{vendor}_{d['cas']}",
-                    "brand": self.name,
-                    "chs_name": d["chs_name"],
-                    "cas": d["cas"],
-                    "mf": d["mf"],
-                    "mw": d["mw"],
-                    "package": dd["package"],
-                    "cost": dd["cost"],
-                    "currency": dd["currency"],
-                    "cat_no": d["cat_no"],
-                    "img_url": img_url,
-                    "prd_url": response.url,
-                }
-                yield SupplierProduct(**ddd)
+            for row in rows
+        ]
 
         chemical_item_attrs = json.dumps({
             "chemical_attrs": chemical_attrs,
@@ -148,6 +121,32 @@ class ChemicalBookSpider(BaseSpider):
             "cas": cas,
             "source": self.name,
             "prd_url": response.url,
-            "attrs": chemical_item_attrs
+            "attrs": chemical_item_attrs,
+            "pacakges": packages,
         }
         yield ChemicalItem(**dddd)
+
+        nodes = response.xpath("//th[contains(text(), '供应商')]/parent::tr/following-sibling::tr")
+        for node in nodes:
+            vendor = node.xpath("./td[position()=1]/a/text()").get()
+            email = strip(node.xpath("./td[position()=3]/text()").get())
+            country = strip(node.xpath("./td[position()=4]/text()").get())
+            ddd = {
+                "platform": self.name,
+                "vendor": vendor,
+                "vendor_origin": country,
+                "source_id": f"{vendor}_{d['cas']}",
+                "brand": self.name,
+                "chs_name": d["chs_name"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                # "package": dd["package"],
+                # "cost": dd["cost"],
+                # "currency": dd["currency"],
+                "cat_no": d["cat_no"],
+                "img_url": img_url,
+                "prd_url": response.url,
+            }
+            yield SupplierProduct(**ddd)
+
