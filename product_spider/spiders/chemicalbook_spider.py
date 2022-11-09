@@ -22,8 +22,8 @@ class ChemicalBookSpider(BaseSpider):
 
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {
-            'product_spider.middlewares.proxy_middlewares.RefreshProxyWhen403': 370,
-            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 400,
+            'product_spider.middlewares.proxy_middlewares.RefreshProxyWhen403': 541,
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         }
     }
 
@@ -34,13 +34,9 @@ class ChemicalBookSpider(BaseSpider):
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
-                meta={
-                    "catalog_num": i,
-                },
             )
 
     def parse(self, response, **kwargs):
-        catalog_num = response.meta.get("catalog_num")
         a_nodes = response.xpath("//div[@id='mainDiv']//tr/td[1]/a")
         if not a_nodes:
             logger.warning(f"product urls : {response.url} get urls fail")
@@ -61,7 +57,6 @@ class ChemicalBookSpider(BaseSpider):
             yield scrapy.Request(
                 url=urljoin(response.url, next_page),
                 callback=self.parse,
-                meta={"catalog_num": catalog_num}
             )
 
     def parse_detail(self, response):
@@ -70,7 +65,7 @@ class ChemicalBookSpider(BaseSpider):
         if warning_title == '根据相关法律法规和政策，此产品禁止销售！':
             return
         cas = response.xpath(tmp_xpath.format('CAS号:')).get() or response.meta.get('cas')
-        if not cas:
+        if '系统忙' in response.text:
             logger.warning(f"product detail url: {response.url} get cas fail")
             yield wrap_failed_request(response.request)
             return
