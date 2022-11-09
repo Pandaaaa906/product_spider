@@ -41,7 +41,7 @@ class ChemicalBookSpider(BaseSpider):
         raw_current_page = response.xpath("//div[@class='page_jp']/b[last()]/text()").get()
         raw_max_page = response.xpath("//div[@class='page_jp']/a[last()]/text()").get()
 
-        urls = response.xpath("//div[@id='mainDiv']//tr/td[last()-1]/a/@href").getall()
+        urls = response.xpath("//div[@id='mainDiv']//tr/td[last()]/a/@href").getall()
         if not urls:
             logger.warning(f"product urls : {response.url} get urls fail")
             yield wrap_failed_request(response.request)
@@ -53,15 +53,13 @@ class ChemicalBookSpider(BaseSpider):
                 callback=self.parse_detail,
             )
         # 翻页
-        if raw_current_page is not None or raw_max_page is not None:
-            current_page = int(raw_current_page)
-            max_page = int(raw_max_page)
-            if current_page < max_page:
-                yield scrapy.Request(
-                    url=f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{catalog_num}_{current_page * 100}.htm",
-                    callback=self.parse,
-                    meta={"catalog_num": catalog_num}
-                )
+        next_page = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').get()
+        if next_page:
+            yield scrapy.Request(
+                url=urljoin(response.url, next_page),
+                callback=self.parse,
+                meta={"catalog_num": catalog_num}
+            )
 
     def parse_detail(self, response):
         tmp_xpath = "//dt[contains(text(), {!r})]/following-sibling::dd/text()"
