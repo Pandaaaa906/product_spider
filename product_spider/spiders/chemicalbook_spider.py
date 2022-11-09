@@ -26,7 +26,7 @@ class ChemicalBookSpider(BaseSpider):
 
     # TODO range(12, 21)
     def start_requests(self):
-        for i in range(13, 21):
+        for i in range(12, 21):
             url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
             yield scrapy.Request(
                 url=url,
