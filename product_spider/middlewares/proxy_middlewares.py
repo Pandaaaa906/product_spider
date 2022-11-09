@@ -2,8 +2,9 @@ import logging
 
 import requests
 from scrapy.exceptions import NotConfigured
+from twisted.internet.error import TCPTimedOutError
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def get_proxy(proxy_url):
@@ -12,8 +13,9 @@ def get_proxy(proxy_url):
 
 
 def wrap_failed_request(request):
-    request.meta.update({'refresh_proxy': True})
-    request.replace(dont_filter=True, priority=99999)
+    meta = request.meta.copy()
+    meta.update({'refresh_proxy': True})
+    request.replace(dont_filter=True, priority=99999, meta=meta)
     return request
 
 
@@ -21,7 +23,6 @@ class RandomProxyMiddleWare:
     """代理中间件"""
     proxy = None
     PROXY_POOL_URL = None
-    logger = None
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -35,21 +36,21 @@ class RandomProxyMiddleWare:
         return s
 
     def refresh_proxy(self):
+        logger.info(f"current proxy: {self.proxy}")
         self.proxy = get_proxy(proxy_url=self.PROXY_POOL_URL)
+        logger.info(f"changed proxy to: {self.proxy}")
 
     def process_request(self, request, spider):
         flag = request.meta.pop("refresh_proxy", False)
         if flag and self.proxy == request.meta.get("proxy"):
-            log.info(f"current proxy: {self.proxy}")
             self.refresh_proxy()
-            log.info(f"changed proxy to: {self.proxy}")
             request.cookies = {}
         request.meta["proxy"] = self.proxy
         return
 
     def process_exception(self, request, exception, spider):
         # TODO might need add some proxy retry marks
-        if isinstance(exception, ConnectionRefusedError):
+        if isinstance(exception, (ConnectionRefusedError, TCPTimedOutError)):
             self.refresh_proxy()
             return wrap_failed_request(request)
         return
