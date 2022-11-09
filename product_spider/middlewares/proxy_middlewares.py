@@ -1,8 +1,9 @@
 import logging
 
 import requests
+from scrapy.core.downloader.handlers.http11 import TunnelError
 from scrapy.exceptions import NotConfigured
-from twisted.internet.error import TCPTimedOutError
+from twisted.internet import error
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class RandomProxyMiddleWare:
 
     def process_exception(self, request, exception, spider):
         # TODO might need add some proxy retry marks
-        if isinstance(exception, (ConnectionRefusedError, TCPTimedOutError)):
+        if isinstance(exception, (error.ConnectionRefusedError, error.TCPTimedOutError, TunnelError)):
             self.refresh_proxy()
             return wrap_failed_request(request)
         return
