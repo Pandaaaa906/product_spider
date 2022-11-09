@@ -64,7 +64,7 @@ class RandomProxyMiddleWare:
                       (error.ConnectionRefusedError, error.TCPTimedOutError, TunnelError, error.TimeoutError)):
             if request.meta.get('proxy') == self.proxy:
                 self.refresh_proxy()
-                return wrap_failed_request(request)
+            return wrap_failed_request(request)
         return
 
 
