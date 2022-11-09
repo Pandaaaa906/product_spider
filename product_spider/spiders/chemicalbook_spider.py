@@ -5,7 +5,6 @@ import scrapy
 from scrapy import FormRequest
 
 from product_spider.items import SupplierProduct, ChemicalItem
-from product_spider.middlewares.proxy_middlewares import wrap_failed_request
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 
@@ -22,9 +21,10 @@ class ChemicalBookSpider(BaseSpider):
 
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {
-            'product_spider.middlewares.proxy_middlewares.RefreshProxyWhen403': 541,
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
-        }
+        },
+        'RETRY_HTTP_CODES': [403],
+        'RETRY_TIMES': 10
     }
 
     # TODO range(12, 21)
@@ -36,12 +36,17 @@ class ChemicalBookSpider(BaseSpider):
                 callback=self.parse,
             )
 
+    def is_proxy_invalid(self, request, response):
+        if response.status in {403, }:
+            return True
+        if '系统忙' in response.text[:50]:
+            return True
+        if request.url.startswith('https://www.chemicalbook.com/ShowAllProductByIndexID'):
+            return not bool(response.xpath("//div[@id='mainDiv']//tr/td[1]/a"))
+        return False
+
     def parse(self, response, **kwargs):
         a_nodes = response.xpath("//div[@id='mainDiv']//tr/td[1]/a")
-        if not a_nodes:
-            logger.warning(f"product urls : {response.url} get urls fail")
-            yield wrap_failed_request(response.request)
-            return
 
         for a_node in a_nodes:
             url = a_node.xpath('./@href').get()
@@ -65,10 +70,6 @@ class ChemicalBookSpider(BaseSpider):
         if warning_title == '根据相关法律法规和政策，此产品禁止销售！':
             return
         cas = response.xpath(tmp_xpath.format('CAS号:')).get() or response.meta.get('cas')
-        if '系统忙' in response.text:
-            logger.warning(f"product detail url: {response.url} get cas fail")
-            yield wrap_failed_request(response.request)
-            return
 
         en_name = response.xpath(tmp_xpath.format('英文名称:')).get()
         chs_name = response.xpath(tmp_xpath.format('中文名称:')).get()
