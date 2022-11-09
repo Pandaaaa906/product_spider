@@ -3,6 +3,7 @@ import logging
 from urllib.parse import urljoin
 import scrapy
 from product_spider.items import SupplierProduct, ChemicalItem
+from product_spider.middlewares.proxy_middlewares import wrap_failed_request
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 
@@ -17,9 +18,15 @@ class ChemicalBookSpider(BaseSpider):
     start_urls = ["https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_12_0htm"]
     base_url = "https://www.chemicalbook.com/"
 
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 400,
+        }
+    }
+
     # TODO range(12, 21)
     def start_requests(self):
-        for i in range(12, 13):
+        for i in range(12, 21):
             url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
             yield scrapy.Request(
                 url=url,
@@ -34,12 +41,11 @@ class ChemicalBookSpider(BaseSpider):
         raw_current_page = response.xpath("//div[@class='page_jp']/b[last()]/text()").get()
         raw_max_page = response.xpath("//div[@class='page_jp']/a[last()]/text()").get()
 
-        urls = response.xpath("//div[@id='mainDiv']//tr/td[last()-1]/a/@href").getall()
+        urls = response.xpath("//div[@id='mainDiv']//tr/td[last()]/a/@href").getall()
         if not urls:
             logger.warning(f"product urls : {response.url} get urls fail")
-            r = response.request
-            r.meta.update({'refresh_proxy': True})
-            yield r
+            yield wrap_failed_request(response.request)
+            return
 
         for url in urls:
             yield scrapy.Request(
@@ -47,27 +53,24 @@ class ChemicalBookSpider(BaseSpider):
                 callback=self.parse_detail,
             )
         # 翻页
-        if raw_current_page is not None or raw_max_page is not None:
-            current_page = int(raw_current_page)
-            max_page = int(raw_max_page)
-            if current_page < max_page:
-                yield scrapy.Request(
-                    url=f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{catalog_num}_{current_page * 100}.htm",
-                    callback=self.parse,
-                    meta={"catalog_num": catalog_num}
-                )
+        next_page = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').get()
+        if next_page:
+            yield scrapy.Request(
+                url=urljoin(response.url, next_page),
+                callback=self.parse,
+                meta={"catalog_num": catalog_num}
+            )
 
     def parse_detail(self, response):
         tmp_xpath = "//dt[contains(text(), {!r})]/following-sibling::dd/text()"
-
+        warning_title = response.xpath("//div[@class='SearchEmpty']/h2/span/text()").get()
+        if warning_title == '根据相关法律法规和政策，此产品禁止销售！':
+            return
         cas = response.xpath(tmp_xpath.format('CAS号:')).get()
         if not cas:
-            warning_title = response.xpath("//div[@class='SearchEmpty']/h2/span/text()").get()
-            logger.warning(warning_title)
             logger.warning(f"product detail url: {response.url} get cas fail")
-            r = response.request
-            r.meta.update({'refresh_proxy': True})
-            yield r
+            yield wrap_failed_request(response.request)
+            return
 
         en_name = response.xpath(tmp_xpath.format('英文名称:')).get()
         chs_name = response.xpath(tmp_xpath.format('中文名称:')).get()
@@ -121,7 +124,7 @@ class ChemicalBookSpider(BaseSpider):
                 ddd = {
                     "platform": self.name,
                     "vendor": vendor,
-                    "source_id": f"{email}_{country}",
+                    "source_id": f"{vendor}_{d['cas']}",
                     "brand": self.name,
                     "chs_name": d["chs_name"],
                     "cas": d["cas"],
