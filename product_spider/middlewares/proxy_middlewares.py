@@ -15,7 +15,7 @@ def get_proxy(proxy_url):
 
 
 def wrap_failed_request(request):
-    request.replace(dont_filter=True, priority=99999)
+    request.replace(dont_filter=True)
     return request
 
 

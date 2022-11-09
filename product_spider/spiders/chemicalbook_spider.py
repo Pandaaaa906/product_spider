@@ -29,7 +29,7 @@ class ChemicalBookSpider(BaseSpider):
 
     # TODO range(12, 21)
     def start_requests(self):
-        for i in range(12, 21):
+        for i in range(17, 21):
             url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
             yield scrapy.Request(
                 url=url,
@@ -168,7 +168,7 @@ class ChemicalBookSpider(BaseSpider):
         if not nodes or dont_grab:
             return
 
-        event_target = response.xpath('//input[@id="__EVENTTARGET"]/@value').get()
+        # event_target = response.xpath('//input[@id="__EVENTTARGET"]/@value').get()
         event_arg = response.xpath('//input[@id="__EVENTARGUMENT"]/@value').get()
         last_focus = response.xpath('//input[@id="__LASTFOCUS"]/@value').get()
         view_state = response.xpath('//input[@id="__VIEWSTATE"]/@value').get()
@@ -182,7 +182,7 @@ class ChemicalBookSpider(BaseSpider):
         yield FormRequest(
             url=response.url,
             formdata={
-                '__EVENTTARGET': event_target,
+                '__EVENTTARGET': 'SupplierCountDetail',
                 '__EVENTARGUMENT': event_arg,
                 '__LASTFOCUS': last_focus,
                 '__VIEWSTATE': view_state,
