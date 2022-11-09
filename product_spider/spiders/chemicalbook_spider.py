@@ -38,11 +38,15 @@ class ChemicalBookSpider(BaseSpider):
 
     def is_proxy_invalid(self, request, response):
         if response.status in {403, }:
+            logger.warning(f'status code:{response.status}, {request.url}')
             return True
         if '系统忙' in response.text[:50]:
+            logger.warning(f'system busy: {request.url}')
             return True
-        if request.url.startswith('https://www.chemicalbook.com/ShowAllProductByIndexID'):
-            return not bool(response.xpath("//div[@id='mainDiv']//tr/td[1]/a"))
+        if request.url.startswith('https://www.chemicalbook.com/ShowAllProductByIndexID') \
+                and not bool(response.xpath("//div[@id='mainDiv']//tr/td[1]/a")):
+            logger.warning(f'empty cas list: {request.url}')
+            return True
         return False
 
     def parse(self, response, **kwargs):
