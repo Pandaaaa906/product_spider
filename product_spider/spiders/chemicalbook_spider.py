@@ -22,6 +22,7 @@ class ChemicalBookSpider(BaseSpider):
 
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RefreshProxyWhen403': 370,
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 400,
         }
     }

@@ -54,3 +54,11 @@ class RandomProxyMiddleWare:
             self.refresh_proxy()
             return wrap_failed_request(request)
         return
+
+
+class RefreshProxyWhen403:
+    def process_response(self, request, response, spider):
+        if response.status == 403:
+            return wrap_failed_request(request)
+        else:
+            return response
