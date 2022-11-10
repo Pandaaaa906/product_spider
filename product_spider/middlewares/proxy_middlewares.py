@@ -15,7 +15,7 @@ def get_proxy(proxy_url):
 
 
 def wrap_failed_request(request):
-    request.replace(dont_filter=True)
+    request.replace(dont_filter=True, priority=99999)
     return request
 
 
@@ -29,8 +29,8 @@ class RandomProxyMiddleWare:
         proxy_url = settings.get("PROXY_POOL_URL")
         if not proxy_url:
             raise NotConfigured
-        self.proxy = get_proxy(proxy_url=proxy_url)
         self.PROXY_POOL_URL = proxy_url
+        self.refresh_proxy()
         if f := getattr(spider, 'is_proxy_invalid', None):
             self.is_proxy_invalid = f
 
@@ -65,7 +65,6 @@ class RandomProxyMiddleWare:
             if request.meta.get('proxy') == self.proxy:
                 self.refresh_proxy()
             logger.warning(f"{exception}: {request.url}")
-            return wrap_failed_request(request)
         return
 
 
