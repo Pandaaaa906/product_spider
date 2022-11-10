@@ -25,7 +25,6 @@ Product Package attributes definitions
 | function_group |     官能团      |        cdn       |  Amines & Amine Salts  | 
 |   stability    |  稳定状态(条件)  |        cdn        |  Stable if stored under recommended conditions (see section 7 of SDS).  After three years, the compound should be re-analyzed for chemical purity before use. | 
 |    coa_url     |   产品证书地址   |    nibsc, nifdc, clearsynth   |     https://www.nibsc.org/documents/ifu/97-594.pdf    |
-|    msds     |   msds   |   clearsynth |     https://www.clearsynth.com/en/msds_sample?catnumber=CS-P-00495&compound=3-Hydroxy%20Abacavir   | 
- 
+|    msds     |   msds   |   clearsynth |     https://www.clearsynth.com/en/msds_sample?catnumber=CS-P-00495&compound=3-Hydroxy%20Abacavir   |
 |    sales_status     |   销售状态   |    nist  |     Now Selling   | 
 
