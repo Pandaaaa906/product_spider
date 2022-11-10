@@ -24,7 +24,12 @@ class ChemicalBookSpider(BaseSpider):
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
         'RETRY_HTTP_CODES': [403],
-        'RETRY_TIMES': 10
+        'RETRY_TIMES': 10,
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/107.0.0.0 Safari/537.36'
+        )
     }
 
     # TODO range(12, 21)
