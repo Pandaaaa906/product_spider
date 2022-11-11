@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Callable
 
 import requests
+from scrapy import Request
 from scrapy.exceptions import NotConfigured
 
 logger = logging.getLogger("scrapy.proxies")
@@ -12,9 +13,9 @@ def get_proxy(proxy_url):
     return f'http://{r.text}'
 
 
-def wrap_failed_request(request):
-    request.replace(dont_filter=True, priority=99999)
-    return request
+def wrap_failed_request(request: Request):
+    new_request = request.replace(dont_filter=True, priority=99999)
+    return new_request
 
 
 class RandomProxyMiddleWare:
