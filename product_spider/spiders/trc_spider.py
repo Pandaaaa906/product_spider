@@ -1,6 +1,6 @@
 # TODO easily get blocked
 import re
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urljoin
 
 from scrapy import Request
 
@@ -18,27 +18,32 @@ class TRCSpider(BaseSpider):
     name = "trc"
     brand = 'trc'
     allow_domain = ["trc-canada.com", ]
-    start_urls = ["https://www.trc-canada.com/parent-drug/", ]
+    start_urls = ["https://www.trc-canada.com/products-listing/", ]
     search_url = "https://www.trc-canada.com/products-listing/?"
     base_url = "https://www.trc-canada.com"
 
     custom_settings = {
-        'CONCURRENT_REQUESTS': 2,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
-        'CONCURRENT_REQUESTS_PER_IP': 2,
+        'CONCURRENT_REQUESTS': 8,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
+        'CONCURRENT_REQUESTS_PER_IP': 8,
+        # 'DOWNLOADER_MIDDLEWARES': {
+        #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        # },
+        'RETRY_HTTP_CODES': [403],
+        'RETRY_TIMES': 10,
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/107.0.0.0 Safari/537.36'
+        )
     }
 
-    def parse(self, response, **kwargs):
-        api_names = response.xpath('//table[contains(@id, "table")]//td/input/@value').getall()
-        for parent in api_names:
-            d = {
-                "searchBox": parent,
-                "type": "searchResult",
-            }
-            yield Request(url=f'{self.search_url}{urlencode(d)}', callback=self.parse_list,
-                          meta={"parent": parent})
+    def is_proxy_invalid(self, request, response):
+        if response.status in {403, }:
+            return True
+        return False
 
-    def parse_list(self, response):
+    def parse(self, response, **kwargs):
         parent = response.meta.get('parent')
         rel_urls = response.xpath(
             '//div[@class="chemCard"]/a[not(@data-lity)]/@href').getall()
@@ -47,7 +52,7 @@ class TRCSpider(BaseSpider):
 
         next_page = response.xpath('//li[contains(@class, "active")]/following-sibling::li/a[not(i)]/@href').get()
         if next_page:
-            yield Request(urljoin(self.base_url, next_page), callback=self.parse_list, meta={"parent": parent})
+            yield Request(urljoin(self.base_url, next_page), callback=self.parse, meta={"parent": parent})
 
     def detail_parse(self, response):
         tmp_format = '//td[contains(text(), {!r})]/following-sibling::td/text()'
@@ -55,7 +60,7 @@ class TRCSpider(BaseSpider):
         rel_img = response.xpath('//div[@id="productImage"]/img/@src').get()
         d = {
             "brand": self.brand,
-            'parent': response.meta.get("parent"),
+            # 'parent': response.meta.get("parent"),
             'cat_no': cat_no,
             "en_name": response.xpath(tmp_format.format('Chemical Name')).get(),
             'cas': response.xpath(tmp_format.format('CAS Number')).get(),
@@ -94,7 +99,7 @@ class TRCSpider(BaseSpider):
                 "platform": self.name,
                 "vendor": self.name,
                 "brand": self.name,
-                "parent": d["parent"],
+                # "parent": d["parent"],
                 "en_name": d["en_name"],
                 "cas": d["cas"],
                 "mf": d["mf"],
