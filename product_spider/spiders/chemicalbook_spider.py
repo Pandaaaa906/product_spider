@@ -124,6 +124,7 @@ class ChemicalBookSpider(BaseSpider):
         ]
 
         chemical_item_attrs = json.dumps({
+            "chemical_info": d,
             "chemical_attrs": chemical_attrs,
             "safety_attrs": safety_attrs,
             "packages": packages,
