@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 from more_itertools import first
 from scrapy import Request, FormRequest
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -413,7 +413,9 @@ class AnpelSpider(BaseSpider):
         ddd = {
             "platform": sub_brand,
             "brand": sub_brand,
+            "vendor": sub_brand,
             'cat_no': cat_no,
+            "source_id": f'{self.name}_{cat_no}_{package}',
             'chs_name': cn_name,
             'en_name': en_name,
             'cas': cas,
@@ -422,5 +424,20 @@ class AnpelSpider(BaseSpider):
             "delivery": delivery_time,
             'storage_condition': storage,
             'prd_url': response.url,
+            "currency": "RMB",
+        }
+        dddd = {
+            "platform": sub_brand,
+            "brand": sub_brand,
+            "vendor": sub_brand,
+            "source_id": f'{self.name}_{cat_no}',
+            'cat_no': cat_no,
+            'package': package,
+            'discount_price': cost,
+            'price': cost,
+            'cas': cas,
+            'delivery': delivery_time,
+            'currency': "RMB",
         }
         yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)
