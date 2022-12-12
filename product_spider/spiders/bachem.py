@@ -3,7 +3,7 @@ import re
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -94,6 +94,7 @@ class BachemSpider(BaseSpider):
                 "platform": self.name,
                 "vendor": self.name,
                 "brand": self.name,
+                "source_id": f'{self.name}_{cat_no}_{package}',
                 "parent": d["parent"],
                 "en_name": d["en_name"],
                 "cas": d["cas"],
@@ -106,5 +107,19 @@ class BachemSpider(BaseSpider):
                 "img_url": d["img_url"],
                 "prd_url": d["prd_url"],
             }
+
+            dddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "source_id": f'{self.name}_{d["cat_no"]}',
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'discount_price': dd['cost'],
+                'price': dd['cost'],
+                'cas': d["cas"],
+                'currency': dd["currency"],
+            }
             yield ProductPackage(**dd)
             yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
