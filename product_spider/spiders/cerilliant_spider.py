@@ -7,7 +7,7 @@ from more_itertools import first
 
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.functions import strip
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 
 
 def parse_cost(raw_cost):
@@ -122,6 +122,7 @@ class CerilliantSpider(BaseSpider):
             "platform": self.name,
             "vendor": self.name,
             "brand": self.name,
+            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
             "parent": d["parent"],
             "cas": d["cas"],
             "mf": d["mf"],
@@ -134,7 +135,20 @@ class CerilliantSpider(BaseSpider):
             "img_url": d["img_url"],
             "prd_url": d["prd_url"],
         }
+        dddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id": f'{self.name}_{d["cat_no"]}',
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'discount_price': dd['cost'],
+            'price': dd['cost'],
+            'cas': d["cas"],
+            'currency': dd["currency"],
+        }
 
         yield RawData(**d)
         yield ProductPackage(**dd)
         yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)
