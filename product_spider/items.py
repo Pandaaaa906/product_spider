@@ -309,6 +309,27 @@ class SupplierProduct(scrapy.OrderedItem):
         )
 
 
+class RawSupplierQuotation(scrapy.OrderedItem):
+    platform = scrapy.Field()
+    source_id = scrapy.Field()
+    vendor = scrapy.Field()
+    brand = scrapy.Field()
+    cat_no = scrapy.Field()
+    package = scrapy.Field()
+    discount_price = scrapy.Field()
+    price = scrapy.Field()
+    currency = scrapy.Field()
+    delivery = scrapy.Field()
+    attrs = scrapy.Field()
+    stock_num = scrapy.Field()
+    cas = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('platform', 'source_id',), True),
+        )
+
+
 class ATCIndex(scrapy.OrderedItem):
     atc_code = scrapy.Field()
     drug_name = scrapy.Field()
