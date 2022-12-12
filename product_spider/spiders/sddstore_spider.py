@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 from scrapy import Request, FormRequest
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
@@ -101,7 +101,7 @@ class SddStoreSpider(BaseSpider):
             }
 
             ddd = {
-                "source_id": f"{d['cat_no']}",
+                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
                 "platform": "sdd",
                 "vendor": "sdd",
                 "brand": brand,
@@ -115,7 +115,20 @@ class SddStoreSpider(BaseSpider):
                 "img_url": d["img_url"],
                 "prd_url": d["prd_url"],
             }
+
+            dddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "source_id":  f'{self.name}_{d["cat_no"]}',
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'discount_price': dd['cost'],
+                'price': dd['cost'],
+                'currency': dd["currency"],
+            }
             yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
             if not is_sdd(brand):
                 self.other_brands.add(brand)
                 continue

@@ -4,7 +4,7 @@ from os import getenv
 from urllib.parse import urljoin
 
 from scrapy import FormRequest, Request
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -83,12 +83,26 @@ class NifdcSpider(BaseSpider):
                 'platform': self.brand,
                 'vendor': self.brand,
                 'brand': self.brand,
+                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
                 'cat_no': cat_no,
                 'package': dd['package'],
                 'price': dd['cost'],
                 'stock_num': dd['stock_num'],
             }
+
+            dddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "source_id":  f'{self.name}_{d["cat_no"]}',
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'discount_price': dd['cost'],
+                'price': dd['cost'],
+                'currency': dd["currency"],
+            }
             yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
 
         m = re.search(r'(?:buildPageCtrlOne001\()(\d+),(\d+),(\d+)', response.text)
         if not m:

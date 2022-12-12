@@ -2,7 +2,7 @@ import scrapy
 from lxml import etree
 from more_itertools import first
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -63,6 +63,7 @@ class InorganicVentureSpider(BaseSpider):
             "platform": self.name,
             "vendor": self.name,
             "brand": self.name,
+            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
             'cat_no': d["cat_no"],
             'package': dd['package'],
             'cost': dd['cost'],
@@ -70,6 +71,18 @@ class InorganicVentureSpider(BaseSpider):
             "img_url": d["img_url"],
             "prd_url": d["prd_url"],
         }
+        dddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id":  f'{self.name}_{d["cat_no"]}',
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'discount_price': dd['cost'],
+            'price': dd['cost'],
+            'currency': dd["currency"],
+        }
         yield RawData(**d)
         yield ProductPackage(**dd)
         yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)

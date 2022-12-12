@@ -6,7 +6,7 @@ from urllib.parse import urlsplit, parse_qsl, urlencode, urljoin
 import scrapy
 from scrapy import Request
 
-from product_spider.items import SupplierProduct
+from product_spider.items import SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -118,11 +118,11 @@ class TansooleDreSpider(BaseSpider):
         expiry_date = res.get("expireDate", None)
         delivery = res.get("deliveryDay", None)
 
-        price = res.get("rebateDisCountPrice", None)
-        cost = res.get("bigDecimalFormatPriceDesc", None)
+        price = res.get("bigDecimalFormatPriceDesc", None)
+        cost = res.get("rebateDisCountPrice", None)
         stock_num = res.get("transportDesc", None)
 
-        dd = {
+        ddd = {
             "platform": "tansoole",
             "vendor": "tansoole",
             "brand": "dre",
@@ -138,4 +138,18 @@ class TansooleDreSpider(BaseSpider):
             "package": package,
             "currency": "RMB",
         }
-        yield SupplierProduct(**dd)
+
+        dddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id":  f'{self.name}_{cat_no}',
+            'cat_no': cat_no,
+            'package': package,
+            'discount_price': cost,
+            'price': price,
+            'delivery': delivery,
+            'currency': ddd["currency"],
+        }
+        yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)

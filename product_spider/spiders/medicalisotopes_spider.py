@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 from product_spider.utils.parsepackage import parse_package
@@ -63,6 +63,7 @@ class MedicalIsotopesSpider(BaseSpider):
                 "platform": self.name,
                 "vendor": self.name,
                 "brand": self.name,
+                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
                 "parent": d["parent"],
                 "en_name": d["en_name"],
                 "cas": d["cas"],
@@ -74,4 +75,16 @@ class MedicalIsotopesSpider(BaseSpider):
                 "currency": dd["currency"],
                 "prd_url": d["prd_url"],
             }
+            dddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "source_id":  f'{self.name}_{d["cat_no"]}',
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'discount_price': dd['cost'],
+                'price': dd['cost'],
+                'currency': dd["currency"],
+            }
             yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
