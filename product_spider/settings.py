@@ -14,12 +14,10 @@ import json
 _json_dumps = json.dumps
 json.dumps = partial(_json_dumps, ensure_ascii=False)
 
-
 LOG_LEVEL = 'INFO'
 if not getenv('PYTHONUNBUFFERED'):
     LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
-
 
 if name != 'nt':
     TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
@@ -27,7 +25,6 @@ if name != 'nt':
         "http": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
         "https": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
     }
-
 
 SPIDER_MODULES = ['product_spider.spiders']
 NEWSPIDER_MODULE = 'product_spider.spiders'
@@ -112,7 +109,6 @@ ITEM_PIPELINES = {
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 
-
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
 # AUTOTHROTTLE_ENABLED = True
@@ -133,3 +129,27 @@ ITEM_PIPELINES = {
 # HTTPCACHE_DIR = 'httpcache'
 # HTTPCACHE_IGNORE_HTTP_CODES = []
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+REDIS_HOST = getenv("REDIS_HOST", "localhost")
+REDIS_PORT = getenv("REDIS_PORT", "6379")
+if m := getenv("REDIS_URL"):
+    REDIS_URL = m
+
+REDIS_START_URLS_KEY = "%(name)s:start_urls"
+
+# Enables scheduling storing requests queue in redis.
+SCHEDULER = "scrapy_redis.scheduler.Scheduler"
+
+# Ensure all spiders share same duplicates filter through redis.
+DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
+
+SCHEDULER_SERIALIZER = "scrapy_redis.picklecompat"
+
+# Schedule requests using a priority queue. (default)
+SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.PriorityQueue'
+# Alternative queues.
+# SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.FifoQueue'
+# SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.LifoQueue'
+
+# Don't cleanup redis queues, allows to pause/resume crawls.
+SCHEDULER_PERSIST = True
