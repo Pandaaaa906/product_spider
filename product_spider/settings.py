@@ -138,18 +138,18 @@ if m := getenv("REDIS_URL"):
 REDIS_START_URLS_KEY = "%(name)s:start_urls"
 
 # Enables scheduling storing requests queue in redis.
-SCHEDULER = "scrapy_redis.scheduler.Scheduler"
+# SCHEDULER = "scrapy_redis.scheduler.Scheduler"
 
 # Ensure all spiders share same duplicates filter through redis.
-DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
+# DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
 
-SCHEDULER_SERIALIZER = "scrapy_redis.picklecompat"
+# SCHEDULER_SERIALIZER = "scrapy_redis.picklecompat"
 
 # Schedule requests using a priority queue. (default)
-SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.PriorityQueue'
+# SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.PriorityQueue'
 # Alternative queues.
 # SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.FifoQueue'
 # SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.LifoQueue'
 
 # Don't cleanup redis queues, allows to pause/resume crawls.
-SCHEDULER_PERSIST = True
+# SCHEDULER_PERSIST = True
