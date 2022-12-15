@@ -326,7 +326,7 @@ class RawSupplierQuotation(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (('platform', 'source_id',), True),
+            (('platform', 'source_id', 'package'), True),
         )
 
 
