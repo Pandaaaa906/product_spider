@@ -324,11 +324,6 @@ class RawSupplierQuotation(scrapy.OrderedItem):
     stock_num = scrapy.Field()
     cas = scrapy.Field()
 
-    class Meta:
-        indexes = (
-            (('platform', 'source_id', 'package'), True),
-        )
-
 
 class ATCIndex(scrapy.OrderedItem):
     atc_code = scrapy.Field()
