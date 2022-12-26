@@ -3,7 +3,6 @@ from urllib.parse import urljoin
 from more_itertools.more import first
 from scrapy import Request
 import re
-from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.cost import parse_cost
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
