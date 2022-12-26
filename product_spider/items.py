@@ -141,6 +141,7 @@ class ProductPackage(scrapy.OrderedItem):
     delivery_time = scrapy.Field()
     stock_num = scrapy.Field()
     info = scrapy.Field()
+    purity = scrapy.Field()  # 规格纯度
 
     attrs = scrapy.Field()  # 产品规格额外信息
 

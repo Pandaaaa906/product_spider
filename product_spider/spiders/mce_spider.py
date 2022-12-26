@@ -1,11 +1,29 @@
 from urllib.parse import urljoin
 
+from more_itertools.more import first
 from scrapy import Request
+import re
+from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.utils.cost import parse_cost
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
+from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
+
+
+def parse_mce_package(tmp_package):
+    """用于处理mce纯度规格"""
+    if not tmp_package:
+        return
+    if "(" in tmp_package or ")" in tmp_package:
+        package = re.sub(r"(?<=\d) (?=[a-zμ])", '', first(first(re.findall(r'(.+)(\([^)]+\))?', tmp_package), []), None))
+        purity = first(re.findall(r"\(([^)]+)\)", tmp_package), None)
+        return package, purity
+    else:
+        package = re.sub(r"(?<=\d) ", '', tmp_package)
+        return package, None
 
 
 class MCESpider(BaseSpider):
@@ -65,13 +83,17 @@ class MCESpider(BaseSpider):
             return
         rows = response.xpath('//tr[td and td[@class="pro_price_3"]/span[not(@class)]]')
         for row in rows:
-            price = strip(row.xpath('./td[@class="pro_price_2"]/text()').get())
+            cost = parse_cost(strip(row.xpath('./td[@class="pro_price_2"]/text()').get()))
             tmp_package = strip(row.xpath('normalize-space(./td[@class="pro_price_1"]/text())').get())
+            package, package_purity = parse_mce_package(tmp_package)
+            if not package:
+                return
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
-                'package': tmp_package and tmp_package.replace('\xa0', ' '),
-                'cost': price and price.strip('￥'),
+                'package': parse_package(package),
+                'cost': cost,
+                'purity': package_purity,
                 'delivery_time': strip(''.join(row.xpath('./td[@class="pro_price_3"]/span//text()').getall())) or None,
                 'currency': 'RMB',
             }
