@@ -1,3 +1,4 @@
+import json
 from urllib.parse import urljoin, urlencode
 
 from scrapy import Request
@@ -33,6 +34,10 @@ class USPSpider(BaseSpider):
         j = response.json()
         products = j.get('items', [])
         for product in products:
+            raw_danger_desc = product.get("usp_control_substance_percent", None)
+            prd_attrs = json.dumps({
+                "regulated_info": "US DEA Regulated Item" if raw_danger_desc is not None else None
+            })
             d = {
                 'brand': self.brand,
                 'cat_no': (cat_no := product.get('repositoryId')),
@@ -42,6 +47,7 @@ class USPSpider(BaseSpider):
                 'mf': product.get('usp_molecular_formula'),
                 'stock_info': product.get('usp_in_stock'),
                 'prd_url': (p := product.get('route')) and urljoin(self.base_url, p),
+                'attrs': prd_attrs,
             }
             yield RawData(**d)
 
@@ -55,7 +61,7 @@ class USPSpider(BaseSpider):
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': package,
-                'cost': product.get('listPrice'),
+                'cost': str(product.get('listPrice')),
                 'currency': 'USD',
                 'delivery_time': product.get('usp_in_stock'),
             }
@@ -79,7 +85,7 @@ class USPSpider(BaseSpider):
                 "platform": self.name,
                 "vendor": self.name,
                 "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
+                "source_id": f'{self.name}_{d["cat_no"]}',
                 'cat_no': d["cat_no"],
                 'package': dd['package'],
                 'discount_price': dd['cost'],
