@@ -36,8 +36,8 @@ class USPSpider(BaseSpider):
         for product in products:
             raw_danger_desc = product.get("usp_control_substance_percent", None)
             prd_attrs = json.dumps({
-                "regulated_info": "US DEA Regulated Item" if raw_danger_desc is not None else None
-            })
+                "regulated_info": "US DEA Regulated Item"
+            }) if raw_danger_desc is not None else None
             d = {
                 'brand': self.brand,
                 'cat_no': (cat_no := product.get('repositoryId')),
