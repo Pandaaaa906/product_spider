@@ -53,6 +53,10 @@ class EDQMSpider(BaseSpider):
             "//*[contains(text(), 'Dispatching conditions')]/parent::td/following-sibling::td/font/text()"
         ).get().strip()
 
+        stock_info = response.xpath(
+            "//font[contains(text(), 'Availability')]/parent::td/following-sibling::td/font/text()"
+        ).get().strip()
+
         package = response.xpath(
             "//*[contains(text(), 'Unit quantity per vial')]/parent::td/following-sibling::td/font/text()"
         ).get()
@@ -73,6 +77,7 @@ class EDQMSpider(BaseSpider):
 
         sales_unit = d.pop('sales_unit', '1')
         d["shipping_info"] = shipping_info
+        d["stock_info"] = stock_info
         d["attrs"] = json.dumps({
             "controlled_drug": controlled_drug,
         })
@@ -106,6 +111,7 @@ class EDQMSpider(BaseSpider):
             'cost': dd['cost'],
             "currency": dd["currency"],
             "prd_url": d["prd_url"],
+            "stock_info": d["stock_info"],
         }
         dddd = {
             "platform": self.name,
