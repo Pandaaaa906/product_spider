@@ -14,6 +14,18 @@ p_reversed_pkg = re.compile(r'^[mM][gGlL]\d+(\.\d+)?$')
 p_normalize_pkg = re.compile(r'([mM][gGlL])(\d+(\.\d+)?)')
 
 
+def add_zero_before_point(package):
+    if not re.search(r'^\.', package):
+        return package
+    raw_num = raw_num.group() if (raw_num := re.search(r'.*(?=[mM][gGlL])', package)) else None
+    raw_unit = raw_unit.group() if (raw_unit := re.search(r'[mM][gGlL]', package)) else None
+    if raw_num is None or raw_unit is None:
+        return package
+    if isinstance(raw_num, str):
+        raw_num = float(raw_num)
+    package = "{}{}".format(raw_num, raw_unit)
+    return package
+
 class TRCSpider(BaseSpider):
     name = "trc"
     brand = 'trc'
@@ -85,6 +97,7 @@ class TRCSpider(BaseSpider):
                 continue
             if p_reversed_pkg.match(package):
                 package = p_normalize_pkg.sub(r'\2\1', package)
+            package = add_zero_before_point(package)
             cost = strip(row.xpath('./td[3]/text()').get())
 
             dd = {
@@ -116,7 +129,7 @@ class TRCSpider(BaseSpider):
                 "platform": self.name,
                 "vendor": self.name,
                 "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
+                "source_id": f'{self.name}_{d["cat_no"]}',
                 'cat_no': d["cat_no"],
                 'package': dd['package'],
                 'discount_price': dd['cost'],
