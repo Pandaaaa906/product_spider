@@ -9,6 +9,7 @@ import re
 from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
 
+from product_spider.items import RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 
@@ -60,4 +61,15 @@ class ParseCostPipeline:
         if raw_cost := re.search(r'(\d+(\.\d+)?)', parse_cost(cost)):
             cost = raw_cost.group()
         adapter["cost"] = cost
+        return item
+
+
+class ParseRawSupplierQuotationPipeline:
+
+    def process_item(self, item, spider):
+        if not isinstance(item, RawSupplierQuotation):
+            return item
+        adapter = ItemAdapter(item)
+        if 'discount_price' not in adapter or adapter.get("discount_price", None) is None:
+            raise DropItem("Missing discount_price in %s" % item)
         return item
