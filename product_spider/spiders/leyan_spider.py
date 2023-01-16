@@ -3,6 +3,7 @@ from urllib.parse import urljoin
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.spiders.cerilliant_spider import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -41,7 +42,7 @@ class LeyanSpider(BaseSpider):
             'en_name': response.xpath('//h2/span/text()').get(),
             'purity': response.xpath('//span[@class="d-purity"]/text()').get(),
             'cas': response.xpath(tmp.format("CAS 号")).get(),
-            'mf': response.xpath(tmp.format("分子式")).get(),
+            'mf': ''.join(response.xpath("//div[contains(*/text(), '分子式')]/following-sibling::div/h3//text()").getall()),
             'mw': response.xpath(tmp.format("分子量")).get(),
             'smiles': response.xpath(tmp.format("Smiles Code")).get(),
             'info2': response.xpath(tmp.format("存储条件")).get(),
@@ -60,7 +61,7 @@ class LeyanSpider(BaseSpider):
                 'brand': self.name,
                 'cat_no': cat_no,
                 'package': package,
-                'cost': row.xpath('./td[@id="money"]/text()').get(),
+                'cost': parse_cost(row.xpath("//span[@class='red']/text()").get()),
                 'currency': 'RMB',
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
