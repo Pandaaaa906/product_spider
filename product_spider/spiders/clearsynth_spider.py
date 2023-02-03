@@ -130,8 +130,8 @@ class ClearsynthSpider(BaseSpider):
         if not rows:
             return
         for row in rows:
-            raw_package = row.xpath(".//td[last()-2]//text()").get()
-            raw_cost = parse_cost(row.xpath(".//td[last()-3]//text()").get())
+            raw_package = row.xpath(".//td[last()-1]//text()").get()
+            raw_cost = parse_cost(row.xpath(".//td[last()-2]//text()").get())
             if raw_package is None:
                 continue
             package = ''.join(raw_package.split()).lower()
