@@ -43,13 +43,13 @@ class DaicelSpider(BaseSpider):
 
     def parse_detail(self, response):
         parent = response.xpath("//div[@class='breadcrumbs-container']/a[last()]/text()").get()
-        cat_no = response.xpath("//th[contains(text(), 'CAT Number')]/following-sibling::td/text()").get()
-        en_name = response.xpath("//th[contains(text(), 'API Category')]/following-sibling::td/text()").get()
-        cas = response.xpath("//th[contains(text(), 'CAS Number')]/following-sibling::td/text()").get()
-        mf = response.xpath("//th[contains(text(), 'Molecular Formula')]/following-sibling::td/text()").get()
-        mw = response.xpath("//th[contains(text(), 'Molecular Weight')]/following-sibling::td/text()").get()
-        info1 = response.xpath("//th[contains(text(), 'IUPAC Name')]/following-sibling::td/text()").get()
-        appearance = response.xpath("//th[contains(text(), 'Appearance')]/following-sibling::td/text()").get()
+        cat_no = response.xpath("//th[contains(text(), 'CAT Number') or contains(text(), 'CAT NUMBER')]/following-sibling::td/text()").get()
+        en_name = response.xpath("//th[contains(text(), 'API Category') or contains(text(), 'API CATEGORY')]/following-sibling::td/text()").get()
+        cas = response.xpath("//th[contains(text(), 'CAS Number') or contains(text(), 'CAS NUMBER')]/following-sibling::td/text()").get()
+        mf = response.xpath("//th[contains(text(), 'Molecular Formula') or contains(text(), 'MOLECULAR FORMULA')]/following-sibling::td/text()").get()
+        mw = response.xpath("//th[contains(text(), 'Molecular Weight') or contains(text(), 'MOLECULAR WEIGHT')]/following-sibling::td/text()").get()
+        info1 = response.xpath("//th[contains(text(), 'IUPAC Name') or contains(text(), 'IUPAC NAME')]/following-sibling::td/text()").get()
+        appearance = response.xpath("//th[contains(text(), 'Appearance') or contains(text(), 'APPEARANCE')]/following-sibling::td/text()").get()
         info2 = response.xpath("//th[contains(text(), 'STORAGE CONDITION') or contains(text(), 'Storage Condition')]/following-sibling::td/text()").get()
         img_url = response.xpath("//figure[@class='woocommerce-product-gallery__wrapper']//a/@href").get()
 
