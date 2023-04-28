@@ -76,8 +76,6 @@ class LGCSpider(JsonSpider):
         d = response.meta.get("product", None)
         dd = response.meta.get("package", None)
 
-        package = parse_package(response.xpath("//*[contains(text(), 'Pack Size:')]/following-sibling::p/text()").get())
-
         prd_attrs = json.dumps({
             "api_name": ''.join(response.xpath("//*[contains(text(), 'API Family')]/following-sibling::a/text()").getall()),
             "inchi": response.xpath("//*[contains(text(), 'InChI')]/following-sibling::p/text()").get(),
@@ -95,7 +93,11 @@ class LGCSpider(JsonSpider):
             "//*[contains(text(), 'Shipping Temperature')]/following-sibling::p/text()").get()
         d["smiles"] = response.xpath("//*[contains(text(), 'SMILES')]/following-sibling::p/text()").get()
         d["attrs"] = prd_attrs
-        dd["package"] = package
-        dd["stock_num"] = response.xpath("//*[@class='orderbar__stock-title in-stock-green']/text()").get()
         yield RawData(**d)
+
+        package = response.xpath("//*[contains(text(), 'Pack Size:')]/following-sibling::p/text()").get()
+        if not package:
+            return
+        dd["package"] = parse_package(package)
+        dd["stock_num"] = response.xpath("//*[@class='orderbar__stock-title in-stock-green']/text()").get()
         yield ProductPackage(**dd)
