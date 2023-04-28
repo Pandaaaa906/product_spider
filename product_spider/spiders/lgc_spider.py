@@ -68,7 +68,7 @@ class LGCSpider(JsonSpider):
         if current_page_num is not None:
             current_page_num = current_page_num + 1
             yield scrapy.Request(
-                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=LGC%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=&country=US&lang=en&defaultB2BUnit=",
                 callback=self.parse
             )
 
