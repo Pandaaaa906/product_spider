@@ -63,7 +63,9 @@ class ClearsynthSpider(BaseSpider):
 
     def parse_catalog(self, response, **kwargs):
         """获取全部分类(包含其他分类)"""
-        urls = response.xpath("//div[@class='icon-box-title']//a/@href").getall()
+        urls = response.xpath(
+            "//strong[not (contains(text(), 'BULK COMPOUNDS'))]/parent::h3/parent::div//div[@class='col-sm-2']/a/@href"
+        ).getall()
         for url in urls:
             url = urljoin(self.base_url, url)
             yield Request(
@@ -73,7 +75,7 @@ class ClearsynthSpider(BaseSpider):
 
     def parse_prd_list(self, response):
         """解析产品列表"""
-        urls = response.xpath("//*[@class='product-img-action-wrap']/a/@href").getall()
+        urls = response.xpath("//td[@data-label='CAT No.']/a/@href").getall()
         for url in urls:
             yield Request(
                 url=url,
@@ -128,8 +130,8 @@ class ClearsynthSpider(BaseSpider):
         if not rows:
             return
         for row in rows:
-            raw_package = row.xpath(".//td[last()-2]//text()").get()
-            raw_cost = parse_cost(row.xpath(".//td[last()-3]//text()").get())
+            raw_package = row.xpath(".//td[last()-1]//text()").get()
+            raw_cost = parse_cost(row.xpath(".//td[last()-2]//text()").get())
             if raw_package is None:
                 continue
             package = ''.join(raw_package.split()).lower()

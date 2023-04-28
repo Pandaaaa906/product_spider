@@ -106,6 +106,7 @@ ITEM_PIPELINES = {
     'product_spider.pipelines.DropNullCatNoPipeline': 100,
     'product_spider.pipelines.FilterNAValue': 200,
     'product_spider.pipelines.ParseCostPipeline': 245,
+    'product_spider.pipelines.ParseRawSupplierQuotationPipeline': 250,
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 

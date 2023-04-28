@@ -19,7 +19,7 @@ class DaicelSpider(BaseSpider):
             )
 
     def parse_v2(self, response, **kwargs):
-        rows = response.xpath("//div[@class='elementor-container elementor-column-gap-default dddd']/div")
+        rows = response.xpath("//ul[@class='az-columns max-5-columns']/li")
         for row in rows:
             url = row.xpath(".//a/@href").get()
             yield Request(
@@ -28,7 +28,7 @@ class DaicelSpider(BaseSpider):
             )
 
     def parse_list(self, response):
-        rows = response.xpath("//ul[@class='products columns-3']//li")
+        rows = response.xpath("//div[@class='thumbnail-wrapper']")
         for row in rows:
             yield Request(
                 url=row.xpath("./a/@href").get(),
@@ -42,15 +42,15 @@ class DaicelSpider(BaseSpider):
             )
 
     def parse_detail(self, response):
-        parent = response.xpath("//nav[@class='woocommerce-breadcrumb']/a[last()]/text()").get()
-        cat_no = response.xpath("//th[contains(text(), 'CAT Number')]/following-sibling::td/p/text()").get()
-        en_name = response.xpath("//th[contains(text(), 'API Category')]/following-sibling::td/p/text()").get()
-        cas = response.xpath("//th[contains(text(), 'CAS Number')]/following-sibling::td/p/text()").get()
-        mf = response.xpath("//th[contains(text(), 'Molecular Formula')]/following-sibling::td/p/text()").get()
-        mw = response.xpath("//th[contains(text(), 'Molecular Weight')]/following-sibling::td/p/text()").get()
-        info1 = response.xpath("//th[contains(text(), 'IUPAC Name')]/following-sibling::td/p/text()").get()
-        appearance = response.xpath("//th[contains(text(), 'Appearance')]/following-sibling::td/p/text()").get()
-        info2 = response.xpath("//th[contains(text(), 'Storage Condition ')]/following-sibling::td/p/text()").get()
+        parent = response.xpath("//div[@class='breadcrumbs-container']/a[last()]/text()").get()
+        cat_no = response.xpath("//th[contains(text(), 'CAT Number') or contains(text(), 'CAT NUMBER')]/following-sibling::td/text()").get()
+        en_name = response.xpath("//th[contains(text(), 'API Category') or contains(text(), 'API CATEGORY')]/following-sibling::td/text()").get()
+        cas = response.xpath("//th[contains(text(), 'CAS Number') or contains(text(), 'CAS NUMBER')]/following-sibling::td/text()").get()
+        mf = response.xpath("//th[contains(text(), 'Molecular Formula') or contains(text(), 'MOLECULAR FORMULA')]/following-sibling::td/text()").get()
+        mw = response.xpath("//th[contains(text(), 'Molecular Weight') or contains(text(), 'MOLECULAR WEIGHT')]/following-sibling::td/text()").get()
+        info1 = response.xpath("//th[contains(text(), 'IUPAC Name') or contains(text(), 'IUPAC NAME')]/following-sibling::td/text()").get()
+        appearance = response.xpath("//th[contains(text(), 'Appearance') or contains(text(), 'APPEARANCE')]/following-sibling::td/text()").get()
+        info2 = response.xpath("//th[contains(text(), 'STORAGE CONDITION') or contains(text(), 'Storage Condition')]/following-sibling::td/text()").get()
         img_url = response.xpath("//figure[@class='woocommerce-product-gallery__wrapper']//a/@href").get()
 
         d = {
@@ -64,7 +64,7 @@ class DaicelSpider(BaseSpider):
             "appearance": appearance,
             "info1": info1,
             "info2": info2,
-            "img_url": img_url,
+            "img_url": urljoin("https://", img_url),
             "prd_url": response.url,
         }
         yield RawData(**d)

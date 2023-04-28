@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 
 from scrapy import FormRequest, Request
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.functions import strip
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -44,13 +45,15 @@ class NifdcSpider(BaseSpider):
 
     def parse_list(self, response):
         tmp = './/input[@name={!r}]/@value'
-        rows = response.xpath('//table[@class="list_tab"]/tr')
+        rows = response.xpath('//table[@class="list_tab"]//tr')
         for row in rows:
             coa = row.xpath('.//td[last()]/a/@href').get()
             batch_name = row.xpath(tmp.format('xsBatch_no')).get()  # 批号
             usage = row.xpath(tmp.format('used')).get()  # 用途
+            max_purchase_num = row.xpath(".//input[@name='zdgmshu']/parent::td/text()").get()  # 最大购买数量
             prd_attrs = json.dumps({
                 "usage": usage,
+                "max_purchase_num": strip(max_purchase_num),
             })
             d = {
                 'brand': self.brand,

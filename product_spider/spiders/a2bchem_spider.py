@@ -59,6 +59,7 @@ class A2bchemSpider(BaseSpider):
 
         rows = response.xpath("//table[@class='q_table']/tbody/tr")
         for row in rows:
+            original_price = row.xpath(".//td[4]/text()").get()
             price = row.xpath(".//td[5]/text()").get('')
             stock_info = row.xpath(".//td[3]/text()").get()
             dd = {
@@ -97,7 +98,7 @@ class A2bchemSpider(BaseSpider):
                 'cat_no': d["cat_no"],
                 'package': dd['package'],
                 'discount_price': dd['cost'],
-                'price': dd['cost'],
+                'price': original_price,
                 'cas': d["cas"],
                 'currency': dd["currency"],
             }

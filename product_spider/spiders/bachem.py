@@ -80,15 +80,14 @@ class BachemSpider(BaseSpider):
                 continue
             package = row_data.split(" ")[0]
             raw_cost = row_data.split(" ")[-1]
-            cost = re.search(r'(?<=\(\$\xa0)\d+(?=\))', raw_cost)
-            if cost:
-                cost = cost.group()
+            cost = raw_cost1.group() if(raw_cost1 := re.search(r'(?<=\(€\xa0)\d+(?=\))', raw_cost)) is not None else None
+
             dd = {
                 'brand': 'bachem',
                 'cat_no': cat_no,
                 'package': package,
                 "cost": cost,
-                "currency": "USD",
+                "currency": "EUR",
             }
             ddd = {
                 "platform": self.name,
