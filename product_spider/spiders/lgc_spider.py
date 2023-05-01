@@ -1,5 +1,5 @@
 import json
-from urllib.parse import parse_qsl, urlparse
+from urllib import parse
 import scrapy
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.parsepackage import parse_package
@@ -22,7 +22,8 @@ class LGCSpider(JsonSpider):
     name = "lgc"
     allowd_domains = ["lgcstandards.com"]
     start_urls = [
-        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=::itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=MM%3A%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
+        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=%3A%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
     ]
     base_url = "https://www.lgcstandards.com/US/en"
     custom_settings = {
@@ -64,11 +65,16 @@ class LGCSpider(JsonSpider):
                     "package": dd,
                 }
             )
-        current_page_num = int(dict(parse_qsl(urlparse(response.url).query)).get('currentPage', None))
+        parsed_url = parse.urlparse(response.url)
+        query_d = dict(parse.parse_qsl(parsed_url.query))
+        current_page_num = query_d.get('currentPage', None)
         if current_page_num is not None:
-            current_page_num = current_page_num + 1
+            current_page_num = int(current_page_num) + 1
+            query_d['currentPage'] = current_page_num
+            parsed_url = list(parsed_url)
+            parsed_url[4] = parse.urlencode(query_d)
             yield scrapy.Request(
-                url=f"https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage={current_page_num}&q=::itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=",
+                url=parse.urlunparse(parsed_url),
                 callback=self.parse
             )
 
