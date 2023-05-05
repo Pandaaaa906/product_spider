@@ -57,6 +57,10 @@ class ParseCostPipeline:
         cost = adapter.get('cost')
         if not cost:
             return item
+        if isinstance(cost, (int, float)):
+            return item
+        if not isinstance(cost, str):
+            raise DropItem(f"cost value is invalid: {cost!r}")
         cost = cost.translate(T_COMMA)
         if raw_cost := re.search(r'(\d+(\.\d+)?)', parse_cost(cost)):
             cost = raw_cost.group()
