@@ -1,78 +1,75 @@
-import json
-import re
-from random import random
-from urllib.parse import urlsplit, parse_qsl, urlencode, urljoin
+from time import time
+from urllib.parse import urlencode, urljoin
 
 import scrapy
-from scrapy import Request
+from scrapy import Request, FormRequest
 
 from product_spider.items import SupplierProduct, RawSupplierQuotation
-from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
-query_template = {
-    'gloabSearchVo.type': '4',
-    'gloabSearchVo.listType': '1',
-    'gloabSearchVo.sortField': 'cn_len',
-    'gloabSearchVo.asc': 'true',
-    'Pagelist': '1',
-    'page.pageSize': '50',
+
+brands_mapping = {
+    "dre.e": "dre"
 }
 
 
 class TansooleSpider(BaseSpider):
     name = "tansoole"
-    allowd_domains = ["tansoole.com/"]
-    base_url = "http://www.tansoole.com/"
-
-    def start_requests(self):
-        brand = 'DR'
-        yield Request(
-            f'https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString={brand}&t={random()}',
-            meta={'brand': brand}
-        )
-
-    def parse(self, response, **kwargs):
-        rows = response.xpath('//ul[@class="show-list show-list-con"]')
-        for row in rows:
-            d = {
-                'platform': 'tansoole',
-                'source_id': row.xpath('./li[1]/a/text()').get(),
-                'vendor': 'tansoole',
-                'brand': row.xpath('./li[4]/span/text()').get(),
-                'vendor_origin': 'China',
-                'vendor_type': 'trader',
-                'cat_no': strip(''.join(row.xpath('./li[2]//text()').getall())),
-                'chs_name': strip(row.xpath('./li[3]//a/text()').get()),
-                'package': row.xpath('./li[5]/span/text()').get(),
-                'cas': strip(row.xpath('./li[6]/span/text()').get()),
-                'purity': strip(row.xpath('./li[7]/span/text()').get()),
-                'info1': strip(row.xpath('./li[8]//text()').get()),
-                'price': strip(row.xpath('./li[9]/span/span/text()').get()),
-                'delivery': strip(''.join(row.xpath('./li[11]//text()').getall())),
-            }
-            yield SupplierProduct(**d)
-
-        next_page = response.xpath('//input[@name="next" and not(@disabled)]')
-        if not next_page:
-            return
-        query = dict(parse_qsl(urlsplit(response.url).query))
-        next_page_d = query_template.copy()
-        next_page_d.update(**query)
-        next_page_d['page.currentPageNo'] = str(
-            int(response.xpath('//input[@name="page.currentPageNo"]/@value').get()) + 1)
-        next_page_d['page.totalCount'] = response.xpath('//input[@name="page.totalCount"]/@value').get()
-        base_url, *_ = response.url.split('?')
-        yield Request(f'{base_url}?{urlencode(next_page_d)}')
-
-
-class TansooleDreSpider(BaseSpider):
-    name = "tansoole_dre"
     start_urls = ["https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString=DRE"]
     base_url = "https://www.tansoole.com/"
+    url_search_api = "https://www.tansoole.com/search/search-result.htm"
+    url_search_html = "https://www.tansoole.com/search/search.htm"
+
+    @staticmethod
+    def _parse_brand(brand: str, default=None):
+        # TODO Move to pipeline
+        if not brand:
+            return default
+        if (brand := brand.lower()) in brands_mapping:
+            return brands_mapping[brand]
+        return brand
+
+    @staticmethod
+    def _get_search_params(response):
+        cur_page_no = (
+                response.xpath('//input[@id="gloabSearchVo_page_currentPageNo"]/@value').get()
+                or response.xpath('//input[@id="currentPageNo"]/@value').get()
+                or '1'
+        )
+        page_size = (
+                response.xpath('//input[@id="gloabSearchVo_page_pageSize"]/@value').get()
+                or response.xpath('//input[@id="pageSize"]/@value').get()
+                or '50'
+        )
+        d = {
+            "gloabSearchVo.queryString": response.xpath('//input[@name="gloabSearchVo.queryString"]/@value').get(''),
+            "gloabSearchVo.sortField": response.xpath('//input[@name="gloabSearchVo.sortField"]/@value').get(
+                'cn_len'),
+            "gloabSearchVo.asc": response.xpath('//input[@name="gloabSearchVo.asc"]/@value').get('true'),
+            "token": response.xpath('//input[@id="gloabSearchVo_token"]/@value').get(''),
+            "page.currentPageNo": cur_page_no,
+            "page.pageSize": page_size,
+            "t": str(int(time() * 1000), ),
+            "pci": "4896,4897,5070",
+        }
+        if pro_title := response.xpath('//input[@name="proTitle"]/@value').get():
+            d["proTitle"] = pro_title
+        if pro := response.xpath('//input[@name="pro"]/@value').get():
+            d["pro"] = pro
+        return d
 
     def parse(self, response, **kwargs):
+        d = self._get_search_params(response)
+        yield FormRequest(
+            f"{self.url_search_api}?t={int(time() * 1000)}",
+            formdata=d,
+            callback=self.parse_list,
+        )
+
+    def parse_list(self, response, **kwargs):
         """dre价格在泰坦官网获取"""
+        if "非法请求" in response.text:
+            self.log(f"非法请求: {response.url}")
         rows = response.xpath("//ul[@class='show-list show-list-head']/following-sibling::ul/li[position()=1]")
         for row in rows:
             url = urljoin(self.base_url, row.xpath("./a/@href").get())
@@ -81,13 +78,16 @@ class TansooleDreSpider(BaseSpider):
                 callback=self.parse_package
             )
         # 获取下一页
-        next_url = response.xpath("//input[@value='下页']/@onclick").get()
-        if next_url is not None:
-            next_page_number = re.search(r'(?<==)\d+(?=;)', next_url).group()
-            yield scrapy.Request(
-                url=f"https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString=dre&gloabSearchVo.nav=1&t=0.10001398760159042&page.currentPageNo={next_page_number}",
-                callback=self.parse
-            )
+        d = self._get_search_params(response)
+        cur_page = int(d["page.currentPageNo"])
+        total_page = int(response.xpath('//input[@id="pageTotalPageCount"]/@value').get('1'))
+        if cur_page >= total_page is None:
+            return
+        d["page.currentPageNo"] = str(cur_page + 1)
+        yield Request(
+            f"{self.url_search_html}?{urlencode(d)}",
+            callback=self.parse,
+        )
 
     def parse_package(self, response):
         prd_num = response.xpath("//input[@id='productNumEntryId']/@value").get()
@@ -108,7 +108,7 @@ class TansooleDreSpider(BaseSpider):
 
     def parse_cost(self, response):
         prd_url = response.meta.get("prd_url", None)
-        res = json.loads(response.text).get("data", None)
+        res = response.json().get("data", None)
         if not res:
             return
         source_id = res.get("id", None)
@@ -121,29 +121,29 @@ class TansooleDreSpider(BaseSpider):
         price = res.get("bigDecimalFormatPriceDesc", None)
         cost = res.get("rebateDisCountPrice", None)
         stock_num = res.get("transportDesc", None)
-
+        brand = self._parse_brand(res.get('brand'))
         ddd = {
             "platform": "tansoole",
-            "vendor": "tansoole",
-            "brand": "dre",
-            "cat_no": cat_no,
-            "prd_url": prd_url,
             "source_id": source_id,
+            "vendor": "tansoole",
+            "brand": brand,
+            "cat_no": cat_no,
+            "chs_name": chs_name,
+            "package": package,
+            "prd_url": prd_url,
             "price": price,
             "cost": cost,
             "stock_num": stock_num,
-            "chs_name": chs_name,
             "delivery": delivery,
             "expiry_date": expiry_date,
-            "package": package,
             "currency": "RMB",
         }
 
         dddd = {
             "platform": self.name,
             "vendor": self.name,
-            "brand": self.name,
-            "source_id":  f'{self.name}_{cat_no}',
+            "brand": brand,
+            "source_id": f'{brand}_{cat_no}',
             'cat_no': cat_no,
             'package': package,
             'discount_price': cost,
