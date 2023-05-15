@@ -339,9 +339,15 @@ class AnpelSpider(BaseSpider):
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
         'RETRY_HTTP_CODES': [403],
-        'CONCURRENT_REQUESTS': 2,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
-        'CONCURRENT_REQUESTS_PER_IP': 2,
+        'RETRY_TIMES': 10,
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/107.0.0.0 Safari/537.36'
+        ),
+        'CONCURRENT_REQUESTS': 8,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 5,
+        'CONCURRENT_REQUESTS_PER_IP': 5,
     }
 
     def is_proxy_invalid(self, request, response):
