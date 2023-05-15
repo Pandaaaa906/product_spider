@@ -83,12 +83,12 @@ def gen_post_data(target, to_page, view_state, view_state_generator, event_valid
 
 
 brands_urls = [
-    # {"href": "Brands_0032.html", "alt": "ANPEL"},
+    {"href": "Brands_0032.html", "alt": "ANPEL"},
     # {"href": "Brands_0281.html", "alt": "anpel-检科院"},   # 500
     {"href": "Brands_B0249.html", "alt": "Anpel-农科院质标所"},
     {"href": "Brands_402.html", "alt": "Anpel-国家粮食局"},
-    # {"href": "Brands_0134.html", "alt": "CNW"},
-    # {"href": "Brands_0181.html", "alt": "o2si"},
+    {"href": "Brands_0134.html", "alt": "CNW"},
+    {"href": "Brands_0181.html", "alt": "o2si"},
     # {"href": "Brands_0098.html", "alt": "Dr"},
     {"href": "Brands_401.html", "alt": "DR毒素"},
     {"href": "Brands_405.html", "alt": "安谱行政"},
