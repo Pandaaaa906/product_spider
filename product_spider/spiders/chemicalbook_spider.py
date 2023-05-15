@@ -1,5 +1,4 @@
 import json
-import logging
 from urllib.parse import urljoin
 import scrapy
 from scrapy import FormRequest
@@ -9,8 +8,6 @@ from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 
 from product_spider.utils.spider_mixin import BaseSpider
-
-logger = logging.getLogger(__name__)
 
 
 class ChemicalBookSpider(BaseSpider):
@@ -43,14 +40,14 @@ class ChemicalBookSpider(BaseSpider):
 
     def is_proxy_invalid(self, request, response):
         if response.status in {403, }:
-            logger.warning(f'status code:{response.status}, {request.url}')
+            self.logger.warning(f'status code:{response.status}, {request.url}')
             return True
         if '系统忙' in response.text[:50]:
-            logger.warning(f'system busy: {request.url}')
+            self.logger.warning(f'system busy: {request.url}')
             return True
         if request.url.startswith('https://www.chemicalbook.com/ShowAllProductByIndexID') \
                 and not bool(response.xpath("//div[@id='mainDiv']//tr/td[1]/a")):
-            logger.warning(f'empty cas list: {request.url}')
+            self.logger.warning(f'empty cas list: {request.url}')
             return True
         return False
 
