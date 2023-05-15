@@ -85,7 +85,7 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #    'product_spider.middlewares.JkSpiderMiddleware': 543,
 # }
 
-PROXY_POOL_URL = "http://192.168.5.246:5555/random"
+PROXY_POOL_URL = getenv("PROXY_POOL_URL", "http://192.168.5.246:5555/random")
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {

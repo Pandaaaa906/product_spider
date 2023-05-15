@@ -323,6 +323,7 @@ brands_urls = [
     {"href": "Brands_0385.html", "alt": "广州牧高"},
 ]
 
+
 # TODO 破解图片验证码
 class AnpelSpider(BaseSpider):
     name = "anpel"
@@ -334,10 +335,20 @@ class AnpelSpider(BaseSpider):
     ]
 
     custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'RETRY_HTTP_CODES': [403],
         'CONCURRENT_REQUESTS': 2,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
         'CONCURRENT_REQUESTS_PER_IP': 2,
     }
+
+    def is_proxy_invalid(self, request, response):
+        if response.status in {403, }:
+            self.logger.warning(f'status code:{response.status}, {request.url}')
+            return True
+        return False
 
     def start_requests(self):
         for item in brands_urls:
