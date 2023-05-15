@@ -351,8 +351,13 @@ class AnpelSpider(BaseSpider):
     }
 
     def is_proxy_invalid(self, request, response):
+        proxy = request.meta.get('proxy')
         if response.status in {403, }:
             self.logger.warning(f'status code:{response.status}, {request.url}')
+            return True
+        if "VerifyIP" in response.url:
+            detected_ip = response.xpath('//span[@id="lblIP"]/text()').get()
+            self.logger.warning(f"IP being detected {detected_ip}, using proxy {proxy}")
             return True
         return False
 
