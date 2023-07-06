@@ -30,7 +30,7 @@ class RandomProxyMiddleWare:
             raise NotConfigured
         self.PROXY_POOL_URL = proxy_url
         self.refresh_proxy()
-        if f := getattr(spider, 'is_proxy_invalid', None):
+        if f := getattr(spider, 'is_proxy_invalid', self.default_is_proxy_invalid):
             self.is_proxy_invalid = f
 
     @classmethod
@@ -63,4 +63,11 @@ class RandomProxyMiddleWare:
         logger.warning(f"{exception}: {request.url}")
         return
 
+    @staticmethod
+    def default_is_proxy_invalid(request, response):
+        proxy = request.meta.get('proxy')
+        if response.status in {503, 403}:  # TODO dynamic settings
+            logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
+            return True
+        return False
 
