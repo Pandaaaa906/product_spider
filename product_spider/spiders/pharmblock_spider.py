@@ -14,6 +14,25 @@ class PharmBlockSpider(BaseSpider):
     base_url = "https://product.pharmablock.com/"
     brand = '南京药石'
 
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'RETRY_HTTP_CODES': [503],
+        'RETRY_TIMES': 10,
+
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'CONCURRENT_REQUESTS_PER_IP': 2,
+    }
+
+    def is_proxy_invalid(self, request, response):
+        proxy = request.meta.get('proxy')
+        if response.status in {503, 403}:
+            self.logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
+            return True
+        return False
+
     def make_url(self, page='1', category_id=''):
         url = 'https://product.pharmablock.com/Products/GetMultiProductList?'
         d = {
