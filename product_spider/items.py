@@ -312,7 +312,7 @@ class SupplierProduct(scrapy.OrderedItem):
 
 class RawSupplierQuotation(scrapy.OrderedItem):
     platform = scrapy.Field()
-    source_id = scrapy.Field()
+    source_id = scrapy.Field()  # 如：{平台代号}_{产品货号}
     vendor = scrapy.Field()
     brand = scrapy.Field()
     cat_no = scrapy.Field()

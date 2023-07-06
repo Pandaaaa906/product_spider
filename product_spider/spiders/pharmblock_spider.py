@@ -3,7 +3,7 @@ from urllib.parse import urlencode, urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, RawSupplierQuotation
 from product_spider.utils.functions import strip
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
@@ -107,7 +107,8 @@ class PharmBlockSpider(BaseSpider):
 
         rows = response.xpath('//div[@class="table-1"]//tbody/tr')
         for row in rows:
-            package = {
+            package = row.xpath('./td[1]/text()').get()
+            dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
@@ -115,4 +116,18 @@ class PharmBlockSpider(BaseSpider):
                 'stock_num': row.xpath('./td[5]/text()').get(),
                 'currency': 'RMB',
             }
-            yield ProductPackage(**package)
+            ddd = {
+                "platform": self.name,
+                "source_id": f"{self.name}_{cat_no}",
+                "vendor": self.name,
+                "brand": self.name,
+                "cat_no": cat_no,
+                "package": package,
+                "discount_price": dd['cost'],
+                "price": dd['cost'],
+                "currency": dd["currency"],
+                "stock_num": dd["stock_num"],
+                "cas": d["cas"],
+            }
+            yield ProductPackage(**dd)
+            yield RawSupplierQuotation(**ddd)
