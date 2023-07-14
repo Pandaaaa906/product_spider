@@ -20,8 +20,29 @@ class AladdinSpider(BaseSpider):
         "x-requested-with": "XMLHttpRequest",
     }
 
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'RETRY_HTTP_CODES': [403],
+        'RETRY_TIMES': 10,
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/107.0.0.0 Safari/537.36'
+        )
+    }
+
+    def is_proxy_invalid(self, request, response):
+        if 'document.location.reload' in response.text:
+            return True
+        return False
+
     def parse(self, response, **kwargs):
-        nodes = response.xpath('//div[@id="store.menu"]//a[not(following-sibling::ul)]')
+        nodes = response.xpath(
+            '//div[@id="store.menu"]//a[not(following-sibling::ul)'
+            ' and not(contains(@href,"faq")) and not(contains(@href,"points-exchange"))]'
+        )
         for node in nodes:
             url = node.xpath("./@href").get()
             parent = node.xpath("./span/text()").get()
