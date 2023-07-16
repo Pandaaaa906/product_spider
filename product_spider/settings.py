@@ -44,6 +44,7 @@ DATABASE = {"engine": DATABASE_ENGINE,
                 "host": DATABASE_HOST,
                 "port": DATABASE_PORT,
                 "application_name": BOT_NAME,
+                "cp_reconnect": True,
             }
             }
 
