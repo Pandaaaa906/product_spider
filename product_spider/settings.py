@@ -44,8 +44,10 @@ DATABASE = {"engine": DATABASE_ENGINE,
                 "host": DATABASE_HOST,
                 "port": DATABASE_PORT,
                 "application_name": BOT_NAME,
+            },
+            "cp_params": {
                 "cp_reconnect": True,
-            }
+            },
             }
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
