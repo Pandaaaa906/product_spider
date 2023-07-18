@@ -4,6 +4,7 @@ from typing import Optional, Callable
 import requests
 from scrapy import Request
 from scrapy.exceptions import NotConfigured
+from twisted.internet.error import TCPTimedOutError
 
 logger = logging.getLogger("scrapy.proxies")
 
@@ -61,6 +62,8 @@ class RandomProxyMiddleWare:
         if request.meta.get('proxy') == self.proxy:
             self.refresh_proxy()
         logger.warning(f"{exception}: {request.url}")
+        if isinstance(exception, TCPTimedOutError):
+            return wrap_failed_request(request)
         return
 
     @staticmethod

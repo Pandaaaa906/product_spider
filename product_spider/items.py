@@ -122,7 +122,7 @@ class RawData(scrapy.OrderedItem):
     einecs = scrapy.Field()
     shipping_group = scrapy.Field()  # 运输方式
     shipping_info = scrapy.Field()  # 运输条件
-    attrs = scrapy.Field()  # 产品额外信息
+    attrs = scrapy.Field()  # 产品额外信息, Json格式
 
     class Meta:
         indexes = (
