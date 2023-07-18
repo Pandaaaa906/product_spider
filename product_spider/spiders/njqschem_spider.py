@@ -3,6 +3,7 @@ from urllib.parse import urljoin
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage
+from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -52,18 +53,18 @@ class NJQSSpider(BaseSpider):
             "brand": self.name,
             "cat_no": cat_no,
             "parent": response.meta.get("parent"),
-            "en_name": (en_name := response.xpath(tmpl.format("Product Name：")).get()) and en_name.strip(),
-            "cas": (cas := response.xpath(tmpl.format("Cas No.：")).get()) and cas.strip(),
-            "purity": (purity := response.xpath(tmpl.format("Purity：")).get()) and purity.strip(),
+            "en_name": strip(response.xpath(tmpl.format("Product Name：")).get()),
+            "cas": strip(response.xpath(tmpl.format("Cas No.：")).get()),
+            "purity": strip(response.xpath(tmpl.format("Purity：")).get()),
             "prd_url": response.url,
             "img_url": rel_img and urljoin(response.url, rel_img),
         }
         dd = {
             "brand": self.name,
             "cat_no": cat_no,
-            "package": (pkg := response.xpath(tmpl.format("Pack：")).get()) and pkg.strip(),
-            "purity": d["purity"],
-            "info": (price := response.xpath(tmpl.format("Price：")).get()) and price.strip(),
+            "package": strip(pkg := response.xpath(tmpl.format("Pack：")).get()),
+            "purity": strip(d["purity"]),
+            "info": strip(price := response.xpath(tmpl.format("Price：")).get()),
         }
         yield RawData(**d)
         yield ProductPackage(**dd)
