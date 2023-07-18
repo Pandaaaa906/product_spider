@@ -24,7 +24,7 @@ class AladdinSpider(BaseSpider):
         "DOWNLOADER_MIDDLEWARES": {
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
-        'RETRY_HTTP_CODES': [403],
+        'RETRY_HTTP_CODES': [403, 504, 503, ],
         'RETRY_TIMES': 10,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -34,6 +34,8 @@ class AladdinSpider(BaseSpider):
     }
 
     def is_proxy_invalid(self, request, response):
+        if response.status_code in {403, 504}:
+            return True
         if 'document.location.reload' in response.text:
             return True
         return False
