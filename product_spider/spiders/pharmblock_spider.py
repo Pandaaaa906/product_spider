@@ -27,7 +27,7 @@ class PharmBlockSpider(BaseSpider):
         # "DOWNLOADER_MIDDLEWARES": {
         #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         # },
-        'RETRY_HTTP_CODES': [503],
+        'RETRY_HTTP_CODES': [503, 504],
         'RETRY_TIMES': 10,
 
         'CONCURRENT_REQUESTS': 8,
@@ -128,7 +128,8 @@ class PharmBlockSpider(BaseSpider):
             children = category.get('items', [])
             if children:
                 yield from self._iter_end_category(children)
-            yield category
+            else:
+                yield category
 
     def parse(self, response, **kwargs):
         j_obj = json.loads(response.text)
@@ -136,7 +137,8 @@ class PharmBlockSpider(BaseSpider):
             category_id = category.get('categoryId')
             yield self.make_products_request(
                 page=1, category_id=category_id, callback=self.parse_list,
-                meta={'cur_page': 1, 'category_id': category_id}
+                meta={'cur_page': 1, 'category_id': category_id,
+                      'parent': category.get('categoryNameEn'), 'parent_cn': category.get('categoryNameCn')}
             )
 
     def parse_list(self, response):
@@ -147,14 +149,27 @@ class PharmBlockSpider(BaseSpider):
             return
         for row in data.get('list', []):
             cat_no = row.get('productCode')
-            yield self.make_product_request(
-                key=cat_no,
-                callback=self.parse_detail,
-                meta=response.meta,
+            yield Request(
+                url=f"https://product.pharmablock.com/cn/product/{cat_no}",
+                callback=self.parse_nothing,
+                meta={**response.meta, 'cat_no': cat_no},
             )
         yield self.make_products_request(
             page=page, category_id=category_id, callback=self.parse_list,
-            meta={'cur_page': page, 'category_id': category_id}
+            meta={**response.meta, 'cur_page': page, 'category_id': category_id}
+        )
+
+    def parse_nothing(self, response):
+        """
+        为了不重复获取产品信息
+        :param response:
+        :return:
+        """
+        cat_no = response.meta.get('cat_no')
+        yield self.make_product_request(
+            key=cat_no,
+            callback=self.parse_detail,
+            meta=response.meta,
         )
 
     def parse_detail(self, response):
@@ -170,6 +185,7 @@ class PharmBlockSpider(BaseSpider):
             "nmr_url": prd.get("nmrUrl"),
             "density": prd.get("density"),
             "ghs_code": prd.get("ghsCode"),
+            "category": ';'.join(filter(lambda x: x, map(lambda x: x.get('categoryNameCN'), prd.get('bbCategoryList', [])))),
         }
         cas = prd.get("casNum")
         img_url = None
@@ -179,6 +195,7 @@ class PharmBlockSpider(BaseSpider):
         d = {
             "brand": self.brand,
             "cat_no": prd.get("productCode"),
+            "parent": ';'.join(map(lambda x: x['categoryNameEN'], prd.get('bbCategoryList', []))),
             "en_name": prd.get("nameEN"),
             "chs_name": prd.get("nameCN"),
             "cas": cas,
