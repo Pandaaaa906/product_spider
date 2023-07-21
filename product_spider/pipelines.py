@@ -14,6 +14,8 @@ from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 
 T_COMMA = str.maketrans('', '', ',')
+T_SPACES = str.maketrans('\xa0', ' ', '')
+
 
 class DropNullCatNoPipeline:
 
@@ -44,7 +46,10 @@ class StripPipeline:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         for key, value in adapter.items():
-            adapter[key] = strip(value) or None
+            v = strip(value)
+            if isinstance(v, str):
+                v = v.translate(T_SPACES)
+            adapter[key] = v
         return item
 
 
