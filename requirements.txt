@@ -3,7 +3,8 @@ scrapy~=2.5.0
 scrapyd~=1.2.1
 slybot
 logparser~=0.8.2
-pyopenssl~=23.2.0
+pyopenssl==22.0.0
+cryptography==38.0.4
 more_itertools
 pycryptodome~=3.14.1
 git+https://github.com/Pandaaaa906/ScrapyAutoDb.git
