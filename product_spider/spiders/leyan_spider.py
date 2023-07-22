@@ -53,7 +53,9 @@ class LeyanSpider(BaseSpider):
         return self._font_mapping[font_name]
 
     def decode_price(self, value: str, font_name):
-        return value.translate(self.get_font_map(font_name))
+        if isinstance(value, str):
+            return value.translate(self.get_font_map(font_name))
+        return value
 
     def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="row"]/div/a')
