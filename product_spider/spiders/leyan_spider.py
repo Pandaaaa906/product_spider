@@ -105,7 +105,7 @@ class LeyanSpider(BaseSpider):
         for row in rows:
             if not (package := row.xpath('./td[@id="packing"]/text()').get()):
                 continue
-            price_span = response.xpath('//span[@class="red"]/span[@class]')
+            price_span = response.xpath('//*[@class="red" or @class="font-blue"]/span[@class]')
             font_name = price_span.xpath('./@class').get()
             price = self.decode_price(price_span.xpath('./text()').get(), font_name)
             dd = {
