@@ -1,5 +1,10 @@
+import re
+from io import BytesIO
+from typing import Dict
 from urllib.parse import urljoin
 
+import requests
+from fontTools.ttLib import TTFont
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
@@ -7,11 +12,49 @@ from product_spider.spiders.cerilliant_spider import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
+                         'AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8'}
+
+
 class LeyanSpider(BaseSpider):
     name = "leyan"
     base_url = "http://www.leyan.com.cn/"
     start_urls = ['http://www.leyan.com.cn/product-center.html', ]
     brand = '乐研'
+
+    custom_settings = {
+        # "DOWNLOADER_MIDDLEWARES": {
+        #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        # },
+        'RETRY_HTTP_CODES': [503, 504, 429],
+        'RETRY_TIMES': 10,
+
+        'CONCURRENT_REQUESTS': 4,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
+        'CONCURRENT_REQUESTS_PER_IP': 4,
+    }
+
+    _font_mapping: Dict[str, str.maketrans] = {}
+    _font_code_mapping = {
+        '-1': '.', '-1#1': '/',
+        '-1#2': '0', '-1#3': '1', '-1#4': '2', '-1#5': '3', '-1#6': '4',
+        '-1#7': '5', '-1#8': '6', '-1#9': '7', '-1#10': '8', '-1#11': '9',
+    }
+
+    def _get_font_map(self, font_name: str):
+        font_id = (m := re.search(r'\d+', font_name)) and m.group()
+        r = requests.get(f'https://www.leyan.com/_font_/__font__{font_id}.ttf', headers=headers)
+        font = TTFont(BytesIO(r.content))
+        cmap = font.getBestCmap()
+        self._font_mapping[font_name] = str.maketrans({chr(k): self._font_code_mapping[v] for k, v in cmap.items()})
+
+    def get_font_map(self, font_name: str):
+        if font_name not in self._font_mapping:
+            self._get_font_map(font_name)
+        return self._font_mapping[font_name]
+
+    def decode_price(self, value: str, font_name):
+        return value.translate(self.get_font_map(font_name))
 
     def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="row"]/div/a')
@@ -23,6 +66,10 @@ class LeyanSpider(BaseSpider):
             yield Request(urljoin(self.base_url, rel), callback=self.parse_list)
 
     def parse_list(self, response):
+        category_urls = response.xpath('//x//a/@href').getall()
+        for category_url in category_urls:
+            yield Request(urljoin(response.url, category_url), callback=self.parse_list)
+
         rel_urls = response.xpath('//p[@class="products-thumb"]/a/@href').getall()
         for rel in rel_urls:
             yield Request(urljoin(response.url, rel), callback=self.parse_detail)
@@ -57,11 +104,14 @@ class LeyanSpider(BaseSpider):
         for row in rows:
             if not (package := row.xpath('./td[@id="packing"]/text()').get()):
                 continue
+            price_span = response.xpath('//span[@class="red"]/span[@class]')
+            font_name = price_span.xpath('./@class').get()
+            price = self.decode_price(price_span.xpath('./text()').get(), font_name)
             dd = {
                 'brand': self.name,
                 'cat_no': cat_no,
                 'package': package,
-                'cost': parse_cost(row.xpath("//span[@class='red']/text()").get()),
+                'cost': parse_cost(price),
                 'currency': 'RMB',
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
