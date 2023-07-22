@@ -13,7 +13,7 @@ from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSu
 def parse_cost(raw_cost):
     if not raw_cost:
         return None
-    cost = first(first(re.findall(r'(\d+(\.\d+)?)', raw_cost.replace(",", ''))), '')
+    cost = (m := re.search(r'(\d+(\.\d+)?)', raw_cost.replace(",", ''))) and m.group()
     return cost
 
 

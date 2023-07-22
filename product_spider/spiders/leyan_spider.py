@@ -8,7 +8,6 @@ from fontTools.ttLib import TTFont
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
-from product_spider.spiders.cerilliant_spider import parse_cost
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -111,7 +110,7 @@ class LeyanSpider(BaseSpider):
                 'brand': self.name,
                 'cat_no': cat_no,
                 'package': package,
-                'cost': parse_cost(price),
+                'cost': price,
                 'currency': 'RMB',
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
