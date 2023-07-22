@@ -7,7 +7,7 @@ RUN sed -i "s/archive.ubuntu.com/mirrors.aliyun.com/g" /etc/apt/sources.list \
   && git config --global http.sslverify false
 COPY requirements.txt /tmp/requirements
 RUN pip install -r /tmp/requirements
-RUN playwright install && playwright install-deps
+RUN playwright install chrome && playwright install-deps
 
 FROM prd_spider_base
 
