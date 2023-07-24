@@ -62,9 +62,7 @@ class RandomProxyMiddleWare:
         if request.meta.get('proxy') == self.proxy:
             self.refresh_proxy()
         logger.warning(f"{exception}: {request.url}")
-        if isinstance(exception, (TCPTimedOutError, ConnectionRefusedError)):
-            return wrap_failed_request(request)
-        return
+        return wrap_failed_request(request)
 
     @staticmethod
     def default_is_proxy_invalid(request, response):
