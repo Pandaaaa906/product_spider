@@ -24,10 +24,10 @@ class PharmBlockSpider(BaseSpider):
     encrypt_key = b"pb!@S@#@"
 
     custom_settings = {
-        # "DOWNLOADER_MIDDLEWARES": {
-        #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
-        # },
-        'RETRY_HTTP_CODES': [503, 504],
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'RETRY_HTTP_CODES': [503, 403, 504],
         'RETRY_TIMES': 10,
 
         'CONCURRENT_REQUESTS': 8,
@@ -37,7 +37,7 @@ class PharmBlockSpider(BaseSpider):
 
     def is_proxy_invalid(self, request, response):
         proxy = request.meta.get('proxy')
-        if response.status in {503, 403}:
+        if response.status in {503, 403, 504}:
             self.logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
             return True
         return False
@@ -143,7 +143,7 @@ class PharmBlockSpider(BaseSpider):
 
     def parse_list(self, response):
         j_obj = json.loads(response.text)
-        page = response.meta.get('cur_page', 0) + 1
+        page = (cur_page := response.meta.get('cur_page', 0)) + 1
         category_id = response.meta.get('category_id')
         if not (data := j_obj.get('data')):
             return
@@ -154,6 +154,9 @@ class PharmBlockSpider(BaseSpider):
                 callback=self.parse_nothing,
                 meta={**response.meta, 'cat_no': cat_no},
             )
+        total = data.get('total', 0)
+        if total < cur_page * 50:
+            return
         yield self.make_products_request(
             page=page, category_id=category_id, callback=self.parse_list,
             meta={**response.meta, 'cur_page': page, 'category_id': category_id}
