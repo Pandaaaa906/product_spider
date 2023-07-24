@@ -29,8 +29,8 @@ class BidepharmSpider(BaseSpider):
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
         'RETRY_HTTP_CODES': [503, 504],
-        'RETRY_TIMES': 10,
-        'CONCURRENT_REQUESTS': 2
+        'RETRY_TIMES': 20,
+        'CONCURRENT_REQUESTS': 3
     }
 
     def is_proxy_invalid(self, request, response):

@@ -4,7 +4,6 @@ from typing import Optional, Callable
 import requests
 from scrapy import Request
 from scrapy.exceptions import NotConfigured
-from twisted.internet.error import TCPTimedOutError
 
 logger = logging.getLogger("scrapy.proxies")
 
