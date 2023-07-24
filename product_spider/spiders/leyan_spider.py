@@ -19,7 +19,6 @@ class LeyanSpider(BaseSpider):
     name = "leyan"
     base_url = "http://www.leyan.com.cn/"
     start_urls = ['http://www.leyan.com.cn/product-center.html', ]
-    brand = '乐研'
 
     custom_settings = {
         # "DOWNLOADER_MIDDLEWARES": {
