@@ -1,7 +1,7 @@
 import json
 from hashlib import md5
 from time import time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qsl, urlparse
 
 from scrapy.http import JsonRequest
 
@@ -55,7 +55,9 @@ class MacklinSpider(BaseSpider):
             callback=self.parse
         )
 
-    def _make_products_request(self, _id: int, page: int = 1, per_page: int = 50, **kwargs):
+    def _make_products_request(self, _id: int, page: int = 1, per_page: int = 50, meta=None, **kwargs):
+        if meta is None:
+            meta = {}
         params = {
             "id": _id,
             "offset": per_page,
@@ -65,6 +67,7 @@ class MacklinSpider(BaseSpider):
             url=self.products_url,
             params=params,
             callback=self.parse_list,
+            meta={"catalog_id": _id, **meta},
             **kwargs
         )
 
@@ -99,11 +102,23 @@ class MacklinSpider(BaseSpider):
             )
 
     def parse_list(self, response, **kwargs):
-        j = json.loads(response.text)
-        if not (data := j.get('data', {}).get('goods_list')):
-            return
         catalog_id = response.meta.get("catalog_id")
         parent = response.meta.get("parent")
+        j = json.loads(response.text)
+        if j.get('code') != 200:
+            query = urlparse(response.url).query
+            params = dict(parse_qsl(query))
+            yield self._make_products_request(
+                _id=params['id'],
+                per_page=params['offset'],
+                page=params['page'],
+                meta={**response.meta}
+            )
+            return
+        if isinstance(j.get('data'), list):
+            return
+        if not (data := j.get('data', {}).get('goods_list')):
+            return
         for product in (products := data.get('data', [])):
             attrs = {
                 "melting_point": product.get('item_melting'),
