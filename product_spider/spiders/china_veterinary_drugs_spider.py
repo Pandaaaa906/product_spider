@@ -47,12 +47,3 @@ class ChinaVeDrugSpider(BaseSpider):
         page = data.get('page', 0)
         rows = data.get('rows', 0)
         yield self.make_request(response.url, item_type, page=page + 1, rows=rows)
-
-    def parse_new_drug_data(self, response):
-        yield from self._parse_data(response, CVDRegData)
-
-    def parse_clinical_data(self, response):
-        yield from self._parse_data(response, CVDClinicalData)
-
-    def parse_bio_drug_inspect_data(self, response):
-        yield from self._parse_data(response, CVDBioInspectData)
