@@ -76,3 +76,28 @@ class CVDBioInspectData(scrapy.OrderedItem):
         indexes = (
             (("itemid",), True),
         )
+
+
+class CVDApprovedRegData(scrapy.OrderedItem):
+    bgqk = scrapy.Field()
+    byx = scrapy.Field()
+    gg = scrapy.Field()
+    isvalid = scrapy.Field()
+    itemid = scrapy.Field()
+    pzrq = scrapy.Field()
+    pzwh = scrapy.Field()
+    qymc = scrapy.Field()
+    shren = scrapy.Field()
+    shrq = scrapy.Field()
+    slh = scrapy.Field()
+    spm = scrapy.Field()
+    sxyy = scrapy.Field()
+    tym = scrapy.Field()
+    yxq = scrapy.Field()
+    zt = scrapy.Field()
+    zxbz = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (("itemid",), True),
+        )
