@@ -32,9 +32,14 @@ class CheEMBLSpider(BaseSpider):
                         "molecule_properties.molecular_species", "molecule_properties.full_molformula",
                         "molecule_structures.canonical_smiles", "molecule_structures.standard_inchi_key",
                         "polymer_flag"], "query": {
-                "bool": {"must": {"bool": {"boost": 1, "must": {"bool": {"must": [], "should": []}}}}, "filter": [
-                    [{"bool": {"should": [{"term": {"molecule_type": "Small molecule"}}]}},
-                     {"bool": {"should": [{"term": {"_metadata.compound_generated.max_phase_label": "Approved"}}]}}]]}},
+                "bool": {"must": {"bool": {"boost": 1, "must": {"bool": {"must": [], "should": []}}}},
+                         "filter": [[
+                             {"bool": {"should": [{"term": {"molecule_type": "Small molecule"}}]}},
+                             {"bool": {"should": [
+                                 {"term": {"_metadata.compound_generated.max_phase_label": "Phase 3"}},
+                                 {"term": {"_metadata.compound_generated.max_phase_label": "Approved"}}
+                             ]}},
+                         ]]}},
             "track_total_hits": True, "sort": []}
         yield self.make_request(
             'chembl_molecule', es_query,
