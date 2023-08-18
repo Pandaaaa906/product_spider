@@ -149,8 +149,8 @@ class ChemicalBookSpider(BaseSpider):
             vendor = node.xpath("./td[position()=1]/a/text()").get()
             phone = strip(node.xpath("./td[position()=2]/text()").get())
             email = strip(node.xpath("./td[position()=3]/text()").get())
-            prd_count = strip(node.xpath("./td[position()=5]//text()").get())
-            adv_score = strip(node.xpath("./td[position()=6]//text()").get())
+            prd_count = strip(node.xpath("./td[position()=5]/a/text()").get())
+            adv_score = strip(node.xpath("./td[position()=6]/font/text()").get())
             country = strip(node.xpath("./td[position()=4]/text()").get())
             ddd = {
                 "platform": self.name,
