@@ -3,9 +3,9 @@ from urllib.parse import urljoin
 import scrapy
 from scrapy import FormRequest
 
-from product_spider.items import SupplierProduct, ChemicalItem
+from product_spider.items import SupplierProduct, ChemicalItem, RawSupplier
 from product_spider.utils.cost import parse_cost
-from product_spider.utils.functions import strip
+from product_spider.utils.functions import strip, dumps
 
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -148,6 +148,8 @@ class ChemicalBookSpider(BaseSpider):
         for node in nodes:
             vendor = node.xpath("./td[position()=1]/a/text()").get()
             email = strip(node.xpath("./td[position()=3]/text()").get())
+            prd_count = strip(node.xpath("./td[position()=5]/text()").get())
+            adv_score = strip(node.xpath("./td[position()=6]/text()").get())
             country = strip(node.xpath("./td[position()=4]/text()").get())
             ddd = {
                 "platform": self.name,
@@ -167,6 +169,14 @@ class ChemicalBookSpider(BaseSpider):
                 "prd_url": response.url,
             }
             yield SupplierProduct(**ddd)
+            supplier = {
+                "source": self.name,
+                "name": vendor,
+                "region": country,
+                "email": email,
+                "attrs": dumps({"prd_count": prd_count, "adv_score": adv_score})
+            }
+            yield RawSupplier(**supplier)
 
         if not nodes or dont_grab:
             return
