@@ -157,3 +157,5 @@ REDIS_START_URLS_KEY = "%(name)s:start_urls"
 
 # Don't cleanup redis queues, allows to pause/resume crawls.
 # SCHEDULER_PERSIST = True
+
+PROXY_POOL_REFRESH_STATUS_CODES = {503, 403}

@@ -6,6 +6,7 @@ from scrapy import Request
 from scrapy.exceptions import NotConfigured
 
 logger = logging.getLogger("scrapy.proxies")
+DEFAULT_PROXY_POOL_REFRESH_STATUS_CODES = {503, 403}
 
 
 def get_proxy(proxy_url):
@@ -26,6 +27,9 @@ class RandomProxyMiddleWare:
 
     def __init__(self, settings, spider=None):
         proxy_url = settings.get("PROXY_POOL_URL")
+        self.refresh_status_codes = settings.get(
+            "PROXY_POOL_REFRESH_STATUS_CODES", DEFAULT_PROXY_POOL_REFRESH_STATUS_CODES
+        )
         if not proxy_url:
             raise NotConfigured
         self.PROXY_POOL_URL = proxy_url
@@ -63,10 +67,9 @@ class RandomProxyMiddleWare:
         logger.warning(f"{exception}: {request.url}")
         return wrap_failed_request(request)
 
-    @staticmethod
-    def default_is_proxy_invalid(request, response):
+    def default_is_proxy_invalid(self, request, response):
         proxy = request.meta.get('proxy')
-        if response.status in {503, 403}:  # TODO dynamic settings
+        if response.status in self.refresh_status_codes:
             logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
             return True
         return False

@@ -39,7 +39,7 @@ class ChemicalBookSpider(BaseSpider):
             )
 
     def is_proxy_invalid(self, request, response):
-        if response.status in {403, }:
+        if response.status in {403, 500}:
             self.logger.warning(f'status code:{response.status}, {request.url}')
             return True
         if '系统忙' in response.text[:50]:
