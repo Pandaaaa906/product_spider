@@ -20,7 +20,7 @@ class ChemicalBookSpider(BaseSpider):
         "DOWNLOADER_MIDDLEWARES": {
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
-        'RETRY_HTTP_CODES': [403],
+        'RETRY_HTTP_CODES': [403, 500],
         'RETRY_TIMES': 10,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -149,8 +149,8 @@ class ChemicalBookSpider(BaseSpider):
             vendor = node.xpath("./td[position()=1]/a/text()").get()
             phone = strip(node.xpath("./td[position()=2]/text()").get())
             email = strip(node.xpath("./td[position()=3]/text()").get())
-            prd_count = strip(node.xpath("./td[position()=5]/text()").get())
-            adv_score = strip(node.xpath("./td[position()=6]/text()").get())
+            prd_count = strip(node.xpath("./td[position()=5]//text()").get())
+            adv_score = strip(node.xpath("./td[position()=6]//text()").get())
             country = strip(node.xpath("./td[position()=4]/text()").get())
             ddd = {
                 "platform": self.name,
