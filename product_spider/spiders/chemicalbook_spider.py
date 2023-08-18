@@ -147,6 +147,7 @@ class ChemicalBookSpider(BaseSpider):
         nodes = response.xpath("//th[contains(text(), '供应商')]/parent::tr/following-sibling::tr")
         for node in nodes:
             vendor = node.xpath("./td[position()=1]/a/text()").get()
+            phone = strip(node.xpath("./td[position()=2]/text()").get())
             email = strip(node.xpath("./td[position()=3]/text()").get())
             prd_count = strip(node.xpath("./td[position()=5]/text()").get())
             adv_score = strip(node.xpath("./td[position()=6]/text()").get())
@@ -173,6 +174,7 @@ class ChemicalBookSpider(BaseSpider):
                 "source": self.name,
                 "name": vendor,
                 "region": country,
+                "phone": phone,
                 "email": email,
                 "attrs": dumps({"prd_count": prd_count, "adv_score": adv_score})
             }
