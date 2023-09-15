@@ -13,7 +13,7 @@ class VivanSpider(BaseSpider):
     start_urls = ["https://vivanls.com/products/all/all/default"]
     base_url = "https://vivanls.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rel_urls = response.xpath('//h5/a/@href').getall()
         for rel_url in rel_urls:
             yield Request(url=urljoin(self.base_url, rel_url), callback=self.parse_detail)
@@ -26,11 +26,12 @@ class VivanSpider(BaseSpider):
         rel_img = response.xpath('//div[contains(@class, "product-detail-image")]/figure/img/@src').get()
         sym = response.xpath('//ul[contains(@class, "synmlist")]/li/text()').getall()
         sym = filter(bool, map(str.strip, sym))
+        cas = response.xpath(tmp.format('CAS No. :')).get()
         d = {
             'brand': 'vivan',
             'cat_no': response.xpath(tmp.format('Catalogue No.:')).get(),
             'en_name': response.xpath('//div[@class="product-detail"]//h2/text()').get(),
-            'cas': response.xpath(tmp.format('CAS No. :')).get(),
+            'cas': cas and cas.strip("'"),
             'mf': formula_trans(response.xpath(tmp.format('Mol. Formula :')).get()),
             'mw': response.xpath(tmp.format('Mol. Weight :')).get(),
             'img_url': rel_img and urljoin(self.base_url, rel_img),
