@@ -34,9 +34,12 @@ class DropNullCatNoPipeline:
 class FilterNAValue:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
-        cas = strip(adapter.get('cas'))
-        if cas is None or not isinstance(cas, str):
+        if 'cas' not in adapter:
             return item
+        adapter['cas'] = cas = strip(adapter.get('cas'))
+        if not isinstance(cas, str):
+            return item
+        cas = cas.strip('"\' .*')
         adapter['cas'] = None if cas.lower() in {'n/a', 'na', 'null', ''} else cas
         return item
 
