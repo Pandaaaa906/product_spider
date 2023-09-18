@@ -4,7 +4,7 @@ from time import time
 
 from scrapy import FormRequest
 
-from items.soopat import SooPATPatent
+from product_spider.items.soopat import SooPATPatent
 from product_spider.utils.spider_mixin import BaseSpider
 
 
