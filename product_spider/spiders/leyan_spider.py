@@ -107,12 +107,14 @@ class LeyanSpider(BaseSpider):
             price_span = response.xpath('//*[@class="red" or @class="font-blue"]/span[@class]')
             font_name = price_span.xpath('./@class').get()
             price = self.decode_price(price_span.xpath('./text()').get(), font_name)
+            stock_num = row.xpath('./td[@id="stock"]/text()').get()
             dd = {
                 'brand': self.name,
                 'cat_no': cat_no,
                 'package': package,
                 'cost': price,
                 'currency': 'RMB',
+                'delivery_time': 'in-stock' if stock_num == '1' else None,
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
 
@@ -143,6 +145,8 @@ class LeyanSpider(BaseSpider):
                 'discount_price': dd['cost'],
                 'price': dd['cost'],
                 'currency': dd["currency"],
+                'delivery': 'in-stock' if stock_num == '1' else None,
+                'stock_num': stock_num,
             }
             yield ProductPackage(**dd)
             yield SupplierProduct(**ddd)
