@@ -13,6 +13,10 @@ services:
       - /www/prd_spider/ms-playwright:/ms-playwright
     env_file:
       - test.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
   scrapydweb:
     build: .
     entrypoint: "scrapydweb"
@@ -33,6 +37,10 @@ services:
       - test.env
     depends_on:
       - "scrapyd"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
   logparser:
     build: .
     entrypoint: "logparser -dir=/app/logs/"
