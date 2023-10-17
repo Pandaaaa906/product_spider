@@ -1,7 +1,7 @@
 import json
 from urllib.parse import urljoin
 import scrapy
-from scrapy import FormRequest
+from scrapy import FormRequest, Request
 
 from product_spider.items import SupplierProduct, ChemicalItem, RawSupplier
 from product_spider.utils.cost import parse_cost
@@ -147,6 +147,7 @@ class ChemicalBookSpider(BaseSpider):
         nodes = response.xpath("//th[contains(text(), '供应商')]/parent::tr/following-sibling::tr")
         for node in nodes:
             vendor = node.xpath("./td[position()=1]/a/text()").get()
+            vendor_url = node.xpath("./td[position()=1]/a/@href").get()
             phone = strip(node.xpath("./td[position()=2]/text()").get())
             email = strip(node.xpath("./td[position()=3]/text()").get())
             prd_count = strip(node.xpath("./td[position()=5]/a/text()").get())
@@ -178,7 +179,9 @@ class ChemicalBookSpider(BaseSpider):
                 "email": email,
                 "attrs": dumps({"prd_count": prd_count, "adv_score": adv_score})
             }
-            yield RawSupplier(**supplier)
+            yield Request(
+                vendor_url, callback=self.parse_supplier_detail, meta={"supplier": supplier}
+            )
 
         if not nodes or dont_grab:
             return
@@ -212,4 +215,11 @@ class ChemicalBookSpider(BaseSpider):
                 'chem': d,
                 'country_index': country_index + 1
             }
+        )
+
+    def parse_supplier_detail(self, response):
+        supplier = response.meta.get('supplier', {})
+        supplier['website'] = response.xpath('//li[text()="网址："]//a/text()').get()
+        yield RawSupplier(
+            **supplier
         )
