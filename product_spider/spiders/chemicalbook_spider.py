@@ -177,7 +177,7 @@ class ChemicalBookSpider(BaseSpider):
                 "region": country,
                 "phone": phone,
                 "email": email,
-                "attrs": dumps({"prd_count": prd_count, "adv_score": adv_score})
+                "attrs": {"prd_count": prd_count, "adv_score": adv_score}
             }
             yield Request(
                 vendor_url, callback=self.parse_supplier_detail, meta={"supplier": supplier}
@@ -220,6 +220,9 @@ class ChemicalBookSpider(BaseSpider):
     def parse_supplier_detail(self, response):
         supplier = response.meta.get('supplier', {})
         supplier['website'] = response.xpath('//li[text()="网址："]//a/text()').get()
+        attrs = supplier['attrs']
+        attrs['src_url'] = response.url
+        supplier['attrs'] = dumps(attrs)
         yield RawSupplier(
             **supplier
         )
