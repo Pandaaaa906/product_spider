@@ -191,8 +191,8 @@ class ChemicalBookSpider(BaseSpider):
         )
 
     def parse_chemical(self, response: Response):
-        url = response.xpath('//meta[@property="og:url"]/@content').get()
-        if not url:
+        url = response.url
+        if not url.startswith("https://www.chemicalbook.com/"):
             self.logger.warning(f"Cannot find url property: {response.url}")
             return
         tmpl = '//th[text()={!r}]/following-sibling::td//text()'
