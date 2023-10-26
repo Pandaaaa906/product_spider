@@ -4,8 +4,7 @@ import scrapy
 from scrapy import FormRequest, Request
 from scrapy.http import Response
 
-from items import ChemicalBookChemical
-from product_spider.items import SupplierProduct, RawSupplier
+from product_spider.items import SupplierProduct, RawSupplier, ChemicalBookChemical
 from product_spider.utils.functions import strip, dumps
 
 from product_spider.utils.spider_mixin import BaseSpider
