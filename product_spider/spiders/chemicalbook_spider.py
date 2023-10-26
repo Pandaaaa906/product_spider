@@ -1,10 +1,11 @@
-import json
+import re
 from urllib.parse import urljoin
 import scrapy
 from scrapy import FormRequest, Request
+from scrapy.http import Response
 
-from product_spider.items import SupplierProduct, ChemicalItem, RawSupplier
-from product_spider.utils.cost import parse_cost
+from items import ChemicalBookChemical
+from product_spider.items import SupplierProduct, RawSupplier
 from product_spider.utils.functions import strip, dumps
 
 from product_spider.utils.spider_mixin import BaseSpider
@@ -77,63 +78,21 @@ class ChemicalBookSpider(BaseSpider):
             return
         cas = response.xpath(tmp_xpath.format('CAS号:')).get() or response.meta.get('cas')
 
-        en_name = response.xpath(tmp_xpath.format('英文名称:')).get()
-        chs_name = response.xpath(tmp_xpath.format('中文名称:')).get()
-        mf = response.xpath(tmp_xpath.format('分子式:')).get()
-        mw = response.xpath(tmp_xpath.format('分子量:')).get()
-        img_url = urljoin(self.base_url, response.xpath("//td[@class='productimg']/img/@src").get())
-
-        # 化学性质
-        chemical_rows = response.xpath("//table[@id='ChemicalProperties']//td")
-
-        chemical_attrs = [{
-            chemical.xpath(".//dt/span/text()").get(): chemical.xpath(".//dd/span/text()").get()
-        } for chemical in chemical_rows]
-
-        # 安全信息
-        safety_rows = response.xpath("//div[@class='detailInfoDiv']//table[@border='0']//tr")
-
-        safety_attrs = [{
-            safety.xpath("./th/span/text()").get(): safety.xpath("./td/span/text()").get()
-        } for safety in safety_rows]
+        chem_url = response.xpath('//table[@id="ProductIntroduction"]//td/a/@href').get()
 
         d = {
             "brand": self.name,
             "cat_no": cas,
-            "en_name": en_name,
-            "chs_name": chs_name,
+            "en_name": response.xpath(tmp_xpath.format('英文名称:')).get(),
+            "chs_name": response.xpath(tmp_xpath.format('中文名称:')).get(),
             "cas": cas,
-            "mf": mf,
-            "mw": mw,
-            "img_url": img_url,
+            "mf": response.xpath(tmp_xpath.format('分子式:')).get(),
+            "mw": response.xpath(tmp_xpath.format('分子量:')).get(),
+            "img_url": urljoin(self.base_url, response.xpath("//td[@class='productimg']/img/@src").get()),
             "prd_url": response.url,
         }
-
-        rows = response.xpath("//th[contains(text(), '产品编号')]/parent::tr/following-sibling::tr")
-        packages = [
-            {
-                "cat_no": d["cas"],
-                "cost": parse_cost(row.xpath("./td[last()]/text()").get()),
-                "package": row.xpath("./td[last()-1]/text()").get(),
-                "currency": "RMB",
-            }
-            for row in rows
-        ]
-
-        chemical_item_attrs = json.dumps({
-            "chemical_info": d,
-            "chemical_attrs": chemical_attrs,
-            "safety_attrs": safety_attrs,
-            "packages": packages,
-        }, ensure_ascii=False)
-
-        dddd = {
-            "cas": cas,
-            "source": self.name,
-            "prd_url": response.url,
-            "attrs": chemical_item_attrs,
-        }
-        yield ChemicalItem(**dddd)
+        if chem_url:
+            yield Request(urljoin(response.url, chem_url), callback=self.parse_chemical)
 
         response.meta['chem'] = d
         yield from self.parse_supplier(response)
@@ -226,3 +185,53 @@ class ChemicalBookSpider(BaseSpider):
         yield RawSupplier(
             **supplier
         )
+
+    def parse_chemical(self, response: Response):
+        url = response.xpath('//meta[@property="og:url"]/@content').get()
+        if not url:
+            self.logger.warning(f"Cannot find url property: {response.url}")
+            return
+        tmpl = '//th[text()={!r}]/following-sibling::td//text()'
+        # 化学性质
+        chemical_rows = response.xpath("//div[@id='ProductChemPropertyA']//tr")
+
+        chemical_attrs = [{
+            chemical.xpath("./th//text()").get(): chemical.xpath("./td//text()").get()
+        } for chemical in chemical_rows]
+
+        # 安全信息
+        safety_rows = response.xpath("//div[@id='ProductChemSafePropertyA']//tr")
+
+        safety_attrs = [{
+            safety.xpath("./th//text()").get(): safety.xpath("./td//text()").get()
+        } for safety in safety_rows]
+        attrs = {
+            "chemical_attrs": chemical_attrs,
+            "safety_attrs": safety_attrs,
+        }
+        cb_id = (m := re.search(r"CB\d+", url)) and m.group()
+        if not cb_id:
+            self.logger.warning(f"Cannot find cb_id: {response.url}")
+        rel_img = response.xpath('//th[text()="结构式"]/following-sibling::td/img/@src').get()
+        d = {
+            "cb_id": cb_id,
+            "cn_name": ''.join(response.xpath(tmpl.format("中文名称")).getall()),
+            "en_name": ''.join(response.xpath(tmpl.format("英文名称")).getall()),
+            "cn_synonyms": ''.join(response.xpath(tmpl.format("中文同义词")).getall()),
+            "en_synonyms": ''.join(response.xpath(tmpl.format("英文同义词")).getall()),
+
+            "cas": ''.join(response.xpath(tmpl.format("CAS号")).getall()),
+            "mf": ''.join(response.xpath(tmpl.format("分子式")).getall()),
+            "mw": ''.join(response.xpath(tmpl.format("分子量")).getall()),
+            "einecs": ''.join(response.xpath(tmpl.format("EINECS号")).getall()),
+            "categories": ''.join(response.xpath(tmpl.format("相关类别")).getall()),
+
+            "mol_url": response.xpath('//th[text()="Mol文件"]/following-sibling::td/a/@href').get(),
+            "img_url": rel_img and urljoin(response.url, rel_img),
+
+            "url": response.url,
+            "attrs": dumps(attrs),
+            "html": response.text,
+        }
+        yield ChemicalBookChemical(**d)
+
