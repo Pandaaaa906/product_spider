@@ -29,9 +29,14 @@ class ChemicalBookSpider(BaseSpider):
         )
     }
 
-    # TODO range(12, 21)
+    def __init__(self, page_start=12, page_end=20, **kwargs):
+        # 默认爬12-20，带CAS，不带Cas的取0-35
+        super().__init__(**kwargs)
+        self.page_start = page_start
+        self.page_end = page_end
+
     def start_requests(self):
-        for i in range(12, 21):
+        for i in range(self.page_start, self.page_end + 1):
             url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
             yield scrapy.Request(
                 url=url,
