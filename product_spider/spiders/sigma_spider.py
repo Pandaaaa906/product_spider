@@ -255,7 +255,7 @@ class SigmaSpider(BaseSpider):
         rows = parse('$..materialPricing[*]').find(j)
         now = datetime.now()
         for row in rows:
-            available = first(parse('@.availabilities[?@key="AVAILABLE_TO_SHIP_ON"]').find(row), None)
+            available = first(parse('@.availabilities[?@.key="AVAILABLE_TO_SHIP_ON"]').find(row), None)
             ts = (m := first(parse('@.availabilities[0].date').find(row), None)) and m.value
             delivery = None
             if isinstance(ts, int):
