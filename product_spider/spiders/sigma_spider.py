@@ -47,9 +47,9 @@ class SigmaSpider(BaseSpider):
             'Accept-Encoding': 'gzip, deflate, br', 'Accept': '*/*', 'Connection': 'keep-alive',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7',
         },
-        # "DOWNLOADER_MIDDLEWARES": {
-        #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
-        # },
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
         'CONCURRENT_REQUESTS': 4,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'CONCURRENT_REQUESTS_PER_IP': 4,
