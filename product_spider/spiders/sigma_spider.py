@@ -14,6 +14,8 @@ from items import RawSupplierQuotation
 from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import dumps
 from product_spider.utils.spider_mixin import BaseSpider
+from product_spider.utils.maketrans import T_SPACES
+
 
 IGNORE_BRANDS = {
     'cerillian'
@@ -148,10 +150,11 @@ class SigmaSpider(BaseSpider):
         return json.loads(t)
 
     @staticmethod
-    def _nth_value(d: dict, p: str, n=1):
+    def _nth_value(d: dict, p: str, n=0):
         ret = (m := nth(parse(p).find(d), n, None)) and m.value
         if isinstance(ret, str):
-            return unescape(ret)
+            ret = unescape(ret)
+            ret = ret.translate(T_SPACES)
         return ret
 
     def parse(self, response, **kwargs):
@@ -186,7 +189,6 @@ class SigmaSpider(BaseSpider):
                 f'https://www.sigmaaldrich.cn/CN/zh/product/{brand}/{cat_no}',
                 callback=self.parse_detail,
             )
-
 
         # next_page
         page = (m := first(parse('$..metadata.page').find(json.loads(response.text)), None)) and m.value
@@ -260,15 +262,22 @@ class SigmaSpider(BaseSpider):
             delivery = None
             if isinstance(ts, int):
                 delivery = (datetime.fromtimestamp(ts/1000) - now).days
+
+            cat_no_pkg = self._nth_value(row, '@.materialNumber')
+            package = self._nth_value(row, '@.packageSize')
+            if not package:
+                package = (m := re.search(r'\d+(\.\d+)?\s*[muμMKk]?[GLgl]', cat_no_pkg, re.IGNORECASE)) and m.group()
+            attrs = {"cat_no_pkg": cat_no_pkg}
             dd = {
                 "brand": prd.get("brand"),
                 "cat_no": prd.get("cat_no"),
-                "package": self._nth_value(row, '@.packageSize'),
+                "package": package,
                 "cost": self._nth_value(row, '@.netPrice'),
                 "price": self._nth_value(row, '@.netPrice'),
                 "currency": self._nth_value(row, '@.currency'),
                 "stock_num": available and 1,
                 "delivery_time": delivery,
+                "attrs": dumps(attrs),
             }
             yield ProductPackage(**dd)
 

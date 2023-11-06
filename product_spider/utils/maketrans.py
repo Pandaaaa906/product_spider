@@ -1,5 +1,7 @@
 # coding=utf-8
 
+T_SPACES = str.maketrans('\xa0', ' ', '')
+
 
 def maketrans(from_text, to_text):
     return dict((ord(i), n) for i, n in zip(from_text, to_text))
