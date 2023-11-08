@@ -10,8 +10,7 @@ from more_itertools import first, nth
 from scrapy import Request
 from scrapy.http.request.json_request import JsonRequest
 
-from items import RawSupplierQuotation
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, RawSupplierQuotation
 from product_spider.utils.functions import dumps
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.maketrans import T_SPACES
@@ -52,9 +51,9 @@ class SigmaSpider(BaseSpider):
         "DOWNLOADER_MIDDLEWARES": {
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
-        'CONCURRENT_REQUESTS': 4,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
-        'CONCURRENT_REQUESTS_PER_IP': 4,
+        'CONCURRENT_REQUESTS': 8,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
+        'CONCURRENT_REQUESTS_PER_IP': 8,
     }
     
     def __init__(self, *args, per_page: int = 1000, **kwargs):
@@ -225,8 +224,10 @@ class SigmaSpider(BaseSpider):
             "boiling_point": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="boiling point.default"].values[0]'),
             "density": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="density.default"].values[0]'),
             "solubility": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="solubility.default"].values[0]'),
+            "residue": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="residue.default"].values[0]'),
             "flash_point": self._nth_value(j, '$..data.getProductDetail.compliance[?@.key="flash_point_c"].value'),
         }
+        attrs = {k: v for k, v in attrs.items() if v}
         d = {
             "brand": BRANDS_MAPPING.get(brand, brand),
             "cat_no": cat_no,
@@ -234,6 +235,9 @@ class SigmaSpider(BaseSpider):
             "cas": self._nth_value(j, '$..data.getProductDetail.casNumber'),
             "mw": self._nth_value(j, '$..data.getProductDetail.molecularWeight'),
             "mf": mf,
+            "purity": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="assay.default"].values[0]'),
+            "storage": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="storage temp.default"].values[0]'),
+            "appearance": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="physical form.listing"].values[0]'),
             "smiles": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="smiles string"].values[0]'),
             "img_url": rel_img and urljoin(response.url, rel_img),
             "prd_url": response.url,
