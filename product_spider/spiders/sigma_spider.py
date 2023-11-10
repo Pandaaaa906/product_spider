@@ -163,7 +163,7 @@ class SigmaSpider(BaseSpider):
             if '/products/' not in rel_url:
                 continue
             # TODO should be a better way to filter which url will be crawl
-            if 'chemistry-and-biochemicals' not in rel_url:
+            if 'chemistry-and-biochemicals' not in rel_url and 'analytical-chemistry' not in rel_url:
                 continue
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_category_page)
         pass
@@ -230,13 +230,14 @@ class SigmaSpider(BaseSpider):
         attrs = {k: v for k, v in attrs.items() if v}
         d = {
             "brand": BRANDS_MAPPING.get(brand, brand),
+            "parent": self._nth_value(j, '$..data.getProductDetail.productCategories[1].category'),
             "cat_no": cat_no,
             "chs_name": self._nth_value(j, '$..data.getProductDetail.name'),
             "cas": self._nth_value(j, '$..data.getProductDetail.casNumber'),
             "mw": self._nth_value(j, '$..data.getProductDetail.molecularWeight'),
             "mf": mf,
             "purity": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="assay.default"].values[0]'),
-            "storage": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="storage temp.default"].values[0]'),
+            "info2": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="storage temp.default"].values[0]'),
             "appearance": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="physical form.listing"].values[0]'),
             "smiles": self._nth_value(j, '$..data.getProductDetail.attributes[?@.key="smiles string"].values[0]'),
             "img_url": rel_img and urljoin(response.url, rel_img),
