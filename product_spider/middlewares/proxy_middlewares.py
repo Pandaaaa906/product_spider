@@ -41,9 +41,11 @@ class RandomProxyMiddleWare:
     def from_crawler(cls, crawler):
         return cls(crawler.settings, spider=crawler.spider)
 
-    def refresh_proxy(self):
+    def refresh_proxy(self, proxy: str = None):
         logger.info(f"current proxy: {self.proxy}")
-        self.proxy = get_proxy(proxy_url=self.PROXY_POOL_URL)
+        if not proxy or not proxy.startswith('http'):
+            proxy = get_proxy(proxy_url=self.PROXY_POOL_URL)
+        self.proxy = proxy
         logger.info(f"changed proxy to: {self.proxy}")
 
     def process_request(self, request, spider):
