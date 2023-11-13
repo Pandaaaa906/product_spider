@@ -2,6 +2,7 @@ import json
 
 import parsel
 import scrapy
+from scrapy.http import Response
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
@@ -33,8 +34,8 @@ class AladdinSpider(BaseSpider):
         )
     }
 
-    def is_proxy_invalid(self, request, response):
-        if response.status_code in {403, 504}:
+    def is_proxy_invalid(self, request, response: Response):
+        if response.status in {403, 504}:
             return True
         if 'document.location.reload' in response.text:
             return True
