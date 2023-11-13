@@ -10,21 +10,27 @@ from more_itertools import first, nth
 from scrapy import Request
 from scrapy.http.request.json_request import JsonRequest
 
-from product_spider.items import RawData, ProductPackage, RawSupplierQuotation
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import dumps
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.maketrans import T_SPACES
 
 
 IGNORE_BRANDS = {
-    'cerillian'
+    'cerillian',
+    'usp',
 }
 BRANDS_MAPPING = {
     "sigald": "sigma",
     "sial": "sigma",
     "aldrich": "sigma",
+    "saj": "sigma",
     "sigma": "sigma",
     "mm": "supelco",
+    "supelco": "supelco",
+    "vetec": "vetec",
+    "avanti": "avanti",
+    "roche": "roche",
 }
 
 
@@ -163,8 +169,8 @@ class SigmaSpider(BaseSpider):
             if '/products/' not in rel_url:
                 continue
             # TODO should be a better way to filter which url will be crawl
-            if 'chemistry-and-biochemicals' not in rel_url and 'analytical-chemistry' not in rel_url:
-                continue
+            # if 'chemistry-and-biochemicals' not in rel_url and 'analytical-chemistry' not in rel_url:
+            #     continue
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_category_page)
         pass
 
@@ -244,7 +250,8 @@ class SigmaSpider(BaseSpider):
             "prd_url": response.url,
             "attrs": dumps(attrs)
         }
-        yield RawData(**d)
+        if d['brand'] not in IGNORE_BRANDS:
+            yield RawData(**d)
 
         yield self.make_price_request(
             brand,
@@ -261,6 +268,22 @@ class SigmaSpider(BaseSpider):
         j = json.loads(response.text)
         rows = parse('$..materialPricing[*]').find(j)
         now = datetime.now()
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": prd['brand'],
+            "source_id": f'{self.name}_{prd["cat_no"]}',
+            "parent": prd["parent"],
+            "en_name": prd.get("en_name"),
+            "cas": prd.get("cas"),
+            "mf": prd.get("mf"),
+            "mw": prd.get("mw"),
+            "cat_no": prd.get("cat_no"),
+            "smiles": prd.get("smiles"),
+            "img_url": prd.get("img_url"),
+            "prd_url": response.url,
+        }
+        yield SupplierProduct(**ddd)
         for row in rows:
             available = first(parse('@.availabilities[?@.key="AVAILABLE_TO_SHIP_ON"]').find(row), None)
             ts = (m := first(parse('@.availabilities[0].date').find(row), None)) and m.value
@@ -284,9 +307,10 @@ class SigmaSpider(BaseSpider):
                 "delivery_time": delivery,
                 "attrs": dumps(attrs),
             }
-            yield ProductPackage(**dd)
+            if dd['brand'] not in IGNORE_BRANDS:
+                yield ProductPackage(**dd)
 
-            ddd = {
+            dddd = {
                 "platform": self.name,
                 "source_id": f'{prd.get("brand")}_{prd.get("cat_no")}',
                 "vendor": self.name,
@@ -299,4 +323,4 @@ class SigmaSpider(BaseSpider):
                 "stock_num": dd.get("stock_num"),
                 "delivery": dd.get("delivery_time"),
             }
-            yield RawSupplierQuotation(**ddd)
+            yield RawSupplierQuotation(**dddd)

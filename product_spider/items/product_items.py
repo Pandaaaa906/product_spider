@@ -262,7 +262,7 @@ class HongmengItem(scrapy.OrderedItem):
 
 class SupplierProduct(scrapy.OrderedItem):
     platform = scrapy.Field()
-    source_id = scrapy.Field()
+    source_id = scrapy.Field()  # 如：{平台代号}_{产品货号}
     vendor = scrapy.Field()
     brand = scrapy.Field()
     vendor_origin = scrapy.Field()
@@ -283,9 +283,9 @@ class SupplierProduct(scrapy.OrderedItem):
     img_url = scrapy.Field()
     synonyms = scrapy.Field()
     storage_condition = scrapy.Field()
-    package = scrapy.Field()
-    price = scrapy.Field()
-    cost = scrapy.Field()
+    package = scrapy.Field()  # Deprecated field
+    price = scrapy.Field()  # Deprecated field
+    cost = scrapy.Field()  # Deprecated field
     delivery = scrapy.Field()
 
     info1 = scrapy.Field()
