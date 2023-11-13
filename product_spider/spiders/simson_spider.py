@@ -14,6 +14,12 @@ class SimsonSpider(BaseSpider):
     base_url = "http://simsonpharma.com"
     start_urls = [f'https://www.simsonpharma.com/products-list/{a}' for a in ascii_lowercase]
 
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.url_middlewares.StopQuotingUrlMiddleware': 900,
+        },
+    }
+
     def parse(self, response, **kwargs):
         rel_urls = response.xpath('//ul[@id="product-section"]//a/@href').getall()
         for rel_url in rel_urls:
