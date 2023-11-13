@@ -11,13 +11,13 @@ class SplendidLabSpider(BaseSpider):
     base_url = 'http://splendidlab.com/'
     start_urls = ['http://splendidlab.com/products.php', ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         prds = response.xpath('//div[@class="product-box"]')
         tmp = './/div[@class="label" and text()={!r}]/following-sibling::div/text()'
         for prd in prds:
             img_rel = prd.xpath('.//div[@class="product-img"]/img/@src').get()
             d = {
-                "brand": "splendidlab",
+                "brand": self.name,
                 "parent": None,
                 "cat_no": prd.xpath(tmp.format("Catalog Number")).get(),
                 "en_name": prd.xpath('.//div[@class="product-text"]/h3/text()').get('').strip() or None,
