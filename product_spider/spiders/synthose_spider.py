@@ -53,7 +53,7 @@ class SynthoseSpider(BaseSpider):
             stock_d = {}
             delivery_time = None
             if availability:
-                stock_d = (m := re.search(r'≥?(?P<stock_num>\d+)\s*ship\s*(?P<delivery_date>.+)', availability, re.MULTILINE)) and m.groupdict()
+                stock_d = (m := re.search(r'≥?(?P<stock_num>\d+)\s*ships?\s*(?P<delivery_date>.+)', availability, re.MULTILINE)) and m.groupdict()
             if dt := stock_d.get('delivery_date'):
                 try:
                     delivery_date = datetime.strptime(dt, '%b %d, %Y')
