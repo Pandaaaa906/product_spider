@@ -1,7 +1,7 @@
-import json
+from string import ascii_lowercase
 from urllib.parse import urljoin
 
-from scrapy import Request, FormRequest
+from scrapy import Request
 
 from product_spider.items import RawData
 from product_spider.utils.maketrans import formula_trans
@@ -10,54 +10,35 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class SimsonSpider(BaseSpider):
     name = "simson"
-    allowd_domains = ["simsonpharma.com"]
+    allowed_domains = ["simsonpharma.com"]
     base_url = "http://simsonpharma.com"
+    start_urls = [f'https://www.simsonpharma.com/products-list/{a}' for a in ascii_lowercase]
 
-    def start_requests(self):
-        url = "http://simsonpharma.com/category/products"
-        for i in range(20):
-            d = {
-                "category_id": str(i),
-                'stock_select': '0',
-                'discount_select': '0',
-                'price_select': '0',
-                'sort_select': '0',
-                "pageno": '1',
-                "page_per_row": '99999',
-            }
-            yield FormRequest(url, formdata=d)
+    def parse(self, response, **kwargs):
+        rel_urls = response.xpath('//ul[@id="product-section"]//a/@href').getall()
+        for rel_url in rel_urls:
+            yield Request(urljoin(response.url, rel_url), callback=self.parse_list)
 
-    def parse(self, response):
-        try:
-            j_objs = json.loads(response.text)
-        except ValueError:
-            return
-        prds = j_objs.get("list", [])
-        for prd in prds:
-            tmp = prd.get("Page_Url")
-            yield Request(urljoin(self.base_url, "/product/" + tmp), callback=self.detail_parse)
+    def parse_list(self, response):
+        rel_urls = response.xpath('//div[@class="card"]/a/@href').getall()
+        for rel_url in rel_urls:
+            yield Request(urljoin(response.url, rel_url), callback=self.parse_detail)
 
-    @staticmethod
-    def extract_value(response, title):
-        ret = response.xpath(f'//td[text()={title!r}]/following-sibling::td/descendant-or-self::text()').extract()
-        return ''.join(ret).strip() or None
-
-    def detail_parse(self, response):
-        img_url = response.xpath('//div[@class="product-img"]//img/@src').get()
+    def parse_detail(self, response):
+        tmpl = '//li[contains(text(), {!r})]/span/text()'
+        img = response.xpath('//section[contains(@class, "products-details-section")]//picture/img/@src').get()
         d = {
-            "brand": "simson",
-            "en_name": response.xpath('//h1[contains(@class, "pro-title")]/text()').get(),
+            "brand": self.name,
+            "parent": response.xpath('//ol[@class="breadcrumb"]/li[position()=last()-1]/a/text()').get(),
+            "cat_no": response.xpath(tmpl.format("CAT. No.")).get(),
+            "en_name": response.xpath('//section[contains(@class, "products-details-section")]//div/h1/text()').get(),
+            "cas": response.xpath(tmpl.format("CAS. No.")).get(),
+            "mf": formula_trans(response.xpath(tmpl.format("Mol. F.")).get()),
+            "mw": response.xpath(tmpl.format("Mol. Wt.")).get(),
+            "stock_info": response.xpath(tmpl.format("Stock Status")).get(),
+            "info1": response.xpath(tmpl.format("Chemical Name:")).get(),
+
+            "img_url": img and urljoin(response.url, img),
             "prd_url": response.url,
-            "info1": self.extract_value(response, "Chemical Name"),
-            "cat_no": self.extract_value(response, "Cat. No."),
-            "cas": self.extract_value(response, "CAS. No."),
-            "mf": formula_trans(self.extract_value(response, "Molecular Formula")),
-            "mw": self.extract_value(response, "Formula Weight"),
-            "img_url": img_url or urljoin(self.base_url, img_url),
-            "info4": self.extract_value(response, "Category"),
-            "stock_info": self.extract_value(response, "Product Stock Status"),
         }
-        # TODO should have a middleware to warn this
-        if d.get('en_name') is None or d.get('cat_no') is None:
-            self.logger.warn(f'Get data loss from {response.url!r}')
         yield RawData(**d)
