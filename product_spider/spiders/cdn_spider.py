@@ -16,6 +16,12 @@ class CDNPrdSpider(BaseSpider):
     start_urls = [
         "https://cdnisotopes.com/nf/alphabetlist/view/list/?char=ALL&limit=50",
     ]
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        "PROXY_POOL_REFRESH_STATUS_CODES": [403, 504, 503],
+    }
 
     def parse(self, response, *args, **kwargs):
         urls = response.xpath('//ol[@id="products-list"]/li/div[@class="col-11"]/a/@href').getall()
