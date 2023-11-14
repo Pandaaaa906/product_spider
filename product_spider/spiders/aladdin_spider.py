@@ -25,7 +25,7 @@ class AladdinSpider(BaseSpider):
         "DOWNLOADER_MIDDLEWARES": {
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
-        'RETRY_HTTP_CODES': [403, 504, 503, ],
+        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 504, 503, ],
         'RETRY_TIMES': 10,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
