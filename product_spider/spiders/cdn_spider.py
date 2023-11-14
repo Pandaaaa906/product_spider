@@ -7,6 +7,7 @@ from scrapy import Request
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip, first, dumps
 from product_spider.utils.spider_mixin import BaseSpider
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 
 
 class CDNPrdSpider(BaseSpider):
@@ -41,35 +42,20 @@ class CDNPrdSpider(BaseSpider):
             "brand": self.name,
             "cat_no": cat_no,
             "parent": response.xpath(tmp.format("Category")).get(),
-            "info1": "".join(response.xpath(tmp.format("Synonym(s)")).extract()),
+            "info1": "".join(response.xpath(tmp.format("Synonym(s)")).getall()),
             "mw": response.xpath(tmp.format("Molecular Weight")).get(),
-            "mf": "".join(response.xpath(tmp.format("Formula")).extract()),
+            "mf": "".join(response.xpath(tmp.format("Formula")).getall()),
             "cas": response.xpath(tmp.format("CAS Number")).get(),
-            "en_name": strip(
-                "".join(response.xpath('//div[@class="product-name"]/span/descendant-or-self::text()').extract())),
+            "en_name": "".join(response.xpath('//div[@class="product-name"]/span/descendant-or-self::text()').getall()),
             "img_url": img_url and urljoin(self.base_url, img_url),
-            "stock_info": response.xpath(
-                '//table[@id="product-matrix"]//td[@class="unit-price"]/text()').get(),
+            "stock_info": response.xpath('//table[@id="product-matrix"]//td[@class="unit-price"]/text()').get(),
             "info2": response.xpath(tmp.format("Storage Conditions")).get(),  # 储存条件
             "attrs": dumps(prd_attrs),
             "prd_url": response.url,
         }
         yield RawData(**d)
 
-        ddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}',
-            "parent": d["parent"],
-            "en_name": d["en_name"],
-            "cas": d["cas"],
-            "mf": d["mf"],
-            "mw": d["mw"],
-            'cat_no': d["cat_no"],
-            "img_url": d["img_url"],
-            "prd_url": d["prd_url"],
-        }
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
 
         yield SupplierProduct(**ddd)
 
@@ -91,18 +77,7 @@ class CDNPrdSpider(BaseSpider):
                 'currency': 'USD',
                 'delivery_time': 'in-stock' if item.get('is_in_stock') else None,
             }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'cas': d["cas"],
-                'currency': dd["currency"],
-            }
+            dddd = product_package_to_raw_supplier_quotation(d, dd,  platform=self.name, vendor=self.name)
 
             yield ProductPackage(**dd)
             yield RawSupplierQuotation(**dddd)
