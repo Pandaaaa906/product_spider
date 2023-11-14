@@ -5,6 +5,7 @@ import scrapy
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
+from product_spider.utils.functions import strip
 
 
 class ExtrasyntheseSpider(BaseSpider):
@@ -41,57 +42,49 @@ class ExtrasyntheseSpider(BaseSpider):
             )
 
     def parse_detail(self, response):
-        img_url = response.meta.get("img_url", None)
-        en_name = response.xpath("//div[@class='col col-xl-10 offset-xl-1']//li[last()]//span/text()").get()
-        cas = response.xpath("//div[@data-title='Cas']/text()").get('').strip()
-        cas = (m := re.search(r'\d+-\d{2}-\d\b', cas)) and m.group()
-        cat_no = response.xpath("//div[@data-title='Code #']/text()").get('').strip()
-        mf = formula_trans(response.xpath("//div[@data-title='Formula']/text()").get('').strip())
-        mw = response.xpath("//div[@data-title='MW']/text()").get('').strip()
-        smiles = response.xpath("//div[@data-title='Smiles']/text()").get('').strip()
-        parent = response.xpath("//div[@data-title='Family']//a/text()").get()
-        package = response.xpath(
-            "//div[@class='cntnt my-2']//label/following-sibling::input[(@disabled)]/@value"
-        ).get().replace(' ', '')
-        price = response.xpath("//span[@id='prix_produit']//@content").get()
+        cas = strip(response.xpath("//div[@data-title='Cas']/text()").get())
+        if cas:
+            cas = (m := re.search(r'\d+-\d{2}-\d\b', cas)) and m.group()
 
         d = {
-            "prd_url": response.url,
-            "img_url": img_url,
             "brand": self.name,
-            "cat_no": cat_no,
+            "parent": response.xpath('//div[@data-title="Family"]//a/text()').get(),
+            "cat_no": response.xpath("//div[@data-title='Code #']/text()").get('').strip(),
+            "en_name": response.xpath("//div[@class='col col-xl-10 offset-xl-1']//li[last()]//span/text()").get(),
             "cas": cas,
-            "en_name": en_name,
-            "mf": mf,
-            "mw": mw,
-            "smiles": smiles,
-            "parent": parent,
-        }
+            "mf": formula_trans(response.xpath("//div[@data-title='Formula']/text()").get()),
+            "mw": response.xpath("//div[@data-title='MW']/text()").get(),
+            "smiles": response.xpath('//div[@data-title="Smiles"]//div[@class="_rest"]/text()'),
 
-        dd = {
-            "brand": self.name,
-            "cat_no": cat_no,
-            "package": package,
-            "cost": price,
-            "currency": 'EUR',
+            "prd_url": response.url,
+            "img_url": response.meta.get("img_url", None),
         }
-
         ddd = {
             "platform": self.name,
             "vendor": self.name,
             "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
+            "source_id": f'{self.name}_{d["cat_no"]}',
             "parent": d["parent"],
             "en_name": d["en_name"],
             "cas": d["cas"],
             "mf": d["mf"],
             "mw": d["mw"],
             'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'cost': dd['cost'],
-            "currency": dd["currency"],
             "img_url": d["img_url"],
             "prd_url": d["prd_url"],
+        }
+        yield RawData(**d)
+        yield SupplierProduct(**ddd)
+
+        pkg_qty = response.xpath('//input[@id="valcata_origin"]/@value').get()
+        pkg_unit = response.xpath('//input[@id="condition_cata"]/@value').get()
+        price = response.xpath("//span[@id='prix_produit']//@content").get()
+        dd = {
+            "brand": self.name,
+            "cat_no": d['cat_no'],
+            "package": f"{pkg_qty}{pkg_unit}",
+            "cost": price,
+            "currency": 'EUR',
         }
         dddd = {
             "platform": self.name,
@@ -104,7 +97,5 @@ class ExtrasyntheseSpider(BaseSpider):
             'price': dd['cost'],
             'currency': dd["currency"],
         }
-        yield RawData(**d)
         yield ProductPackage(**dd)
-        yield SupplierProduct(**ddd)
         yield RawSupplierQuotation(**dddd)
