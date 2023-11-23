@@ -30,7 +30,7 @@ class ChemicalBookSpider(BaseSpider):
         )
     }
 
-    def __init__(self, page_start=12, page_end=20, **kwargs):
+    def __init__(self, page_start=0, page_end=35, **kwargs):
         # 默认爬12-20，带CAS，不带Cas的取0-35
         super().__init__(**kwargs)
         self.page_start = page_start
