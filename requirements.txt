@@ -27,3 +27,4 @@ scrapy_redis~=0.7.3
 git+https://github.com/Pandaaaa906/scrapydweb.git@dev
 fonttools~=4.40.0
 jsonpath-ng~=1.5.3
+Twisted==22.10.0
