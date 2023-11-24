@@ -1,9 +1,10 @@
 from string import ascii_uppercase
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 from scrapy import Request
 
-from product_spider.items import RawData, SupplierProduct
+from product_spider.items import RawData, SupplierProduct, ProductPackage, RawSupplierQuotation
 from product_spider.utils.functions import strip, dumps
+from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -12,22 +13,54 @@ class ClearsynthSpider(BaseSpider):
     name = "clearsynth"
     base_url = "https://www.clearsynth.com/"
     start_urls = [
-        f"https://www.clearsynth.com/categories?c=&api={c}" for c in ascii_uppercase
+        "https://www.clearsynth.com/products_categories?section=Categories"
     ]
 
     def parse(self, response, **kwargs):
+        categories = response.xpath('//a[starts-with(@href, "category")]//h5/text()').getall()
+        for category in categories:
+            category = category.replace(" ", "-")
+            for a in ascii_uppercase:
+                params = urlencode({"c": category, "api": a})
+                yield Request(
+                    f"https://www.clearsynth.com/categories?{params}",
+                    callback=self.parse_category
+                )
+
+        searches = response.xpath('//a[starts-with(@href, "search?")]/@href').getall()
+        for search in searches:
+            yield Request(
+                urljoin(response.url, search),
+                callback=self.parse_search,
+            )
+
+    def parse_search(self, response):
+        rel_urls = response.xpath('//td[@data-label="COMPOUND"]/a/@href').getall()
+        for rel_url in rel_urls:
+            yield Request(
+                urljoin(response.url, rel_url),
+                callback=self.parse_detail,
+            )
+        next_page = response.xpath('//a[text()="Next >"]/@href').get()
+        if next_page:
+            yield Request(
+                urljoin(response.url, next_page),
+                callback=self.parse_search
+            )
+
+    def parse_category(self, response, **kwargs):
         rel_urls = response.xpath('//div[@class="auto-container"]//div[@class!="btn-box"]/a/@href').getall()
         for rel_url in rel_urls:
             yield Request(urljoin(response.url, rel_url), callback=self.parse_list)
 
     def parse_list(self, response):
-        rel_urls = response.xpath('//td[@data-column="PRODUCT"]/a/@href').getall()
+        rel_urls = response.xpath('//a[@class="pr-name"]/@href').getall()
         for rel_url in rel_urls:
             yield Request(urljoin(response.url, rel_url), callback=self.parse_detail)
 
     def parse_detail(self, response):
         tmp_xpath = "//*[contains(text(), {!r})]/following-sibling::td[last()]//text()"
-        api_name = response.xpath(tmp_xpath.format("Parent API")).get()
+        api_name = strip(response.xpath(tmp_xpath.format("Parent API")).get())
         img_url = response.xpath('//a[@class="lightbox-image"]/img/@src').get()
 
         prd_attrs = {
@@ -62,21 +95,51 @@ class ClearsynthSpider(BaseSpider):
             "img_url": img_url and urljoin(response.url, img_url),
             "prd_url": response.url,
         }
-        yield RawData(**d)
 
-        ddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}',
-            "parent": d["parent"],
-            "en_name": d["en_name"],
-            "cas": d["cas"],
-            "smiles": d["smiles"],
-            "mf": d["mf"],
-            "mw": d["mw"],
-            'cat_no': d["cat_no"],
-            "img_url": d["img_url"],
-            "prd_url": d["prd_url"],
-        }
+        yield Request(
+            f"https://www.clearsynth.com/stockcheck.asp?catnumber={d['cat_no']}",
+            callback=self.parse_detail_stock,
+            meta={"prd": d}
+        )
+
+    def parse_detail_stock(self, response):
+        d = response.meta.get("prd", {})
+        d["stock_info"] = response.xpath('//text()').get()
+        yield RawData(**d)
+        ddd = rawdata_to_supplier_product(d, self.name, self.name)
         yield SupplierProduct(**ddd)
+        params = {
+            "catnumber": d['cat_no'],
+            "compound": d['en_name'],
+        }
+        yield Request(
+            f"https://www.clearsynth.com/pricing_22_ajax?{urlencode(params)}",
+            callback=self.parse_package,
+            meta={"prd": d}
+        )
+
+    def parse_package(self, response):
+        d = response.meta.get("prd", {})
+
+        rows = response.xpath('//table/input[@name="catnumber"]')
+        for row in rows:
+            qty = row.xpath('./following-sibling::input[@name="qty"]/@value').get()
+            unit = row.xpath('./following-sibling::input[@name="unit"]/@value').get()
+            package = None
+            if isinstance(qty, str) and isinstance(unit, str):
+                package = f"{qty}{unit}"
+            dd = {
+                "brand": self.name,
+                "cat_no": d['cat_no'],
+                "package": package,
+                "cost": row.xpath('./following-sibling::input[@id="mprice2"]/@value').get(),
+                "price": row.xpath('./following-sibling::input[@id="mprice2"]/@value').get(),
+                "delivery_time": d.get("stock_info"),
+                "currency": 'USD',
+
+            }
+            yield ProductPackage(**dd)
+            if not dd.get("cost"):
+                return
+            dddd = product_package_to_raw_supplier_quotation(d, dd, self.name, self.name)
+            yield RawSupplierQuotation(**dddd)
