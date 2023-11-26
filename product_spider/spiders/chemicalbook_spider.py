@@ -20,7 +20,7 @@ class ChemicalBookSpider(BaseSpider):
         "DOWNLOADER_MIDDLEWARES": {
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
-        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500],
+        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500, 302],
         'RETRY_TIMES': 10,
         'CONCURRENT_REQUESTS': 8,
         'USER_AGENT': (
@@ -42,10 +42,11 @@ class ChemicalBookSpider(BaseSpider):
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
+                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
             )
 
     def is_proxy_invalid(self, request, response):
-        if response.status in {403, 500}:
+        if response.status in {403, 500, 302}:
             self.logger.warning(f'status code:{response.status}, {request.url}')
             return True
         if '系统忙' in response.text[:50]:
@@ -66,7 +67,7 @@ class ChemicalBookSpider(BaseSpider):
             yield scrapy.Request(
                 url=urljoin(self.base_url, url),
                 callback=self.parse_detail,
-                meta={"cas": cas}
+                meta={"cas": cas, 'dont_redirect': True, 'handle_httpstatus_list': [302]},
             )
         # 翻页
         next_page = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').get()
@@ -74,6 +75,7 @@ class ChemicalBookSpider(BaseSpider):
             yield scrapy.Request(
                 url=urljoin(response.url, next_page),
                 callback=self.parse,
+                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
             )
 
     def parse_detail(self, response):
@@ -97,7 +99,11 @@ class ChemicalBookSpider(BaseSpider):
             "prd_url": response.url,
         }
         if chem_url:
-            yield Request(urljoin(response.url, chem_url), callback=self.parse_chemical)
+            yield Request(
+                urljoin(response.url, chem_url),
+                callback=self.parse_chemical,
+                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+            )
 
         response.meta['chem'] = d
         yield from self.parse_supplier(response)
@@ -144,7 +150,8 @@ class ChemicalBookSpider(BaseSpider):
                 "attrs": {"prd_count": prd_count, "adv_score": adv_score}
             }
             yield Request(
-                vendor_url, callback=self.parse_supplier_detail, meta={"supplier": supplier}
+                vendor_url, callback=self.parse_supplier_detail,
+                meta={"supplier": supplier, 'dont_redirect': True, 'handle_httpstatus_list': [302]},
             )
 
         if not nodes or dont_grab:
@@ -177,7 +184,8 @@ class ChemicalBookSpider(BaseSpider):
             meta={
                 'dont_grab': len(countries) > country_index + 1,
                 'chem': d,
-                'country_index': country_index + 1
+                'country_index': country_index + 1,
+                'dont_redirect': True, 'handle_httpstatus_list': [302]
             }
         )
 
@@ -239,4 +247,3 @@ class ChemicalBookSpider(BaseSpider):
             "html": response.text,
         }
         yield ChemicalBookChemical(**d)
-
