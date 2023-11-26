@@ -16,6 +16,19 @@ class ClearsynthSpider(BaseSpider):
         "https://www.clearsynth.com/products_categories?section=Categories"
     ]
 
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500],
+        'RETRY_TIMES': 10,
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/107.0.0.0 Safari/537.36'
+        )
+    }
+
     def parse(self, response, **kwargs):
         categories = response.xpath('//a[starts-with(@href, "category")]//h5/text()').getall()
         for category in categories:
