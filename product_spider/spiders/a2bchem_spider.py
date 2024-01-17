@@ -98,7 +98,7 @@ class A2bchemSpider(BaseSpider):
                 'cat_no': d["cat_no"],
                 'package': dd['package'],
                 'discount_price': dd['cost'],
-                'price': original_price,
+                'price': parse_cost(original_price),
                 'cas': d["cas"],
                 'currency': dd["currency"],
             }
