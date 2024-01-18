@@ -57,6 +57,7 @@ class NcrmSpider(BaseSpider):
         )
 
     def parse_detail(self, response):
+        tmpl = '//span[contains(text(), {!r})]/parent::td/following-sibling::td/text()'
         parent = response.meta.get("parent")
         chs_name = response.meta.get("chs_name")
         en_name = response.xpath("//span[contains(text(), '英文名称')]/parent::td/following-sibling::td/text()").get()
@@ -70,22 +71,14 @@ class NcrmSpider(BaseSpider):
 
         info2 = response.xpath("//span[contains(text(), '保存条件')]/parent::td/following-sibling::td/text()").get()
 
-        precautions_for_use = response.xpath(
-            "//span[contains(text(), '使用注意事项')]/parent::td/following-sibling::td/text()"
-        ).get()
-        substrate = response.xpath("//span[contains(text(), '基体')]/parent::td/following-sibling::td/text()").get()
-
-        main_analysis_method = response.xpath(
-            "//span[contains(text(), '主要分析方法')]/parent::td/following-sibling::td/text()"
-        ).get()
-
-        fixed_unit = response.xpath("//span[contains(text(), '定值单位')]/parent::td/following-sibling::td/text()").get()
-
         prd_attrs = json.dumps({
-            "precautions_for_use": precautions_for_use,  # 使用注意事项
-            "substrate": substrate,  # 基体
-            "main_analysis_method": main_analysis_method,  # 主要分析方法
-            "fixed_unit": fixed_unit,  # 定值单位
+            "precautions_for_use": response.xpath(tmpl.format('使用注意事项')).get(),
+            "substrate": response.xpath(tmpl.format('基体')).get(),
+            "main_analysis_method": response.xpath(tmpl.format('主要分析方法')).get(),
+            "fixed_unit": response.xpath(tmpl.format('定值单位')).get(),
+            "production_org": response.xpath(tmpl.format('研制单位名称')).get(),
+            "production_handler": response.xpath(tmpl.format('研制负责人')).get(),
+            "approval_date": response.xpath(tmpl.format('被批准时间')).get(),
         })
 
         d = {
