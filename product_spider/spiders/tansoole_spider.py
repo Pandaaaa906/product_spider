@@ -22,7 +22,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
 
 class TansooleSpider(BaseSpider):
     name = "tansoole"
-    start_urls = ["https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString=DRE"]
+    start_urls = ["https://www.tansoole.com/search/search.htm?gloabSearchVo.queryString=dr.e"]
     base_url = "https://www.tansoole.com/"
     url_search_api = "https://www.tansoole.com/search/search-result.htm"
     url_search_html = "https://www.tansoole.com/search/search.htm"
@@ -177,6 +177,8 @@ class TansooleSpider(BaseSpider):
         package = res.get("packType", None)
         expiry_date = res.get("expireDate", None)
         delivery = res.get("deliveryDay", None)
+        raw_cas = (chs_name and (m := re.search(r'(?<=\|)\d+-\d{2}-\d(?=\|)', chs_name)) and m.group())
+        cas = res.get("cas", None) or raw_cas
 
         price = res.get("productEntryPrice", None)
         price = self.decode_price(price, font_name)
@@ -184,6 +186,8 @@ class TansooleSpider(BaseSpider):
         cost = self.decode_price(cost, font_name)
 
         stock_num = res.get("transportDesc", None)
+        if stock_num == '现货':
+            delivery = '现货'
         brand = self._parse_brand(res.get('brand'))
         ddd = {
             "platform": "tansoole",
@@ -192,6 +196,7 @@ class TansooleSpider(BaseSpider):
             "brand": brand,
             "cat_no": cat_no,
             "chs_name": chs_name,
+            "cas": cas,
             "package": package,
             "prd_url": prd_url,
             "price": price,
@@ -208,6 +213,7 @@ class TansooleSpider(BaseSpider):
             "brand": brand,
             "source_id": f'{brand}_{cat_no}',
             'cat_no': cat_no,
+            "cas": cas,
             'package': package,
             'discount_price': cost,
             'price': price,
