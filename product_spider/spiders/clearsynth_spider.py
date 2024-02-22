@@ -48,12 +48,13 @@ class ClearsynthSpider(BaseSpider):
             )
 
     def parse_search(self, response):
-        rel_urls = response.xpath('//td[@data-label="COMPOUND"]/a/@href').getall()
+        rel_urls = response.xpath('//div[contains(@class, "prodcut-title-name")]/a/@href').getall()
         for rel_url in rel_urls:
             yield Request(
                 urljoin(response.url, rel_url),
                 callback=self.parse_detail,
             )
+        # TODO might not necessary
         next_page = response.xpath('//a[text()="Next >"]/@href').get()
         if next_page:
             yield Request(
@@ -145,7 +146,7 @@ class ClearsynthSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": d['cat_no'],
                 "package": package,
-                "cost": row.xpath('./following-sibling::input[@id="mprice2"]/@value').get(),
+                "cost": row.xpath('./following-sibling::input[@id="mprice1"]/@value').get(),
                 "price": row.xpath('./following-sibling::input[@id="mprice2"]/@value').get(),
                 "delivery_time": d.get("stock_info"),
                 "currency": 'USD',
