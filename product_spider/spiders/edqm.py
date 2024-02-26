@@ -3,6 +3,7 @@ from lxml.etree import XML
 from more_itertools import first
 import json
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.functions import strip
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -17,9 +18,9 @@ class EDQMSpider(BaseSpider):
         xml = XML(response.body)
         prds = xml.xpath('//Reference')
         for prd in prds:
-            cat_no = first(prd.xpath('./Order_Code/text()'), None)
+            cat_no = first(prd.xpath('./@Order_Code'), None)
             batch_num = first(prd.xpath("./Batch_No/text()"), None)  # 批号
-            prd_url = f"https://crs.edqm.eu/db/4DCGI/View={first(prd.xpath('./Order_Code/text()'), '')}"
+            prd_url = f"https://crs.edqm.eu/db/4DCGI/View={cat_no or ''}"
             d = {
                 "brand": self.brand,
                 "cat_no": cat_no,
@@ -45,17 +46,17 @@ class EDQMSpider(BaseSpider):
         batch_num = response.meta.get("batch_num", None)
         d = response.meta.get("product", None)
 
-        controlled_drug = response.xpath(
+        controlled_drug = strip(response.xpath(
             "//*[contains(text(), 'Sales restriction')]/parent::td/following-sibling::td/font/text()"
-        ).get().strip()
+        ).get())
 
-        shipping_info = response.xpath(
+        shipping_info = strip(response.xpath(
             "//*[contains(text(), 'Dispatching conditions')]/parent::td/following-sibling::td/font/text()"
-        ).get().strip()
+        ).get())
 
-        stock_info = response.xpath(
+        stock_info = strip(response.xpath(
             "//font[contains(text(), 'Availability')]/parent::td/following-sibling::td/font/text()"
-        ).get().strip()
+        ).get())
 
         package = response.xpath(
             "//*[contains(text(), 'Unit quantity per vial')]/parent::td/following-sibling::td/font/text()"
@@ -63,17 +64,13 @@ class EDQMSpider(BaseSpider):
         if package is not None:
             package = parse_package(package)
 
-        cost = response.xpath(
+        cost = strip(response.xpath(
             "//*[contains(text(), 'Price*')]/parent::td/following-sibling::td/font[last()-1]/text()"
-        ).get()
-        if cost is not None:
-            cost = cost.strip()
+        ).get())
 
-        currency = response.xpath(
+        currency = strip(response.xpath(
             "//*[contains(text(), 'Price*')]/parent::td/following-sibling::td/font[last()]/text()"
-        ).get()
-        if currency is not None:
-            currency = currency.strip()
+        ).get())
 
         sales_unit = d.pop('sales_unit', '1')
         d["shipping_info"] = shipping_info
