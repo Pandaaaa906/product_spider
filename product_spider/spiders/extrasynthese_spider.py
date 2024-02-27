@@ -54,7 +54,7 @@ class ExtrasyntheseSpider(BaseSpider):
             "cas": cas,
             "mf": formula_trans(response.xpath("//div[@data-title='Formula']/text()").get()),
             "mw": response.xpath("//div[@data-title='MW']/text()").get(),
-            "smiles": response.xpath('//div[@data-title="Smiles"]//div[@class="_rest"]/text()'),
+            "smiles": response.xpath('//div[@data-title="Smiles"]//div[@class="_rest"]/text()').get(),
 
             "prd_url": response.url,
             "img_url": response.meta.get("img_url", None),
