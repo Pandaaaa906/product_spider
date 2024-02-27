@@ -4,7 +4,7 @@ from urllib.parse import urljoin, urlencode
 
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -19,7 +19,7 @@ class ChemImpexSpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="count-box"]/a[translate(normalize-space(text())," ","")!="0"]')
         for a in a_nodes:
             cat_url = strip(a.xpath('./@href').get())
@@ -49,7 +49,7 @@ class ChemImpexSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//span[contains(text(), {!r})]/following-sibling::span//text()'
         d = {
-            'brand': 'chemimpex',
+            'brand': self.name,
             'parent': response.meta.get('parent'),
             'cat_no': response.xpath(tmp.format("Catalog Number:")).get(),
             'en_name': strip(''.join(response.xpath('//h1[@itemprop="name"]//text()[not(parent::span)]').getall())),
@@ -63,19 +63,26 @@ class ChemImpexSpider(BaseSpider):
             'img_url': strip(response.xpath('//div[@id="catalog_content"]/img/@src').get()),
             'prd_url': response.url,
         }
-        m = re.search(r'push\(({.+\})\);', response.text)
-        if not m:
-            yield RawData(**d)
-            return
+        m = re.search(r'skuWidgets\.push\(({.+\})\);', response.text)
+        yield RawData(**d)
+
         j_obj = json.loads(m.group(1))
         params = [j_obj.get(f'param{i}', '') for i in range(1, 7)]
         url = 'https://www.chemimpex.com/Widgets-product/gethtml_skulist/{}/{}/{}/{}/{}/{}'.format(*params)
         yield Request(url, callback=self.parse_table, meta={'prd_info': d})
 
     def parse_table(self, response):
-        d = {
-            'info3': strip(response.xpath('//td[@class="skusize"]/text()').get()),
-            'info4': strip(response.xpath('//span[@class="price"]/text()').get()),
-            'stock_info': strip(response.xpath('//span[contains(@class, "stockstatus")]/text()').get()),
-        }
-        yield RawData(**response.meta.get('prd_info', {}), **d)
+        prd = response.meta.get("prd_info", {})
+        rows = response.xpath('//tr[@class="trSkuList"]')
+        for row in rows:
+            stock_info = strip(row.xpath('.//span[contains(@class, "stockstatus")]/text()').get())
+            dd = {
+                'brand': self.name,
+                'cat_no': prd.get("cat_no"),
+                'package': strip(row.xpath('./td[@class="skusize"]/text()').get()),
+                'cost': strip(row.xpath('.//span[@class="price"]/text()').get()),
+                'currency': "USD",
+                'stock_num': 1 if stock_info == 'YES' else 0,
+                'delivery_time': 'in-stock' if stock_info == 'YES' else stock_info
+            }
+            yield ProductPackage(**dd)
