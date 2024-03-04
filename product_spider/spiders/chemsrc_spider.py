@@ -25,9 +25,9 @@ class ChemSrcSpider(BaseSpider):
         "DOWNLOADER_MIDDLEWARES": {
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
-        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 302],
+        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 503, 302],
         'RETRY_TIMES': 10,
-        'CONCURRENT_REQUESTS': 4,
+        'CONCURRENT_REQUESTS': 2,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
