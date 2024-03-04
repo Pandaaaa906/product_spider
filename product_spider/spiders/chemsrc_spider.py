@@ -3,9 +3,9 @@ import re
 from datetime import datetime, timedelta
 from enum import Enum
 from urllib.parse import urljoin
+from uuid import uuid4
 
 import psycopg2
-from kombu import uuid
 from scrapy import Request
 
 from product_spider.items.chemsrc_items import ChemSrcChemical
@@ -48,7 +48,7 @@ class ChemSrcSpider(BaseSpider):
         db_settings = self.settings["DATABASE"]
         now = datetime.now()
         with psycopg2.connect(**db_settings['params']) as conn:
-            with conn.cursor(name=f"chemsrc_{uuid()}") as cur:
+            with conn.cursor(name=f"chemsrc_{uuid4().hex}") as cur:
                 cur.itersize = self.itersize
                 cur.execute(sql_fetch_cas, [now - timedelta(days=self.ignore_days)])
                 for (cas, ) in cur:
