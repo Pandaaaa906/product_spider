@@ -15,6 +15,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class ChemSrcStrategy(str, Enum):
     CATO_PROD = 'CATO_PROD'
+    LOCAL = 'LOCAL'
 
 
 class ChemSrcSpider(BaseSpider):
