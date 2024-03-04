@@ -4,3 +4,4 @@ from .chembl import *
 from .chemicalbook import *
 from .soopat import *
 from .echemportal import EChemPortalItem
+from .chemsrc_items import ChemSrcChemical
