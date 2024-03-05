@@ -5,6 +5,8 @@ import requests
 from scrapy import Request
 from scrapy.exceptions import NotConfigured
 
+from product_spider import signals as ps_signals
+
 logger = logging.getLogger("scrapy.proxies")
 DEFAULT_PROXY_POOL_REFRESH_STATUS_CODES = {503, 403}
 
@@ -39,7 +41,9 @@ class RandomProxyMiddleWare:
 
     @classmethod
     def from_crawler(cls, crawler):
-        return cls(crawler.settings, spider=crawler.spider)
+        mid = cls(crawler.settings, spider=crawler.spider)
+        crawler.signals.connect(mid.refresh_proxy, signal=ps_signals.SHOULD_REFRESH_PROXY)
+        return mid
 
     def refresh_proxy(self, proxy: str = None):
         logger.info(f"current proxy: {self.proxy}")
