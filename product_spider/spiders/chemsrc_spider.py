@@ -28,13 +28,14 @@ class ChemSrcSpider(BaseSpider):
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 503, 302],
         'RETRY_TIMES': 10,
         'CONCURRENT_REQUESTS': 2,
-        'DOWNLOAD_DELAY': 2.5,
+        'DOWNLOAD_DELAY': 1.5,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
             'Chrome/107.0.0.0 Safari/537.36'
         )
     }
+
     def __init__(
             self, strategy: ChemSrcStrategy = ChemSrcStrategy.CATO_PROD,
             itersize: int = 5000,
@@ -77,12 +78,20 @@ class ChemSrcSpider(BaseSpider):
             yield Request(urljoin(response.url, next_page), callback=self.parse)
 
     def parse_detail(self, response):
-        if response.xpath('//h3[text()="根据国家相关法律法规、政策规定，特殊危化品不显示该产品信息！"]').get():
-            return
         tmpl = '//table[@id="baseTbl"]//th[text()={!r}]/following-sibling::td[1]//text()'
         chemsrc_id = (m := re.search(r'cas/([^.]+).html', response.url)) and m.group(1)
 
         tmp_cas, *_ = chemsrc_id.split('_')
+
+        if h := response.xpath('//h3[text()="根据国家相关法律法规、政策规定，特殊危化品不显示该产品信息！"]').get():
+            yield ChemSrcChemical(**{
+                "chemsrc_id": chemsrc_id,
+                "url": response.url,
+                "cas": tmp_cas,
+                "content_html": h,
+            })
+            return
+
         raw_chemsrc_update_time = response.xpath('//div[contains(text(), "更新时间：")]/text()').get()
         chemsrc_update_time = raw_chemsrc_update_time and (m := re.sub(r'^更新时间：', '', raw_chemsrc_update_time))
         d = {
