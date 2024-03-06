@@ -28,7 +28,7 @@ class ChemSrcSpider(BaseSpider):
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 503, 302],
         'RETRY_TIMES': 10,
         'CONCURRENT_REQUESTS': 2,
-        'DOWNLOAD_DELAY': 2,
+        'DOWNLOAD_DELAY': 2.5,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -69,7 +69,7 @@ class ChemSrcSpider(BaseSpider):
         if response.meta.get('redirect_reasons') == [301]:
             yield from self.parse_detail(response)
             return
-        prd_urls = response.xpath('//tr[@class="rowDat"]/td[2]/a[1]/@href')
+        prd_urls = response.xpath('//tr[@class="rowDat"]/td[2]/a[1]/@href').getall()
         for rel_url in prd_urls:
             yield Request(urljoin(response.url, rel_url), callback=self.parse_detail)
 
