@@ -68,9 +68,9 @@ class RandomProxyMiddleWare:
         return wrap_failed_request(request)
 
     def process_exception(self, request, exception, spider):
+        logger.warning(f"{exception}, changing proxy: {request.url}")
         if request.meta.get('proxy') == self.proxy:
             self.refresh_proxy()
-        logger.warning(f"{exception}: {request.url}")
         return wrap_failed_request(request)
 
     def default_is_proxy_invalid(self, request, response):
