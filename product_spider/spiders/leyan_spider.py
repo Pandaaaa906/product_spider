@@ -8,6 +8,8 @@ from fontTools.ttLib import TTFont
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.cost import parse_cost
+from product_spider.utils.functions import dumps
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -24,6 +26,7 @@ class LeyanSpider(BaseSpider):
         # "DOWNLOADER_MIDDLEWARES": {
         #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         # },
+        'PROXY_POOL_REFRESH_STATUS_CODES': [503, 504, 429],
         'RETRY_HTTP_CODES': [503, 504, 429],
         'RETRY_TIMES': 10,
 
@@ -82,6 +85,13 @@ class LeyanSpider(BaseSpider):
         tmp = '//div[contains(*/text(), {!r})]/following-sibling::div/*/text()'
         cat_no = response.xpath('//span[@id="catalogNo"]/text()').get()
         rel_img = response.xpath('//input[@id="image"]/@value').get()
+        attrs = {}
+        related_categories = [
+            '__'.join(breadcrumb.xpath('./li/a/text()').getall())
+            for breadcrumb in response.xpath('//div[./h2[text()="相关分类"]]/following-sibling::div//ol')
+        ]
+        if related_categories:
+            attrs["related_categories"] = related_categories
         d = {
             'brand': self.name,
             'parent': '_'.join(response.xpath('//li[@class="active"]/following-sibling::li/a/text()').getall()),
@@ -97,6 +107,7 @@ class LeyanSpider(BaseSpider):
 
             'img_url': rel_img and urljoin(response.url, rel_img),
             'prd_url': response.url,
+            'attrs': dumps(attrs),
         }
         yield RawData(**d)
 
@@ -112,7 +123,7 @@ class LeyanSpider(BaseSpider):
                 'brand': self.name,
                 'cat_no': cat_no,
                 'package': package,
-                'cost': price,
+                'cost': parse_cost(price),
                 'currency': 'RMB',
                 'delivery_time': 'in-stock' if stock_num == '1' else None,
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
