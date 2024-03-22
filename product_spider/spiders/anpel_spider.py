@@ -1,387 +1,435 @@
-import re
-from html import unescape
-from urllib.parse import urljoin
+import json
+from itertools import product
+from string import digits
+from urllib.parse import urljoin, urlencode
 
-from more_itertools import first
-from scrapy import Request, FormRequest
+from scrapy import Request
 
-from product_spider.items import AnpelItem
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
+from product_spider.utils.json_path import json_nth_value, json_all_value
 from product_spider.utils.spider_mixin import BaseSpider
 
+default_brands = [
+    {"brand_id": "0032", "alt": "ANPEL"},
+    {"brand_id": "0281", "alt": "anpel-检科院"},  # 500
+    {"brand_id": "B0249", "alt": "Anpel-农科院质标所"},
+    {"brand_id": "402", "alt": "Anpel-国家粮食局"},
+    {"brand_id": "0134", "alt": "CNW"},
+    {"brand_id": "0181", "alt": "o2si"},
+    # {"brand_id": "0098", "alt": "Dr"},
+    # {"brand_id": "401", "alt": "DR毒素"},
+    {"brand_id": "405", "alt": "安谱行政"},
+    # {"brand_id": "Brands_ZG.html", "alt": "中国"},
+    # {"brand_id": "Brands_KG.html", "alt": "科工委"},
+    # {"brand_id": "0125", "alt": "Bepure"},
+    # {"brand_id": "403", "alt": "Dr定制"},
+    # {"brand_id": "0121", "alt": "Dr南京"},
+    # {"brand_id": "0156", "alt": "环境保护部标准样品研究所（IERM）"},
+    # {"brand_id": "0152", "alt": "农业部环境保护科研监测所 (天津)"},
+    # {"brand_id": "0301", "alt": "坛墨自有"},
+    # {"brand_id": "0305", "alt": "北京有色金属"},
+    # {"brand_id": "0279", "alt": "海岸鸿蒙"},
+    # {"brand_id": "0280", "alt": "申迪玻璃"},
+    # {"brand_id": "0170", "alt": "中科美菱"},
+    # {"brand_id": "399", "alt": "上海化工研究院"},
+    # {"brand_id": "0302", "alt": "钢研纳克"},
+    #
+    # {"brand_id": "0033", "alt": "SUPELCO"},
+    # {"brand_id": "0117", "alt": "TRC"},
+    # {"brand_id": "0222", "alt": "Fluka"},
+    # {"brand_id": "0096", "alt": "witeg"},
+    # {"brand_id": "0041", "alt": "AGILENT"},
+    # {"brand_id": "0039", "alt": "MERCK"},
+    # {"brand_id": "0079", "alt": "BRAND"},
+    # {"brand_id": "155", "alt": "Wellington"},
+    # {"brand_id": "0045", "alt": "WATERS"},
+    # {"brand_id": "0035", "alt": "SIGMA"},
+    # {"brand_id": "0160", "alt": "Camsco"},
+    # {"brand_id": "0095", "alt": "REGIS"},
+    # {"brand_id": "0217", "alt": "Megazyme"},
+    # {"brand_id": "Brands_C0379.html", "alt": "梯希爱(TCI)"},
+    # {"brand_id": "0143", "alt": "AccuStandard"},
+    # {"brand_id": "0189", "alt": "中国药品生物制品检定所"},
+    # {"brand_id": "0185", "alt": "NSI"},
+    # {"brand_id": "0132", "alt": "WITEGA Laboratorien"},
+    # {"brand_id": "0127", "alt": "IDEX"},
+    # {"brand_id": "0131", "alt": "CAMBRIDGE ISOTOP"},
+    # {"brand_id": "0109", "alt": "NU-CHEK"},
+    # {"brand_id": "0116", "alt": "Alfa Aesar"},
+    # {"brand_id": "0049", "alt": "PALL"},
+    # {"brand_id": "0050", "alt": "WHATMAN"},
+    # {"brand_id": "0042", "alt": "岛津"},
+    # {"brand_id": "0044", "alt": "PE"},
+    # {"brand_id": "0136", "alt": "COWIE"},
+    # {"brand_id": "0161", "alt": "NIST"},
+    # {"brand_id": "0162", "alt": "Chiron"},
+    #
+    # {"brand_id": "0186", "alt": "NRCC"},
+    # {"brand_id": "0196", "alt": "Thermo"},
+    # {"brand_id": "0166", "alt": "Wako"},
+    # {"brand_id": "0172", "alt": "TLC"},
+    # {"brand_id": "0210", "alt": "亚速旺"},
+    # {"brand_id": "0251", "alt": "戴安 Dionex"},
+    #
+    # {"brand_id": "169", "alt": "C/D/N Isotopes"},
+    # {"brand_id": "170", "alt": "Cerilliant"},
+    # {"brand_id": "0399", "alt": "大龙"},
+    # {"brand_id": "219", "alt": "伯乐 "},
+    # {"brand_id": "0184", "alt": "Hamilton"},
+    # {"brand_id": "0209", "alt": "Beacon"},
+    # {"brand_id": "322", "alt": "普瑞邦（Pribo）"},
+    # {"brand_id": "0048", "alt": "METROHM"},
+    # {"brand_id": "0091", "alt": "KNF"},
+    # {"brand_id": "0081", "alt": "RESTEK"},
+    # {"brand_id": "0113", "alt": "ULTRA Scientific"},
+    # {"brand_id": "0114", "alt": "Phenova"},
+    # {"brand_id": "0099", "alt": "USP"},
+    # {"brand_id": "0066", "alt": "恒奥"},
+    # {"brand_id": "0067", "alt": "津腾"},
+    # {"brand_id": "0052", "alt": "SGE"},
+    # {"brand_id": "0183", "alt": "Larodan"},
+    # {"brand_id": "0190", "alt": "OlChemIm"},
+    # {"brand_id": "0187", "alt": "MRI"},
+    # {"brand_id": "0199", "alt": "RIVM"},
+    # {"brand_id": "0192", "alt": "SPEX"},
 
-def gen_post_data(target, to_page, view_state, view_state_generator, event_validation):
-    parsed_target = target.replace("_", "$")
-    return {
-        'ScriptManager': f'UpdatePanel1|{parsed_target}',
-        'txtSear': '',
-        'gridview$ctl02$lblNewPrice1': '0',
-        'gridview$ctl02$txtTrnQty': '1',
-        'gridview$ctl03$lblNewPrice1': '0',
-        'gridview$ctl03$txtTrnQty': '1',
-        'gridview$ctl04$lblNewPrice1': '0',
-        'gridview$ctl04$txtTrnQty': '1',
-        'gridview$ctl05$lblNewPrice1': '0',
-        'gridview$ctl05$txtTrnQty': '1',
-        'gridview$ctl06$lblNewPrice1': '0',
-        'gridview$ctl06$txtTrnQty': '1',
-        'gridview$ctl07$lblNewPrice1': '0',
-        'gridview$ctl07$txtTrnQty': '1',
-        'gridview$ctl08$lblNewPrice1': '0',
-        'gridview$ctl08$txtTrnQty': '1',
-        'gridview$ctl09$lblNewPrice1': '0',
-        'gridview$ctl09$txtTrnQty': '1',
-        'gridview$ctl10$lblNewPrice1': '0',
-        'gridview$ctl10$txtTrnQty': '1',
-        'gridview$ctl11$lblNewPrice1': '0',
-        'gridview$ctl11$txtTrnQty': '1',
-        'gridview$ctl12$lblNewPrice1': '0',
-        'gridview$ctl12$txtTrnQty': '1',
-        'gridview$ctl13$lblNewPrice1': '0',
-        'gridview$ctl13$txtTrnQty': '1',
-        'gridview$ctl14$lblNewPrice1': '0',
-        'gridview$ctl14$txtTrnQty': '1',
-        'gridview$ctl15$lblNewPrice1': '0',
-        'gridview$ctl15$txtTrnQty': '1',
-        'gridview$ctl16$lblNewPrice1': '0',
-        'gridview$ctl16$txtTrnQty': '1',
-        'gridview$ctl17$lblNewPrice1': '0',
-        'gridview$ctl17$txtTrnQty': '1',
-        'gridview$ctl18$lblNewPrice1': '0',
-        'gridview$ctl18$txtTrnQty': '1',
-        'gridview$ctl19$lblNewPrice1': '0',
-        'gridview$ctl19$txtTrnQty': '1',
-        'gridview$ctl20$lblNewPrice1': '0',
-        'gridview$ctl20$txtTrnQty': '1',
-        'gridview$ctl21$lblNewPrice1': '0',
-        'gridview$ctl21$txtTrnQty': '1',
-        'gridview$ctl22$lblNewPrice1': '0',
-        'gridview$ctl22$txtTrnQty': '1',
-        'gridview$ctl23$lblNewPrice1': '0',
-        'gridview$ctl23$txtTrnQty': '1',
-        'gridview$ctl24$lblNewPrice1': '0',
-        'gridview$ctl24$txtTrnQty': '1',
-        'gridview$ctl25$lblNewPrice1': '0',
-        'gridview$ctl25$txtTrnQty': '1',
-        'gridview$ctl26$lblNewPrice1': '0',
-        'gridview$ctl26$txtTrnQty': '1',
-        'gridview$ctl27$lblNewPrice1': '0',
-        'gridview$ctl27$txtTrnQty': '1',
-        'gridview$ctl28$lblNewPrice1': '0',
-        'gridview$ctl28$txtTrnQty': '1',
-        'gridview$ctl29$lblNewPrice1': '0',
-        'gridview$ctl29$txtTrnQty': '1',
-        'txtToPageNum': to_page,
-        '__EVENTTARGET': parsed_target,
-        '__EVENTARGUMENT': '',
-        '__VIEWSTATE': view_state,
-        '__VIEWSTATEGENERATOR': view_state_generator,
-        '__VIEWSTATEENCRYPTED': '',
-        '__EVENTVALIDATION': event_validation,
-        '__ASYNCPOST': 'true',
-    }
+    # {"brand_id": "0165", "alt": "Icon Isotope"},
+    # {"brand_id": "0180", "alt": "Acros"},
+    # {"brand_id": "0174", "alt": "Phytolab"},
+    #
+    # {"brand_id": "0157", "alt": "APSC"},
+    # {"brand_id": "0158", "alt": "LGC"},
+    # {"brand_id": "0159", "alt": "Medical Isotope"},
+    # {"brand_id": "0146", "alt": "KARTELL "},
+    # {"brand_id": "0150", "alt": "GL"},
+    # {"brand_id": "0151", "alt": "Schott"},
+    # {"brand_id": "359", "alt": "广州环凯"},
+    # {"brand_id": "362", "alt": "青岛海博"},
+    # {"brand_id": "373", "alt": "北京陆桥"},
+    # {"brand_id": "397", "alt": "阿拉丁（aladdin）"},
+    #
+    # {"brand_id": "154", "alt": "LC LAB"},
+    # {"brand_id": "0208", "alt": "上海同田生物"},
+    # {"brand_id": "0201", "alt": "CanSyn"},
+    # {"brand_id": "0213", "alt": "国药"},
+    # {"brand_id": "0299", "alt": "Iris Biotech GmbH"},
+    # {"brand_id": "0178", "alt": "Matreya LLC"},
+    # {"brand_id": "Brands_A0086.html", "alt": "talboys"},
+    # {"brand_id": "0191", "alt": "SIMAX"},
+    # {"brand_id": "Brands_c2044.html", "alt": "DAISO"},
+    # {"brand_id": "0094", "alt": "Chemservice"},
+    # {"brand_id": "0036", "alt": "ALDRICH"},
+    # {"brand_id": "0285", "alt": "Sigma-Aldrich"},
+    # {"brand_id": "0139", "alt": "3M"},
+    # {"brand_id": "0149", "alt": "VITLAB"},
+    # {"brand_id": "0046", "alt": "TRANSGENOMIC"},
+    # {"brand_id": "0037", "alt": "Sigma-Aldrich(原Fluka)"},
+    # {"brand_id": "0059", "alt": "亚东"},
+    # {"brand_id": "0804", "alt": "国家标准物质中心"},
+    # {"brand_id": "0171", "alt": "林纯药"},
+    # {"brand_id": "0119", "alt": "Shodex"},
+    #
+    # {"brand_id": "218", "alt": "艾杰尔"},
+    # {"brand_id": "0167", "alt": "一恒"},
+    # {"brand_id": "0115", "alt": "IRMM"},
+    # {"brand_id": "0211", "alt": "Thermo Nalgene/Nunc"},
+    # {"brand_id": "0085", "alt": "ORGANOMATION"},
+    # {"brand_id": "0100", "alt": "ChromaDex"},
+    # {"brand_id": "0034", "alt": "Sigma-Aldrich（原RDH）"},
+    # {"brand_id": "0147", "alt": "艾德姆 ADAM"},
+    # {"brand_id": "0254", "alt": "大连中食国实"},
+    # {"brand_id": "0043", "alt": "PHENOMENEX"},
+    # {"brand_id": "0080", "alt": "Eppendorf（艾本德）"},
+    # {"brand_id": "0216", "alt": "Soltec Ventures"},
+    # {"brand_id": "0102", "alt": "欧洲药典EPCRS"},
+    # {"brand_id": "0803", "alt": "诗丹德"},
+    # {"brand_id": "0177", "alt": "安亭"},
+    # {"brand_id": "Brands_A.html", "alt": "锐标"},
+    # {"brand_id": "0054", "alt": "SWAGELOK"},
+    # {"brand_id": "0077", "alt": "泰科爱尔"},
+    # {"brand_id": "0128", "alt": "Varian"},
+    # {"brand_id": "Brands_B0112.html", "alt": "弗鲁克（FLUKO）"},
+    # {"brand_id": "Brands_BM.html", "alt": "BM"},
+    # {"brand_id": "0140", "alt": "霍尼韦尔"},
+    # {"brand_id": "0224", "alt": "Honeywell"},
+    # {"brand_id": "0225", "alt": "Riedel-de Haen"},
+    # {"brand_id": "0145", "alt": "ISMATEC"},
+    # {"brand_id": "0055", "alt": "RHEODYNE"},
+    # {"brand_id": "0325", "alt": "Reagecon"},
+    # {"brand_id": "0123", "alt": "Silicycle"},
+    # {"brand_id": "0163", "alt": "RTC"},
+    # {"brand_id": "0909", "alt": "Vetec"},
+    # {"brand_id": "0118", "alt": "SLS INC."},
+    # {"brand_id": "0101", "alt": "英国药典"},
+    # {"brand_id": "0326", "alt": "杜邦"},
+    # {"brand_id": "0223", "alt": "B&amp;J"},
+    #
+    # {"brand_id": "0303", "alt": "Gilian"},
+    # {"brand_id": "0226", "alt": "谱育"},
+    # {"brand_id": "0227", "alt": "麦克林"},
+    # {"brand_id": "Brands_ABVC.html", "alt": "赫斯曼Hirschmann"},
+    # {"brand_id": "404", "alt": "TRC-危险品干冰"},
 
+    # {"brand_id": "Brands_.html", "alt": ""},
 
-brands_urls = [
-    # {"href": "Brands_0032.html", "alt": "ANPEL"},
-    # {"href": "Brands_0281.html", "alt": "anpel-检科院"},   # 500
-    {"href": "Brands_B0249.html", "alt": "Anpel-农科院质标所"},
-    {"href": "Brands_402.html", "alt": "Anpel-国家粮食局"},
-    # {"href": "Brands_0134.html", "alt": "CNW"},
-    # {"href": "Brands_0181.html", "alt": "o2si"},
-    # {"href": "Brands_0098.html", "alt": "Dr"},
-    {"href": "Brands_401.html", "alt": "DR毒素"},
-    {"href": "Brands_405.html", "alt": "安谱行政"},
-    {"href": "Brands_ZG.html", "alt": "中国"},
-    {"href": "Brands_KG.html", "alt": "科工委"},
-    {"href": "Brands_0125.html", "alt": "Bepure"},
-    {"href": "Brands_403.html", "alt": "Dr定制"},
-    {"href": "Brands_0121.html", "alt": "Dr南京"},
-    {"href": "Brands_0156.html", "alt": "环境保护部标准样品研究所（IERM）"},
-    {"href": "Brands_0152.html", "alt": "农业部环境保护科研监测所 (天津)"},
-    {"href": "Brands_0301.html", "alt": "坛墨自有"},
-    {"href": "Brands_0305.html", "alt": "北京有色金属"},
-    {"href": "Brands_0279.html", "alt": "海岸鸿蒙"},
-    {"href": "Brands_0280.html", "alt": "申迪玻璃"},
-    {"href": "Brands_0170.html", "alt": "中科美菱"},
-    {"href": "Brands_399.html", "alt": "上海化工研究院"},
-    {"href": "Brands_0302.html", "alt": "钢研纳克"},
-
-    {"href": "Brands_0033.html", "alt": "SUPELCO"},
-    # {"href": "Brands_0117.html", "alt": "TRC"},
-    {"href": "Brands_0222.html", "alt": "Fluka"},
-    {"href": "Brands_0096.html", "alt": "witeg"},
-    {"href": "Brands_0041.html", "alt": "AGILENT"},
-    # {"href": "Brands_0039.html", "alt": "MERCK"},
-    # {"href": "Brands_0079.html", "alt": "BRAND"},
-    {"href": "Brands_155.html", "alt": "Wellington"},
-    {"href": "Brands_0045.html", "alt": "WATERS"},
-    # {"href": "Brands_0035.html", "alt": "SIGMA"},
-    {"href": "Brands_0160.html", "alt": "Camsco"},
-    {"href": "Brands_0095.html", "alt": "REGIS"},
-    {"href": "Brands_0217.html", "alt": "Megazyme"},
-    {"href": "Brands_C0379.html", "alt": "梯希爱(TCI)"},
-    {"href": "Brands_0143.html", "alt": "AccuStandard"},
-    # {"href": "Brands_0189.html", "alt": "中国药品生物制品检定所"},
-    {"href": "Brands_0185.html", "alt": "NSI"},
-    {"href": "Brands_0132.html", "alt": "WITEGA Laboratorien"},
-    {"href": "Brands_0127.html", "alt": "IDEX"},
-    {"href": "Brands_0131.html", "alt": "CAMBRIDGE ISOTOP"},
-    {"href": "Brands_0109.html", "alt": "NU-CHEK"},
-    {"href": "Brands_0116.html", "alt": "Alfa Aesar"},
-    {"href": "Brands_0049.html", "alt": "PALL"},
-    {"href": "Brands_0050.html", "alt": "WHATMAN"},
-    {"href": "Brands_0042.html", "alt": "岛津"},
-    {"href": "Brands_0044.html", "alt": "PE"},
-    {"href": "Brands_0136.html", "alt": "COWIE"},
-    {"href": "Brands_0161.html", "alt": "NIST"},
-    {"href": "Brands_0162.html", "alt": "Chiron"},
-
-    {"href": "Brands_0186.html", "alt": "NRCC"},
-    {"href": "Brands_0196.html", "alt": "Thermo"},
-    {"href": "Brands_0166.html", "alt": "Wako"},
-    # {"href": "Brands_0172.html", "alt": "TLC"},
-    {"href": "Brands_0210.html", "alt": "亚速旺"},
-    {"href": "Brands_0251.html", "alt": "戴安 Dionex"},
-
-    {"href": "Brands_169.html", "alt": "C/D/N Isotopes"},
-    {"href": "Brands_170.html", "alt": "Cerilliant"},
-    # {"href": "Brands_0399.html", "alt": "大龙"},
-    {"href": "Brands_219.html", "alt": "伯乐 "},
-    {"href": "Brands_0184.html", "alt": "Hamilton"},
-    {"href": "Brands_0209.html", "alt": "Beacon"},
-    {"href": "Brands_322.html", "alt": "普瑞邦（Pribo）"},
-    {"href": "Brands_0048.html", "alt": "METROHM"},
-    {"href": "Brands_0091.html", "alt": "KNF"},
-    {"href": "Brands_0081.html", "alt": "RESTEK"},
-    {"href": "Brands_0113.html", "alt": "ULTRA Scientific"},
-    {"href": "Brands_0114.html", "alt": "Phenova"},
-    {"href": "Brands_0099.html", "alt": "USP"},
-    {"href": "Brands_0066.html", "alt": "恒奥"},
-    {"href": "Brands_0067.html", "alt": "津腾"},
-    {"href": "Brands_0052.html", "alt": "SGE"},
-    {"href": "Brands_0183.html", "alt": "Larodan"},
-    {"href": "Brands_0190.html", "alt": "OlChemIm"},
-    {"href": "Brands_0187.html", "alt": "MRI"},
-    {"href": "Brands_0199.html", "alt": "RIVM"},
-    {"href": "Brands_0192.html", "alt": "SPEX"},
-
-    {"href": "Brands_0165.html", "alt": "Icon Isotope"},
-    {"href": "Brands_0180.html", "alt": "Acros"},
-    {"href": "Brands_0174.html", "alt": "Phytolab"},
-
-    {"href": "Brands_0157.html", "alt": "APSC"},
-    # {"href": "Brands_0158.html", "alt": "LGC"},
-    {"href": "Brands_0159.html", "alt": "Medical Isotope"},
-    {"href": "Brands_0146.html", "alt": "KARTELL "},
-    {"href": "Brands_0150.html", "alt": "GL"},
-    {"href": "Brands_0151.html", "alt": "Schott"},
-    {"href": "Brands_359.html", "alt": "广州环凯"},
-    {"href": "Brands_362.html", "alt": "青岛海博"},
-    {"href": "Brands_373.html", "alt": "北京陆桥"},
-    {"href": "Brands_397.html", "alt": "阿拉丁（aladdin）"},
-
-    {"href": "Brands_154.html", "alt": "LC LAB"},
-    {"href": "Brands_0208.html", "alt": "上海同田生物"},
-    {"href": "Brands_0201.html", "alt": "CanSyn"},
-    {"href": "Brands_0213.html", "alt": "国药"},
-    {"href": "Brands_0299.html", "alt": "Iris Biotech GmbH"},
-    {"href": "Brands_0178.html", "alt": "Matreya LLC"},
-    {"href": "Brands_A0086.html", "alt": "talboys"},
-    {"href": "Brands_0191.html", "alt": "SIMAX"},
-    {"href": "Brands_c2044.html", "alt": "DAISO"},
-    {"href": "Brands_0094.html", "alt": "Chemservice"},
-    {"href": "Brands_0036.html", "alt": "ALDRICH"},
-    {"href": "Brands_0285.html", "alt": "Sigma-Aldrich"},
-    {"href": "Brands_0139.html", "alt": "3M"},
-    {"href": "Brands_0149.html", "alt": "VITLAB"},
-    {"href": "Brands_0046.html", "alt": "TRANSGENOMIC"},
-    {"href": "Brands_0037.html", "alt": "Sigma-Aldrich(原Fluka)"},
-    {"href": "Brands_0059.html", "alt": "亚东"},
-    {"href": "Brands_0804.html", "alt": "国家标准物质中心"},
-    {"href": "Brands_0171.html", "alt": "林纯药"},
-    {"href": "Brands_0119.html", "alt": "Shodex"},
-
-    {"href": "Brands_218.html", "alt": "艾杰尔"},
-    {"href": "Brands_0167.html", "alt": "一恒"},
-    {"href": "Brands_0115.html", "alt": "IRMM"},
-    {"href": "Brands_0211.html", "alt": "Thermo Nalgene/Nunc"},
-    {"href": "Brands_0085.html", "alt": "ORGANOMATION"},
-    {"href": "Brands_0100.html", "alt": "ChromaDex"},
-    {"href": "Brands_0034.html", "alt": "Sigma-Aldrich（原RDH）"},
-    {"href": "Brands_0147.html", "alt": "艾德姆 ADAM"},
-    {"href": "Brands_0254.html", "alt": "大连中食国实"},
-    {"href": "Brands_0043.html", "alt": "PHENOMENEX"},
-    {"href": "Brands_0080.html", "alt": "Eppendorf（艾本德）"},
-    {"href": "Brands_0216.html", "alt": "Soltec Ventures"},
-    {"href": "Brands_0102.html", "alt": "欧洲药典EPCRS"},
-    {"href": "Brands_0803.html", "alt": "诗丹德"},
-    {"href": "Brands_0177.html", "alt": "安亭"},
-    {"href": "Brands_A.html", "alt": "锐标"},
-    {"href": "Brands_0054.html", "alt": "SWAGELOK"},
-    {"href": "Brands_0077.html", "alt": "泰科爱尔"},
-    {"href": "Brands_0128.html", "alt": "Varian"},
-    {"href": "Brands_B0112.html", "alt": "弗鲁克（FLUKO）"},
-    {"href": "Brands_BM.html", "alt": "BM"},
-    {"href": "Brands_0140.html", "alt": "霍尼韦尔"},
-    {"href": "Brands_0224.html", "alt": "Honeywell"},
-    {"href": "Brands_0225.html", "alt": "Riedel-de Haen"},
-    {"href": "Brands_0145.html", "alt": "ISMATEC"},
-    {"href": "Brands_0055.html", "alt": "RHEODYNE"},
-    {"href": "Brands_0325.html", "alt": "Reagecon"},
-    {"href": "Brands_0123.html", "alt": "Silicycle"},
-    {"href": "Brands_0163.html", "alt": "RTC"},
-    {"href": "Brands_0909.html", "alt": "Vetec"},
-    {"href": "Brands_0118.html", "alt": "SLS INC."},
-    # {"href": "Brands_0101.html", "alt": "英国药典"},
-    {"href": "Brands_0326.html", "alt": "杜邦"},
-    {"href": "Brands_0223.html", "alt": "B&amp;J"},
-
-    {"href": "Brands_0303.html", "alt": "Gilian"},
-    {"href": "Brands_0226.html", "alt": "谱育"},
-    {"href": "Brands_0227.html", "alt": "麦克林"},
-    {"href": "Brands_ABVC.html", "alt": "赫斯曼Hirschmann"},
-    {"href": "Brands_404.html", "alt": "TRC-危险品干冰"},
-
-    # {"href": "Brands_.html", "alt": ""},
-
-    {"href": "Brands_0133.html", "alt": "AS ONE CORPORATION"},
-    {"href": "Brands_0051.html", "alt": "ORION"},
-    {"href": "Brands_168.html", "alt": "Alexis"},
-    {"href": "Brands_368.html", "alt": "中国检科院"},
-    {"href": "Brands_0339.html", "alt": "芊荟化玻"},
-
-    {"href": "Brands_0252.html", "alt": "地球化学标准物质"},
-    {"href": "Brands_0253.html", "alt": "CAPE"},
-    {"href": "Brands_0214.html", "alt": "能洽"},
-    {"href": "Brands_0290.html", "alt": "中汇"},
-    {"href": "Brands_0053.html", "alt": "ALLTECH"},
-    {"href": "Brands_0197.html", "alt": "Panreac"},
-    {"href": "Brands_0198.html", "alt": "TreffLab"},
-    {"href": "Brands_0200.html", "alt": "FAPAS"},
-    {"href": "Brands_0193.html", "alt": "PSS"},
-    {"href": "Brands_0194.html", "alt": "CaroteNature GmbH"},
-    {"href": "Brands_0195.html", "alt": "Bomex"},
-    {"href": "Brands_0188.html", "alt": "NCI"},
-    {"href": "Brands_0182.html", "alt": "Usbio"},
-    {"href": "Brands_0179.html", "alt": "JUN-AIR"},
-    {"href": "Brands_0175.html", "alt": "J.T.Baker"},
-    {"href": "Brands_0176.html", "alt": "Idexx"},
-    {"href": "Brands_0173.html", "alt": "ChemSampCo"},
-    {"href": "Brands_0138.html", "alt": "埃迪科技"},
-    {"href": "Brands_0135.html", "alt": "HACH"},
-    {"href": "Brands_0124.html", "alt": "Cole Parmer"},
-    {"href": "Brands_0120.html", "alt": "Omnifit Ltd"},
-    {"href": "Brands_0129.html", "alt": "东京理化"},
-    {"href": "Brands_0130.html", "alt": "La-Pha-Pack"},
-    {"href": "Brands_0141.html", "alt": "North"},
-    {"href": "Brands_0148.html", "alt": "西门子SIEMENS"},
-    {"href": "Brands_0078.html", "alt": "科瑞迈科技"},
-    {"href": "Brands_0069.html", "alt": "依利特"},
-    {"href": "Brands_0075.html", "alt": "福立"},
-    {"href": "Brands_0056.html", "alt": "HYPERSIL"},
-    {"href": "Brands_0058.html", "alt": "杰理"},
-    {"href": "Brands_0060.html", "alt": "华鑫"},
-    {"href": "Brands_0061.html", "alt": "联球"},
-    {"href": "Brands_0062.html", "alt": "天章"},
-    {"href": "Brands_0064.html", "alt": "军锐"},
-    {"href": "Brands_0065.html", "alt": "中兴"},
-    {"href": "Brands_0040.html", "alt": "KROMASIL"},
-    {"href": "Brands_0038.html", "alt": "TECHWARE"},
-    {"href": "Brands_0103.html", "alt": "MYRON L"},
-    {"href": "Brands_0104.html", "alt": "Kou Hing Hong公司"},
-    {"href": "Brands_0107.html", "alt": "ALFRESA"},
-    {"href": "Brands_0110.html", "alt": "McCRONE MICROSCOPES&amp;ACCESSORIE"},
-    {"href": "Brands_0092.html", "alt": "METTLER"},
-    {"href": "Brands_0093.html", "alt": "VWR"},
-    {"href": "Brands_0097.html", "alt": "CDS"},
-    {"href": "Brands_0086.html", "alt": "天地"},
-    {"href": "Brands_0087.html", "alt": "日本富士"},
-    {"href": "Brands_0088.html", "alt": "MN"},
-    {"href": "Brands_0089.html", "alt": "迪马"},
-    {"href": "Brands_0090.html", "alt": "赛多利斯"},
-    {"href": "Brands_0082.html", "alt": "HP"},
-    {"href": "Brands_0083.html", "alt": "东曹TSK"},
-    {"href": "Brands_0084.html", "alt": "UETIKON"},
-    {"href": "Brands_0202.html", "alt": "ReseaChem"},
-    {"href": "Brands_0203.html", "alt": "Romer Labs"},
-    {"href": "Brands_0204.html", "alt": "Maybridge"},
-    {"href": "Brands_0205.html", "alt": "Adamas-beta（阿达玛斯）"},
-    {"href": "Brands_0206.html", "alt": "NSF"},
-    {"href": "Brands_0207.html", "alt": "KAUTEX"},
-    {"href": "Brands_AM.html", "alt": "AMRESCO"},
-    {"href": "Brands_AX.html", "alt": "AXYGEN"},
-    {"href": "Brands_A0088.html", "alt": "OHAUS"},
-    {"href": "Brands_A0070.html", "alt": "inorganic veture"},
-    {"href": "Brands_400.html", "alt": "Aalborg"},
-    {"href": "Brands_398.html", "alt": "阿尔塔（First Standard）"},
-    {"href": "Brands_QA.html", "alt": "QIAGEN"},
-    {"href": "Brands_CO.html", "alt": "CORNING"},
-    {"href": "Brands_EPC.html", "alt": "EPC"},
-    {"href": "Brands_387.html", "alt": "广州洁特"},
-    {"href": "Brands_A0087.html", "alt": "ENVIRONMENTAL EXPRESS"},
-    {"href": "Brands_0385.html", "alt": "广州牧高"},
+    # {"brand_id": "0133", "alt": "AS ONE CORPORATION"},
+    # {"brand_id": "0051", "alt": "ORION"},
+    # {"brand_id": "168", "alt": "Alexis"},
+    # {"brand_id": "368", "alt": "中国检科院"},
+    # {"brand_id": "0339", "alt": "芊荟化玻"},
+    #
+    # {"brand_id": "0252", "alt": "地球化学标准物质"},
+    # {"brand_id": "0253", "alt": "CAPE"},
+    # {"brand_id": "0214", "alt": "能洽"},
+    # {"brand_id": "0290", "alt": "中汇"},
+    # {"brand_id": "0053", "alt": "ALLTECH"},
+    # {"brand_id": "0197", "alt": "Panreac"},
+    # {"brand_id": "0198", "alt": "TreffLab"},
+    # {"brand_id": "0200", "alt": "FAPAS"},
+    # {"brand_id": "0193", "alt": "PSS"},
+    # {"brand_id": "0194", "alt": "CaroteNature GmbH"},
+    # {"brand_id": "0195", "alt": "Bomex"},
+    # {"brand_id": "0188", "alt": "NCI"},
+    # {"brand_id": "0182", "alt": "Usbio"},
+    # {"brand_id": "0179", "alt": "JUN-AIR"},
+    # {"brand_id": "0175", "alt": "J.T.Baker"},
+    # {"brand_id": "0176", "alt": "Idexx"},
+    # {"brand_id": "0173", "alt": "ChemSampCo"},
+    # {"brand_id": "0138", "alt": "埃迪科技"},
+    # {"brand_id": "0135", "alt": "HACH"},
+    # {"brand_id": "0124", "alt": "Cole Parmer"},
+    # {"brand_id": "0120", "alt": "Omnifit Ltd"},
+    # {"brand_id": "0129", "alt": "东京理化"},
+    # {"brand_id": "0130", "alt": "La-Pha-Pack"},
+    # {"brand_id": "0141", "alt": "North"},
+    # {"brand_id": "0148", "alt": "西门子SIEMENS"},
+    # {"brand_id": "0078", "alt": "科瑞迈科技"},
+    # {"brand_id": "0069", "alt": "依利特"},
+    # {"brand_id": "0075", "alt": "福立"},
+    # {"brand_id": "0056", "alt": "HYPERSIL"},
+    # {"brand_id": "0058", "alt": "杰理"},
+    # {"brand_id": "0060", "alt": "华鑫"},
+    # {"brand_id": "0061", "alt": "联球"},
+    # {"brand_id": "0062", "alt": "天章"},
+    # {"brand_id": "0064", "alt": "军锐"},
+    # {"brand_id": "0065", "alt": "中兴"},
+    # {"brand_id": "0040", "alt": "KROMASIL"},
+    # {"brand_id": "0038", "alt": "TECHWARE"},
+    # {"brand_id": "0103", "alt": "MYRON L"},
+    # {"brand_id": "0104", "alt": "Kou Hing Hong公司"},
+    # {"brand_id": "0107", "alt": "ALFRESA"},
+    # {"brand_id": "0110", "alt": "McCRONE MICROSCOPES&amp;ACCESSORIE"},
+    # {"brand_id": "0092", "alt": "METTLER"},
+    # {"brand_id": "0093", "alt": "VWR"},
+    # {"brand_id": "0097", "alt": "CDS"},
+    # {"brand_id": "0086", "alt": "天地"},
+    # {"brand_id": "0087", "alt": "日本富士"},
+    # {"brand_id": "0088", "alt": "MN"},
+    # {"brand_id": "0089", "alt": "迪马"},
+    # {"brand_id": "0090", "alt": "赛多利斯"},
+    # {"brand_id": "0082", "alt": "HP"},
+    # {"brand_id": "0083", "alt": "东曹TSK"},
+    # {"brand_id": "0084", "alt": "UETIKON"},
+    # {"brand_id": "0202", "alt": "ReseaChem"},
+    # {"brand_id": "0203", "alt": "Romer Labs"},
+    # {"brand_id": "0204", "alt": "Maybridge"},
+    # {"brand_id": "0205", "alt": "Adamas-beta（阿达玛斯）"},
+    # {"brand_id": "0206", "alt": "NSF"},
+    # {"brand_id": "0207", "alt": "KAUTEX"},
+    # {"brand_id": "Brands_AM.html", "alt": "AMRESCO"},
+    # {"brand_id": "Brands_AX.html", "alt": "AXYGEN"},
+    # {"brand_id": "Brands_A0088.html", "alt": "OHAUS"},
+    # {"brand_id": "Brands_A0070.html", "alt": "inorganic veture"},
+    # {"brand_id": "400", "alt": "Aalborg"},
+    # {"brand_id": "398", "alt": "阿尔塔（First Standard）"},
+    # {"brand_id": "Brands_QA.html", "alt": "QIAGEN"},
+    # {"brand_id": "Brands_CO.html", "alt": "CORNING"},
+    # {"brand_id": "Brands_EPC.html", "alt": "EPC"},
+    # {"brand_id": "387", "alt": "广州洁特"},
+    # {"brand_id": "Brands_A0087.html", "alt": "ENVIRONMENTAL EXPRESS"},
+    # {"brand_id": "0385", "alt": "广州牧高"},
 ]
 
 
+# TODO 破解图片验证码
 class AnpelSpider(BaseSpider):
     name = "anpel"
     base_url = 'https://www.labsci.com.cn/'
     start_urls = [
-        'https://www.labsci.com.cn/Brands_0032.html',  # anpel
-        # 'https://www.anpel.com.cn/Brands_0134.html',  # cnw
-        # 'https://www.anpel.com.cn/Brands_0181.html',  # o2si
+        'https://www.labsci.com.cn0032',  # anpel
+        # 'https://www.anpel.com.cn0134',  # cnw
+        # 'https://www.anpel.com.cn0181',  # o2si
     ]
 
-    def start_requests(self):
-        for item in brands_urls:
-            url = item.get('href')
-            brand = (tmp := item.get('alt')) and unescape(tmp)
-            if not brand:
-                continue
-            yield Request(urljoin(self.base_url, url), callback=self.parse, meta={'sub_brand': brand})
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'PROXY_POOL_REFRESH_STATUS_CODES': [403],
+        'RETRY_TIMES': 20,
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/107.0.0.0 Safari/537.36'
+        ),
+        'CONCURRENT_REQUESTS': 8,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 5,
+        'CONCURRENT_REQUESTS_PER_IP': 5,
+    }
 
-    def parse(self, response):
-        rel_urls = response.xpath('//a[@class="Stkno"]/@href').extract()
-        for rel_url in rel_urls:
-            yield Request(
-                urljoin(self.base_url, rel_url), callback=self.detail_parse,
-                meta={'sub_brand': response.meta.get('sub_brand')}
-            )
+    def __init__(self, brands=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if brands is None:
+            self.brands = default_brands
+        else:
+            brands = json.loads(brands)
+            self.brands = brands
 
-        next_page = response.xpath('//a[contains(@style,"background-color:#0088FF;")]/../following-sibling::td/a')
-        if not next_page:
-            return
-        target = next_page.xpath('./@id').get()
-        to_page = next_page.xpath('./text()').get()
+    def is_proxy_invalid(self, request, response):
+        proxy = request.meta.get('proxy')
+        if response.status in {403, }:
+            self.logger.warning(f'status code:{response.status}, {request.url}')
+            return True
+        if "VerifyIP" in response.url:
+            detected_ip = response.xpath('//span[@id="lblIP"]/text()').get()
+            self.logger.warning(f"IP being detected {detected_ip}, using proxy {proxy}")
+            return True
+        return False
 
-        view_state = response.xpath('//input[@id="__VIEWSTATE"]/@value').get('')
-        view_state = view_state or first(re.findall(r'__VIEWSTATE\|([^|]+)', response.text))
-
-        view_state_generator = response.xpath('//input[@id="__VIEWSTATEGENERATOR"]/@value').get('')
-        view_state_generator = view_state_generator or first(
-            re.findall(r'__VIEWSTATEGENERATOR\|([^|]+)', response.text))
-
-        event_validation = response.xpath('//input[@id="__EVENTVALIDATION"]/@value').get('')
-        event_validation = event_validation or first(re.findall(r'__EVENTVALIDATION\|([^|]+)', response.text))
-
-        post_data = gen_post_data(target, to_page, view_state, view_state_generator, event_validation)
-        yield FormRequest(
-            response.url, formdata=post_data, callback=self.parse, meta={'sub_brand': response.meta.get('sub_brand')}
+    def make_request(
+            self, brand_id: str = '', brand_name: str = '', keyword: str = '',
+            per_page: int = 28, page: int = 0,
+            callback=None, meta: dict = None
+    ):
+        if meta is None:
+            meta = {}
+        d = {
+            "SearchType": 0,
+            "Keyword": keyword,
+            "SkipCount": page * per_page,
+            "MaxResultCount": per_page,
+            "ClassId": '',
+            "BrandId": brand_id,
+            "BrandName": brand_name,
+            "TotalQty": '',
+            "PriceType": 0,
+            "SortType": 4,
+            "OnlyStandardVariety": True,
+            "ExistTradingRecord": False,
+            "CusId": '',
+            "StrIfJY": "",
+            "StrIfBZP": "",
+            "UserLogin": "",
+            "BrandType": 1,
+            "nocache": 1,
+        }
+        return Request(
+            f"https://star.labsci.com.cn/Elasticsearch/GetBrandWahStock?{urlencode(d)}",
+            callback=callback,
+            meta={
+                "brand_id": brand_id,
+                "brand_name": brand_name,
+                "per_page": per_page,
+                "keyword": keyword,
+                "page": page + 1,
+                **meta
+            }
         )
 
-    def detail_parse(self, response):
+    @staticmethod
+    def make_search_request(
+            brand_name: str = '', keyword: str = '',
+            per_page: int = 28, page: int = 0,
+            callback=None, meta: dict = None
+    ):
+        if meta is None:
+            meta = {}
         d = {
-            'cat_no': response.xpath('//span[@id="lblStkNo"]//text()').get(),
-            'cn_name': response.xpath('//span[@id="lblProductName"]//text()').get(),
-            'en_name': response.xpath('//span[@id="lblProductNameEng"]//text()').get(),
-            'brand': response.xpath('//span[@id="lblBrandName"]//text()').get(),
-            'sub_brand': response.meta.get('sub_brand'),
-            'cas': response.xpath('//span[@id="lblCasNo"]//text()').get(),
-            'package': response.xpath('//span[@id="lblSpec"]//text()').get(),
-            'unit': response.xpath('//span[@id="lblUnit"]//text()').get(),
-            'price': response.xpath('//span[@id="lblPrice1"]/text()').get(),
-            'delivery_time': response.xpath('//span[@id="lblTotalQtyMeo"]/text()').get(),
-            'storage': response.xpath('//span[@id="lblStorageCondition"]/text()').get(),
-            'prd_url': response.url,
+            "Keyword": keyword,
+            "SkipCount": per_page * page,
+            "MaxResultCount": per_page,
+            "ClassId": "",
+            "ClassName": "全部",
+            "BrandId": "",
+            "BrandName": brand_name,
+            "TotalQty": "全部",
+            "PriceType": 0,
+            "SortType": 4,
+            "OnlyStandardVariety": True,
+            "ExistTradingRecord": False,
+            "CusId": "",
+            "nocache": 1
         }
-        yield AnpelItem(**d)
+        return Request(
+            f"https://star.labsci.com.cn/Elasticsearch/GetStandardWahStock?{urlencode(d)}",
+            callback=callback,
+            meta={
+                "brand_name": brand_name,
+                "per_page": per_page,
+                "keyword": keyword,
+                "page": page + 1,
+                **meta
+            }
+        )
+
+    def start_requests(self):
+        # yield self.make_search_request('0032', callback=self.parse)
+        for item in self.brands:
+            brand_id = item.get('brand_id')
+            brand_name = item.get('alt')
+            if not brand_id:
+                continue
+            for a, b, c in product(digits, repeat=3):
+                yield self.make_search_request(brand_name=brand_name, keyword=f"{a}{b}-{c}", callback=self.parse)
+
+    def parse(self, response, **kwargs):
+        j = response.json()
+        rows = json_all_value(j, '$.data.items[*]')
+        for row in rows:
+            img = json_nth_value(row, '@.photoPath')
+            prd_id = json_nth_value(row, '@.seqNoKey')
+            d = {
+                "brand": json_nth_value(row, '@.brandName').lower(),
+                "cat_no": json_nth_value(row, '@.stkNo'),
+                "chs_name": json_nth_value(row, '@.stkName'),
+                "en_name": json_nth_value(row, '@.stkNameEng'),
+                "cas": json_nth_value(row, '@.casNo'),
+                "purity": json_nth_value(row, '@.spec'),
+                "stock_info": json_nth_value(row, '@.totalQtyMeo'),
+
+                "img_url": img and urljoin('https://dianzi.labsci.com.cn/UpFile/Brand', img.replace('\\', '/')),
+                "prd_url": f"https://www.labsci.com.cn/products?id={prd_id}",
+            }
+            price = json_nth_value(row, '@.price')
+            dd = {
+                "brand": d["brand"],
+                "cat_no": d["cat_no"],
+                "package": json_nth_value(row, '@.specEng'),
+                "currency": "RMB",
+                "cost": json_nth_value(row, '@.price2') or price,
+                "price": price,
+                "delivery_time": json_nth_value(row, '@.totalQtyMeo'),
+            }
+            if d["brand"] == 'anpel':
+                yield RawData(**d)
+                yield ProductPackage(**dd)
+            pass
+
+            ddd = rawdata_to_supplier_product(d, self.name, self.name)
+            yield SupplierProduct(**ddd)
+            if dd.get("cost"):
+                dddd = product_package_to_raw_supplier_quotation(d, dd, self.name, self.name)
+                yield RawSupplierQuotation(**dddd)
+
+        per_page = response.meta.get("per_page", 0)
+        page = response.meta.get("page", 0)
+        keyword = response.meta.get("keyword", '')
+        total = json_nth_value(j, '$.data.totalCount') or 0
+        if total < page * per_page:
+            return
+        brand_id = response.meta.get("brand_id", "")
+        brand_name = response.meta.get("brand_name", "")
+        yield self.make_search_request(
+            brand_name=brand_name, keyword=keyword, per_page=per_page, page=page,
+            callback=self.parse)

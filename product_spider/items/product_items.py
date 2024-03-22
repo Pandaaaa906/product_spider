@@ -17,6 +17,9 @@ class JkItem(scrapy.OrderedItem):
     package = scrapy.Field()
     price = scrapy.Field()
     purity = scrapy.Field()
+    mf = scrapy.Field()
+    mw = scrapy.Field()
+    prd_url = scrapy.Field()
 
     class Meta:
         indexes = (
@@ -90,21 +93,21 @@ class NicpbpItem(scrapy.OrderedItem):
 
 
 class RawData(scrapy.OrderedItem):
-    brand = scrapy.Field()
-    parent = scrapy.Field()
-    cat_no = scrapy.Field()
-    en_name = scrapy.Field()
-    chs_name = scrapy.Field()
-    cas = scrapy.Field()
-    smiles = scrapy.Field()
-    mf = scrapy.Field()
-    mw = scrapy.Field()
-    stock_info = scrapy.Field()
-    purity = scrapy.Field()
-    appearance = scrapy.Field()
-    img_url = scrapy.Field()
-    info1 = scrapy.Field()
-    info2 = scrapy.Field()
+    brand = scrapy.Field()  # 品牌
+    parent = scrapy.Field()  # 分类
+    cat_no = scrapy.Field()  # 货号
+    en_name = scrapy.Field()  # 英文名
+    chs_name = scrapy.Field()  # 中文名
+    cas = scrapy.Field()  # cas号
+    smiles = scrapy.Field()  # 结构式
+    mf = scrapy.Field()  # 分子式
+    mw = scrapy.Field()  # 分子量
+    stock_info = scrapy.Field()  # 库存状态  Deprecated
+    purity = scrapy.Field()  # 纯度
+    appearance = scrapy.Field()  # 外观
+    img_url = scrapy.Field()  # 图片url
+    info1 = scrapy.Field()  # 化学名称
+    info2 = scrapy.Field()  # 储存条件
     info3 = scrapy.Field()
     info4 = scrapy.Field()
     info5 = scrapy.Field()
@@ -112,11 +115,14 @@ class RawData(scrapy.OrderedItem):
     tags = scrapy.Field()
     grade = scrapy.Field()
     mol_text = scrapy.Field()
-    prd_url = scrapy.Field()
-    expiry_date = scrapy.Field()
-    stock_num = scrapy.Field()
+    prd_url = scrapy.Field()  # 详情地址
+    expiry_date = scrapy.Field()  # Deprecated
+    stock_num = scrapy.Field()  # Deprecated
     mdl = scrapy.Field()
     einecs = scrapy.Field()
+    shipping_group = scrapy.Field()  # 运输方式
+    shipping_info = scrapy.Field()  # 运输条件
+    attrs = scrapy.Field()  # 产品额外信息, Json格式
 
     class Meta:
         indexes = (
@@ -129,11 +135,15 @@ class ProductPackage(scrapy.OrderedItem):
     cat_no = scrapy.Field()
     cat_no_unit = scrapy.Field()
     package = scrapy.Field()
+    cost = scrapy.Field()
     price = scrapy.Field()
     currency = scrapy.Field()
     delivery_time = scrapy.Field()
     stock_num = scrapy.Field()
     info = scrapy.Field()
+    purity = scrapy.Field()  # 规格纯度
+
+    attrs = scrapy.Field()  # 产品规格额外信息
 
     class Meta:
         indexes = (
@@ -252,7 +262,7 @@ class HongmengItem(scrapy.OrderedItem):
 
 class SupplierProduct(scrapy.OrderedItem):
     platform = scrapy.Field()
-    source_id = scrapy.Field()
+    source_id = scrapy.Field()  # 如：{平台代号}_{产品货号}
     vendor = scrapy.Field()
     brand = scrapy.Field()
     vendor_origin = scrapy.Field()
@@ -273,8 +283,9 @@ class SupplierProduct(scrapy.OrderedItem):
     img_url = scrapy.Field()
     synonyms = scrapy.Field()
     storage_condition = scrapy.Field()
-    package = scrapy.Field()
-    price = scrapy.Field()
+    package = scrapy.Field()  # Deprecated field
+    price = scrapy.Field()  # Deprecated field
+    cost = scrapy.Field()  # Deprecated field
     delivery = scrapy.Field()
 
     info1 = scrapy.Field()
@@ -291,8 +302,83 @@ class SupplierProduct(scrapy.OrderedItem):
     stock_num = scrapy.Field()
     mdl = scrapy.Field()
     einecs = scrapy.Field()
+    currency = scrapy.Field()
 
     class Meta:
         indexes = (
             (('platform', 'source_id',), True),
+        )
+
+
+class RawSupplierQuotation(scrapy.OrderedItem):
+    platform = scrapy.Field()
+    source_id = scrapy.Field()  # 如：{平台代号}_{产品货号}
+    vendor = scrapy.Field()
+    brand = scrapy.Field()
+    cat_no = scrapy.Field()
+    package = scrapy.Field()
+    discount_price = scrapy.Field()
+    price = scrapy.Field()
+    currency = scrapy.Field()
+    delivery = scrapy.Field()
+    attrs = scrapy.Field()
+    stock_num = scrapy.Field()
+    cas = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('platform', 'source_id', 'package', 'create_date'), True),
+        )
+
+
+class ATCIndex(scrapy.OrderedItem):
+    atc_code = scrapy.Field()
+    drug_name = scrapy.Field()
+    ddd = scrapy.Field()
+    unit = scrapy.Field()
+    adm = scrapy.Field()
+    note = scrapy.Field()
+    url = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('atc_code', 'drug_name',), True),
+        )
+
+
+class ChemicalItem(scrapy.OrderedItem):
+    """chemical"""
+    cas = scrapy.Field()
+    source = scrapy.Field()  # 来源
+    prd_url = scrapy.Field()
+    attrs = scrapy.Field()
+
+    class Meta:
+        indexes = (
+            (('source', 'cas',), True),
+        )
+
+
+class RawCompany(scrapy.OrderedItem):
+    """顺企网"""
+    parent = scrapy.Field()  # 公司分类
+    company_info = scrapy.Field()  # 公司信息
+    company_name = scrapy.Field()  # 公司名称
+    main_product = scrapy.Field()  # 主要经营产品
+    business_license_number = scrapy.Field()  # 营业执照号码
+    issuing_authority = scrapy.Field()  # 发证机关
+    approval_date = scrapy.Field()  # 核准日期
+    business_status = scrapy.Field()  # 经营状态
+    business_model = scrapy.Field()  # 经营模式
+    registered_capital = scrapy.Field()  # 注册资本
+    company_url = scrapy.Field()  # 公司官网
+    source_id = scrapy.Field()  # 顺企编码
+    source = scrapy.Field()  # 来源
+    source_url = scrapy.Field()  # 来源网址
+    company_city = scrapy.Field()  # 所属城市
+    company_created_time = scrapy.Field()  # 公司成立时间
+
+    class Meta:
+        indexes = (
+            (('source_id', 'source',), True),
         )

@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -13,11 +13,11 @@ class WakoSpider(BaseSpider):
     start_urls = ['http://www.bb-china.net/', ]
     brand = 'wako'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         rel_urls = response.xpath(
             '//div[@class="search-note-box" and not(contains("耗材仪器", .//h1/text()))]//li/a/@href').getall()
         for rel in rel_urls:
-            yield Request(urljoin(response.url, rel)+'&brand=155', callback=self.parse_list)
+            yield Request(urljoin(response.url, rel) + '&brand=155', callback=self.parse_list)
 
     def parse_list(self, response):
         rel_urls = response.xpath('//td/a/@href').getall()
@@ -51,10 +51,40 @@ class WakoSpider(BaseSpider):
         }
         yield RawData(**d)
 
-        yield ProductPackage(
-            brand=self.brand,
-            cat_no=cat_no,
-            package=package,
-            price=price,
-            currency='RMB',
-        )
+        dd = {
+            "brand": self.brand,
+            "cat_no": cat_no,
+            "package": package,
+            "cost": price,
+            "currency": 'RMB',
+        }
+
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
+            "parent": d["parent"],
+            "en_name": d["en_name"],
+            "cas": d["cas"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "prd_url": d["prd_url"],
+        }
+        dddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id":  f'{self.name}_{d["cat_no"]}',
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'discount_price': dd['cost'],
+            'price': dd['cost'],
+            'currency': dd["currency"],
+        }
+
+        yield ProductPackage(**dd)
+        yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)

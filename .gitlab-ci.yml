@@ -1,0 +1,31 @@
+stages:
+  - deploy
+
+before_script:
+  - docker info
+  - docker-compose --version
+
+deploy_dev:
+  stage: deploy
+  script:
+    - cat "$DEV_ENV" > "$(pwd)/test.env"
+    - docker-compose -f docker-compose-test.yaml -H $DEV_DOCKER_URL up -d --build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+deploy_prod:
+  stage: deploy
+  script:
+    - cat "$PROD_ENV" > "$(pwd)/.env"
+    - mkdir -p "$(pwd)/.docker_ssl" && cat "$PROD_DOCKER_CA" > "$(pwd)/.docker_ssl/ca.pem"
+    - cat "$PROD_DOCKER_CERT" > "$(pwd)/.docker_ssl/cert.pem"
+    - cat "$PROD_DOCKER_KEY" > "$(pwd)/.docker_ssl/key.pem"
+    - echo $PROD_DOCKER_URL
+    - >
+      docker-compose -f docker-compose.yaml -H $PROD_DOCKER_URL --tlsverify
+      --tlscacert "./.docker_ssl/ca.pem" --tlscert "./.docker_ssl/cert.pem" --tlskey "./.docker_ssl/key.pem"
+      up -d --build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

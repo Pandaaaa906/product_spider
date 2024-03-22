@@ -1,47 +1,82 @@
 import json
 import re
+from os import getenv
 from random import random
 from urllib.parse import urlencode, quote
 
 from more_itertools import first
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
-from product_spider.utils.functions import strip
+from product_spider.items import RawData, ProductPackage, SupplierProduct
 from product_spider.utils.spider_mixin import BaseSpider
+
+BEPURE_USER = getenv('BEPURE_USER')
+BEPURE_PWD = getenv('BEPURE_PWD')
 
 
 class BepureSpider(BaseSpider):
     name = "bepure"
     base_url = "http://www.bepurestandards.com/"
     api_url = 'http://www.bepurestandards.com/a.aspx?'
-    start_urls = ["http://www.bepurestandards.com/a.aspx?oper=getSubNav", ]
+    start_urls = [
+        "http://www.bepurestandards.com/a.aspx?oper=getSubNav",
+        "http://www.bepurestandards.com/gsearch/cdn//false"
+    ]
     brand = 'bepure'
 
-    def parse(self, response):
-        j_obj = json.loads(response.text)
-        rows = j_obj.get('table', [])
-        for row in rows:
-            parent = row.get('title')
-            if not parent:
-                continue
+    def start_requests(self):
+        if BEPURE_USER and BEPURE_PWD:
+            pass
+        else:
+            yield from super().start_requests()
+
+    def after_login(self, response):
+        yield from super().start_requests()
+
+    def parse(self, response, **kwargs):
+        if response.url == "http://www.bepurestandards.com/gsearch/cdn//false":
             params = {
-                'oper': 'Product_list',
+                'oper': 'getAllSearchList',
                 'time': str(random()),
-                'title': parent,
+                'title': "cdn",
                 'page': '1',
-                'oderby': '品牌',
-                'sort': '降序',
-                'brand': 'BePure',
+                'orderby': '品牌',
+                'sorder': '降序',
+                'brand': '',
+                "userid:": '',
             }
             yield Request(
                 self.api_url + urlencode(params),
                 callback=self.parse_list,
                 meta={
-                    'parent': parent,
+                    'parent': "cdn",
                     'params': params,
                 }
             )
+        else:
+            j_obj = json.loads(response.text)
+            rows = j_obj.get('table', [])
+            for row in rows:
+                parent = row.get('title')
+                if not parent:
+                    continue
+                params = {
+                    'oper': 'Product_list',
+                    'time': str(random()),
+                    'title': parent,
+                    'page': '1',
+                    'oderby': '品牌',
+                    'sort': '降序',
+                    'brand': '',
+                }
+                yield Request(
+                    self.api_url + urlencode(params),
+                    callback=self.parse_list,
+                    meta={
+                        'parent': parent,
+                        'params': params,
+                    }
+                )
 
     def parse_list(self, response):
         j_obj = json.loads(response.text)
@@ -52,8 +87,10 @@ class BepureSpider(BaseSpider):
             name = product.get('name')
             cas = first(re.findall(r'\d+-\d{2}-\d', name), None)
             cat_no = product.get('code')
+            brand = product.get('brand', '').lower()
+            prd_url = tmp.format(product.get('id'), quote(parent))
             d = {
-                'brand': self.brand,
+                'brand': brand,
                 'cat_no': cat_no,
                 'en_name': product.get('name2'),
                 'chs_name': product.get('name'),
@@ -63,17 +100,31 @@ class BepureSpider(BaseSpider):
                 'info3': product.get('pack'),
                 'info4': product.get('price'),
                 'expiry_date': product.get('enddate'),
-                'prd_url': tmp.format(product.get('id'), quote(parent))
+                'prd_url': prd_url
             }
-            yield RawData(**d)
 
             dd = {
-                'brand': self.brand,
+                'brand': brand,
                 'cat_no': cat_no,
                 'package': product.get('pack'),
-                'price': product.get('price'),
+                'cost': product.get('price'),
                 'currency': 'RMB',
+                'delivery_time': product.get('cnum')
             }
+            yield SupplierProduct(
+                platform='bepure',
+                source_id=product.get('id'),
+                brand=brand,
+                cat_no=cat_no,
+                cas=cas,
+                package=product.get('pack'),
+                price=product.get('price'),
+                delivery=product.get('cnum'),
+                vendor_url=prd_url,
+            )
+            if not brand or brand != 'bepure':
+                continue
+            yield RawData(**d)
             yield ProductPackage(**dd)
 
         page_table = first(j_obj.get('table1'), {})

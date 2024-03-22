@@ -7,7 +7,30 @@ from more_itertools import first
 
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.functions import strip
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+
+
+def parse_cost(raw_cost):
+    if not raw_cost:
+        return None
+    cost = (m := re.search(r'(\d+(\.\d+)?)', raw_cost.replace(",", ''))) and m.group()
+    return cost
+
+
+def parse_package(raw_package):
+    if "/kit" in raw_package and "|" in raw_package:
+        package = first(re.findall(r'(?<=\|) ?(.+)', raw_package), '')
+        package = re.sub('(?<=\d) ', '', package)
+    elif "|" in raw_package:
+        package = first(re.findall(r'(?<=\|) ?([^/]+)', raw_package), '')
+        package = re.sub('(?<=\d) ', '', package)
+    elif "\d ?x ?\d" in raw_package:
+        package = re.sub('\D*(\d+) ?x ?(\d+(\.\d+)?) ?([mMuUμkK]?[gGlL]).*', r'\1x\2\4', raw_package)
+    elif "/kit" in raw_package:
+        package = raw_package.replace('Analytical Standard', '')
+    else:
+        package = re.sub(r'\D*(\d+(\.\d+)?) ?([mMuUμkK]?[gGlL]).*', r'\1\3', raw_package)
+    return package
 
 
 # TODO the viewstate thing quite annoying
@@ -16,7 +39,7 @@ class CerilliantSpider(BaseSpider):
     base_url = "https://www.cerilliant.com/"
     start_urls = ["https://www.cerilliant.com/products/catalog.aspx", ]
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//table[@class="hyperLnkBlackNonUnderlineToBlue"]//a')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
@@ -76,15 +99,56 @@ class CerilliantSpider(BaseSpider):
             'parent': response.meta.get('parent'),
             'cat_no': strip(cat_no),
             'en_name': ''.join(response.xpath(tmp.format("ContentPlaceHolder1_lblProduct")).getall()),
-
             'cas': response.xpath(tmp.format("ContentPlaceHolder1_lblBodyCASNumber")).get(),
             'mw': response.xpath(tmp.format("ContentPlaceHolder1_lblBodyMolecularWeight")).get(),
             'mf': ''.join(response.xpath(tmp.format("ContentPlaceHolder1_lblBodyChemicalFormula")).getall()),
-
             'info3': ''.join(filter(lambda x: x, (concentration, package))),
             'info4': response.xpath(tmp.format("ContentPlaceHolder1_lblBodyUSListPrice")).get(),
-
             'img_url': rel_img and urljoin(response.url, rel_img),
             'prd_url': response.url,
         }
+
+        package = parse_package(d["info3"])
+        cost = parse_cost(d["info4"])
+
+        dd = {
+            "brand": d["brand"],
+            "cat_no": d["cat_no"],
+            "package": package,
+            "cost": cost,
+            "currency": "USD",
+        }
+        ddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
+            "parent": d["parent"],
+            "cas": d["cas"],
+            "mf": d["mf"],
+            "mw": d["mw"],
+            "en_name": d["en_name"],
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'cost': dd['cost'],
+            "currency": dd["currency"],
+            "img_url": d["img_url"],
+            "prd_url": d["prd_url"],
+        }
+        dddd = {
+            "platform": self.name,
+            "vendor": self.name,
+            "brand": self.name,
+            "source_id": f'{self.name}_{d["cat_no"]}',
+            'cat_no': d["cat_no"],
+            'package': dd['package'],
+            'discount_price': dd['cost'],
+            'price': dd['cost'],
+            'cas': d["cas"],
+            'currency': dd["currency"],
+        }
+
         yield RawData(**d)
+        yield ProductPackage(**dd)
+        yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)

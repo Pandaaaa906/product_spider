@@ -3,7 +3,7 @@ import re
 
 from scrapy import Request
 
-from product_spider.items import RawData
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -17,7 +17,7 @@ class SyninnovaSpider(BaseSpider):
     prds_url = 'https://www.syninnova.com/products_ajax.php?spoint={spoint}&pcid={pcid}'
     prd_url = 'https://www.syninnova.com/catalog/product/{cat_no}'
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//ul[@class="nav_menu"]/li/a')
         for a in a_nodes:
             category = a.xpath('./text()').get()
@@ -60,10 +60,9 @@ class SyninnovaSpider(BaseSpider):
 
     def parse_detail(self, response):
         mf = strip(''.join(response.xpath('//label[text()="Mol. Formula : "]/..//text()[not(parent::label)]').getall()))
-        row = response.xpath(
-            '//div[not(@style)]/table[@class="table table-condensed"]/tbody/tr[position()=1 and position()!=last()]'
+        rows = response.xpath(
+            '//div[not(@style)]/table[@class="table table-condensed"]/tbody/tr'
         )
-        price = row.xpath('./td[2]/text()').get()
         cas = strip(response.xpath('//b[contains(text(), "CAS")]/../following-sibling::div/text()').get())
         d = {
             'brand': 'syninnova',
@@ -74,10 +73,56 @@ class SyninnovaSpider(BaseSpider):
             'mf': mf,
             'mw': strip(response.xpath('//label[text()="Mol. Weight : "]/following-sibling::text()').get()),
             'appearance': strip(response.xpath('//label[text()="Appearance : "]/following-sibling::text()').get()),
-            'info3': row.xpath('./td[1]/text()').get(),
-            'info4': price and f'USD {price}',
-            'stock_info': row.xpath('./td[4]/text()').get(),
             'img_url': response.xpath('//div[@class="prodImage"]/img/@src').get(),
             'prd_url': response.url,
         }
         yield RawData(**d)
+        for row in rows:
+            cost = row.xpath("./td[last()-3]/text()").get()
+            stock_num = row.xpath("./td[last()-1]/text()").get()
+            raw_package = row.xpath("./td[last()-4]/text()").get()
+            if not raw_package:
+                continue
+            package = raw_package.lower()
+
+            dd = {
+                "brand": d["brand"],
+                "cat_no": d["cat_no"],
+                "package": package,
+                "cost": cost,
+                "stock_num": stock_num,
+                "currency": "USD",
+            }
+
+            ddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
+                "parent": d["parent"],
+                "cas": d["cas"],
+                "mf": d["mf"],
+                "mw": d["mw"],
+                "en_name": d["en_name"],
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'cost': dd['cost'],
+                "currency": dd["currency"],
+                "img_url": d["img_url"],
+                "prd_url": d["prd_url"],
+            }
+            dddd = {
+                "platform": self.name,
+                "vendor": self.name,
+                "brand": self.name,
+                "source_id":  f'{self.name}_{d["cat_no"]}',
+                'cat_no': d["cat_no"],
+                'package': dd['package'],
+                'discount_price': dd['cost'],
+                'price': dd['cost'],
+                'currency': dd["currency"],
+            }
+            yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
+

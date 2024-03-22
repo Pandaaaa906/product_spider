@@ -103,4 +103,5 @@ ENV/
 .dbs/
 logs/
 scrapy_db.db
-/secret.env
+*.env
+/dbs/default.db

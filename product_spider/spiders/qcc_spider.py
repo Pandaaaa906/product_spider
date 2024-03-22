@@ -13,12 +13,15 @@ class QCCSpider(BaseSpider):
     start_urls = (f"http://www.qcchemical.com/index.php/Index/api?letter={c}&mletter={c}" for c in ascii_uppercase)
     base_url = "http://www.qcchemical.com/"
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@id="pros"]/ul/a')
         for a in a_nodes:
             url = urljoin(self.base_url, a.xpath('./@href').get())
             parent = a.xpath('./li/text()').get()
             yield Request(url, callback=self.list_parse, meta={"parent": parent and parent.strip()})
+        next_page = response.xpath('//a[text()=">"]/@href').get()
+        if next_page:
+            yield Request(urljoin(self.base_url, next_page), callback=self.parse)
 
     def list_parse(self, response):
         rel_urls = response.xpath('//div[@id="list"]//a[contains(text(), "Details")]/@href').extract()
@@ -34,10 +37,12 @@ class QCCSpider(BaseSpider):
             "cas": strip(response.xpath(tmp.format("CAS No.:")).get()),
             "en_name": strip(response.xpath(tmp.format("Chemical Name:")).get()),
             "info1": strip(response.xpath(tmp.format("Synonyms:")).get()),
-            "img_url": urljoin(self.base_url, response.xpath('//table//td/div[@style]/img/@src').get()),
             "mf": strip(response.xpath(tmp.format("Molecular Formula:")).get()),
             "mw": strip(response.xpath(tmp.format("Molecular Weight:")).get()),
             "prd_url": response.url,
         }
+        img_url = urljoin(self.base_url, response.xpath('//table//td/div[@style and not(div)]//img/@src').get())
+        if img_url and not img_url.endswith('Uploads/'):
+            d['img_url'] = img_url
         yield RawData(**d)
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from functools import partial
 # Scrapy settings for product_spider project
 #
 # For simplicity, this file contains only settings considered important or
@@ -8,12 +8,23 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-from os import getenv
+from os import getenv, name
+import json
+
+_json_dumps = json.dumps
+json.dumps = partial(_json_dumps, ensure_ascii=False)
 
 LOG_LEVEL = 'INFO'
-if getenv('PYTHONUNBUFFERED'):
+if not getenv('PYTHONUNBUFFERED'):
     LOG_FILE = 'scrapy.log'
 BOT_NAME = 'product_spider'
+
+if name != 'nt':
+    TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
+    DOWNLOAD_HANDLERS = {
+        "http": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
+        "https": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
+    }
 
 SPIDER_MODULES = ['product_spider.spiders']
 NEWSPIDER_MODULE = 'product_spider.spiders'
@@ -32,7 +43,11 @@ DATABASE = {"engine": DATABASE_ENGINE,
                 "password": DATABASE_PWD,
                 "host": DATABASE_HOST,
                 "port": DATABASE_PORT,
-            }
+                "application_name": BOT_NAME,
+            },
+            "cp_params": {
+                "cp_reconnect": True,
+            },
             }
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -53,7 +68,7 @@ CONCURRENT_REQUESTS = 16
 # DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
 CONCURRENT_REQUESTS_PER_DOMAIN = 16
-CONCURRENT_REQUESTS_PER_IP = 16
+# CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
 # COOKIES_ENABLED = False
@@ -73,11 +88,13 @@ CONCURRENT_REQUESTS_PER_IP = 16
 #    'product_spider.middlewares.JkSpiderMiddleware': 543,
 # }
 
+PROXY_POOL_URL = getenv("PROXY_POOL_URL", "http://192.168.5.246:5555/random")
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    'product_spider.middlewares.MyCustomDownloaderMiddleware': 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+    # 'product_spider.middlewares.MyCustomDownloaderMiddleware': 543,
+    # 'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 400,
+}
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html
@@ -91,6 +108,8 @@ ITEM_PIPELINES = {
     'product_spider.pipelines.StripPipeline': 50,
     'product_spider.pipelines.DropNullCatNoPipeline': 100,
     'product_spider.pipelines.FilterNAValue': 200,
+    'product_spider.pipelines.ParseCostPipeline': 245,
+    'product_spider.pipelines.ParseRawSupplierQuotationPipeline': 250,
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 
@@ -114,3 +133,29 @@ ITEM_PIPELINES = {
 # HTTPCACHE_DIR = 'httpcache'
 # HTTPCACHE_IGNORE_HTTP_CODES = []
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+REDIS_HOST = getenv("REDIS_HOST", "localhost")
+REDIS_PORT = getenv("REDIS_PORT", "6379")
+if m := getenv("REDIS_URL"):
+    REDIS_URL = m
+
+REDIS_START_URLS_KEY = "%(name)s:start_urls"
+
+# Enables scheduling storing requests queue in redis.
+# SCHEDULER = "scrapy_redis.scheduler.Scheduler"
+
+# Ensure all spiders share same duplicates filter through redis.
+# DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
+
+# SCHEDULER_SERIALIZER = "scrapy_redis.picklecompat"
+
+# Schedule requests using a priority queue. (default)
+# SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.PriorityQueue'
+# Alternative queues.
+# SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.FifoQueue'
+# SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.LifoQueue'
+
+# Don't cleanup redis queues, allows to pause/resume crawls.
+# SCHEDULER_PERSIST = True
+
+PROXY_POOL_REFRESH_STATUS_CODES = {503, 403}

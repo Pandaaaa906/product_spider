@@ -10,8 +10,15 @@ services:
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/dbs:/app/dbs
       - /www/prd_spider/eggs:/app/eggs
+      - /www/prd_spider/ms-playwright:/ms-playwright
     env_file:
       - .env
+    depends_on:
+      - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
   scrapydweb:
     build: .
     entrypoint: "scrapydweb"
@@ -32,6 +39,10 @@ services:
       - .env
     depends_on:
       - "scrapyd"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
   logparser:
     build: .
     entrypoint: "logparser -dir=/app/logs/"
@@ -56,3 +67,14 @@ services:
       - "scrapyd"
     env_file:
       - .env
+  redis:
+    image: bitnami/redis:latest
+    hostname: redis
+    env_file:
+      - .env
+    ports:
+      - "6389:6379"
+    volumes:
+      - /www/redis/conf/overrides.d/:/opt/bitnami/redis/mounted-etc/
+      - /www/prd_spider/redis_data:/bitnami/redis/data
+    restart: unless-stopped

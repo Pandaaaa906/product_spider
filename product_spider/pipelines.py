@@ -4,10 +4,17 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
+import re
+
 from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
 
+from product_spider.items import RawSupplierQuotation
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
+
+T_COMMA = str.maketrans('', '', ',')
+T_SPACES = str.maketrans('\xa0', ' ', '')
 
 
 class DropNullCatNoPipeline:
@@ -27,9 +34,12 @@ class DropNullCatNoPipeline:
 class FilterNAValue:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
-        cas = strip(adapter.get('cas'))
-        if cas is None or not isinstance(cas, str):
+        if 'cas' not in adapter:
             return item
+        adapter['cas'] = cas = strip(adapter.get('cas'))
+        if not isinstance(cas, str):
+            return item
+        cas = cas.strip('"\' .*')
         adapter['cas'] = None if cas.lower() in {'n/a', 'na', 'null', ''} else cas
         return item
 
@@ -39,5 +49,39 @@ class StripPipeline:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         for key, value in adapter.items():
-            adapter[key] = strip(value)
+            v = strip(value)
+            if isinstance(v, str):
+                v = v.translate(T_SPACES)
+            adapter[key] = v
+        return item
+
+
+class ParseCostPipeline:
+
+    def process_item(self, item, spider):
+        adapter = ItemAdapter(item)
+        if 'cost' not in adapter:
+            return item
+        cost = adapter.get('cost')
+        if not cost:
+            return item
+        if isinstance(cost, (int, float)):
+            return item
+        if not isinstance(cost, str):
+            raise DropItem(f"cost value is invalid: {cost!r}")
+        cost = cost.translate(T_COMMA)
+        if raw_cost := re.search(r'(\d+(\.\d+)?)', parse_cost(cost)):
+            cost = raw_cost.group()
+        adapter["cost"] = cost
+        return item
+
+
+class ParseRawSupplierQuotationPipeline:
+
+    def process_item(self, item, spider):
+        if not isinstance(item, RawSupplierQuotation):
+            return item
+        adapter = ItemAdapter(item)
+        if 'discount_price' not in adapter or adapter.get("discount_price", None) is None:
+            raise DropItem("Missing discount_price in %s" % item)
         return item
