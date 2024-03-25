@@ -1,75 +1,160 @@
 import json
-import re
-from string import ascii_uppercase
-from time import time
-from urllib.parse import urljoin
 
 import scrapy
-from more_itertools import first
+from jsonpath_ng import parse
 from scrapy import Request
+from scrapy.http import JsonRequest
 
-from product_spider.items import JkProduct, JKPackage
-from product_spider.utils.functions import strip
+from product_spider.items import RawData, SupplierProduct, ProductPackage, RawSupplierQuotation
+from product_spider.utils.functions import dumps
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
+
+jk_brands = {"jk"}
+brand_mapping = {
+    "J&K Scientific": "jk",
+    "J&K": "jk",
+    "J&K-Abel": "jk",
+    "Agilent(安捷伦)": "agilent",
+    "Dr. Ehrenstorfer": "dre",
+    "EDQM(EP)": "ep",
+    "Cambridge Isotope Laboratories（CIL）": "cil",
+    "Life Chemicals": "life_chemicals",
+    "Rieke Metals": "rieke_metals",
+    "Key Organics": "key_organics",
+    "Alfa Aesar": "alfa",
+    "Polymer Source": "polymer_source",
+    "Chem Service": "chemservice",
+    "Acanthus Research": "acanthus",
+    "NATIONAL INSTITUTE OF STANDARDS AND TECHNOLOGY": "nist",
+    "Nu-Chek": "nuchek",
+    "Sigma-Aldrich": "sigma",
+    "Spectrum Quality Standards": "sqs",
+    "Taiwan Algal Science(台湾藻研)": "tas",
+}
+
+
+def parse_brand(brand: str):
+    if not brand:
+        return
+    if brand not in brand_mapping:
+        return brand.lower()
+    return brand_mapping[brand]
 
 
 class JkPrdSpider(scrapy.Spider):
     name = "jk"
     allowed_domains = ["jkchemical.com"]
     base_url = "http://www.jkchemical.com"
-    start_urls = map(lambda x: "http://www.jkchemical.com/CH/products/index/ProductName/{0}.html".format(x),
-                     ascii_uppercase)
-    prd_size_url = "http://www.jkchemical.com/Controls/Handler/GetPackAgeJsonp.ashx?callback=py27&value={value}&cid={cid}&type=product&_={ts}"
+    prd_url = 'https://web.jkchemical.com/api/product-catalog/{catalog_id}/products/{page}'
 
-    def parse(self, response):
-        for xp_url in response.xpath("//div[@class='yy toa']//a/@href"):
-            tmp_url = self.base_url + xp_url.extract()
-            yield Request(tmp_url.replace("EN", "CH"), callback=self.parse_list)
+    custom_settings = {
+        'DEFAULT_REQUEST_HEADERS': {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
+                          'AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8',
+            # hardcoding?
+            'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MCwidW5pdCI6MjQsImd1ZXN0Ijo3NjE2OTUsInVxIjo1'
+                             'NCwicm9sZXMiOm51bGwsImlhdCI6MTYyNzk2Njk4NX0.8mea_0U6wOZKvqrb-y6k689j8R1coOcnSUNOIOHyiMo',
+        }
+    }
+
+    def start_requests(self):
+        d = {
+            'language': 196,
+            'salesRegion': 1,
+        }
+        yield JsonRequest(
+            'https://shop.jkchemical.com/uq/prod/product/tv/query/GetRootCategory',
+            data=d,
+            callback=self.parse
+        )
+
+    def make_request(self, catalog_id, page: int = 1):
+        return Request(
+            self.prd_url.format(catalog_id=catalog_id, page=page),
+            meta={'page': page, 'catalog_id': catalog_id},
+            callback=self.parse_list
+        )
+
+    def parse(self, response, **kwargs):
+        obj = response.json()
+        ret = obj.get('res', '')
+        for line in ret.split('\n'):
+            catalog_id, *_ = line.split('\t')
+            yield self.make_request(catalog_id)
 
     def parse_list(self, response):
-        xp_boxes = response.xpath("//table[@id]//div[@class='PRODUCT_box']")
-        for xp_box in xp_boxes:
-            div = xp_box.xpath(".//div[2][@class='left_right mulu_text']")
-            brand = strip(div.xpath('.//li[@id="ctl00_cph_Content_li_lt_Brand"]/text()').get(), '')
-            rel_url = div.xpath('.//a[@class="name"]/@href').get()
-            img_url = div.xpath('.//img/@src').get()
+        obj = response.json()
+        prds = obj.get('hits', [])
+        for prd in prds:
+            if not prd:
+                continue
             d = {
-                'brand': brand.replace('-', '') or None,
-                "purity": div.xpath(".//li[1]/text()").get('').split(u"：")[-1].strip(),
-                "cas": strip(div.xpath(".//li[2]//a/text()").get()),
-                "cat_no": div.xpath(".//li[4]/text()").get().split(u"：")[-1].strip(),
-                "en_name": strip(xp_box.xpath(".//a[@class='name']/text()").get()),
-                "cn_name": strip(xp_box.xpath(".//a[@class='name']//span[1]/text()").get()),
-                'prd_url': rel_url and urljoin(response.url, rel_url),
-                'img_url': img_url and urljoin(response.url, img_url),
+                'brand': parse_brand(prd.get('brand', {}).get('name')),
+                'cat_no': prd.get('origin'),
+                'en_name': prd.get('description'),
+                'chs_name': prd.get('descriptionC'),
+                'cas': cas if (cas := prd.get('CAS')) != '0' else None,
+                'purity': prd.get('purity'),
+                'mdl': prd.get('mdlnumber'),
+                'img_url': (img_url_id := prd.get('imageUrl')) and f'https://static.jkchemical.com/Structure/{img_url_id[:3]}/{img_url_id}.png',
+                'prd_url': (tmp := prd.get('id')) and f'https://www.jkchemical.com/product/{tmp}'
             }
-            data_jkid = xp_box.xpath(".//div[@data-jkid]/@data-jkid").get()
-            data_cid = xp_box.xpath(".//div[@data-cid]/@data-cid").get()
 
-            yield Request(self.prd_size_url.format(value=data_jkid, cid=data_cid, ts=int(time())),
-                          body=u"",
-                          meta={"prd_data": d},
-                          callback=self.parse_package)
+            yield SupplierProduct(**rawdata_to_supplier_product(
+                d,
+                platform='jk',
+                vendor='jk',
+            ))
+            if not (prd_url := d['prd_url']):
+                continue
+            yield Request(prd_url, callback=self.parse_package, meta={"prd": d})
 
-        next_page = response.xpath('//a[contains(text(), "下一页")]/@href').get()
-        if next_page:
-            yield Request(urljoin(response.url, next_page), callback=self.parse_list)
+        if not prds:
+            return
+
+        cur_page = response.meta.get("page")
+        catalog_id = response.meta.get("catalog_id")
+        yield self.make_request(catalog_id, cur_page + 1)
 
     def parse_package(self, response):
-        s = re.findall(r"(?<=\().+(?=\))", response.text)[0]
-        packages = json.loads(s)
-        d = response.meta.get('prd_data', {})
-        package = first(packages, {})
-        if package:
-            d['brand'] = d['brand'] or package.get('Product', {}).get('BrandName')
-        yield JkProduct(**d)
-        for package_obj in packages:
-            catalog_price = package_obj.get("CatalogPrice", {})
+        tmpl = '//div[text()={!r}]/following-sibling::div[1]//text()'
+        d = response.meta.get("prd", {})
+        cat_nodes = response.xpath('//div[./div/text()="产品分类"]/following-sibling::div[1]/div')
+        categories = [
+            "__".join(node.xpath('./span/a/text()').getall())
+            for node in cat_nodes
+        ]
+        d["mf"] = response.xpath(tmpl.format("分子式")).get()
+        d["mw"] = response.xpath(tmpl.format("分子量")).get()
+        attrs = {}
+        if categories:
+            attrs["categories"] = categories
+            d["parent"] = categories[0]
+        d['attrs'] = dumps(attrs)
+        if d["brand"] in jk_brands:
+            yield RawData(**d)
+        raw_json = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
+        if not raw_json:
+            return
+        j_obj = json.loads(raw_json)
+        packages = parse('$..product.packages[*]').find(j_obj)
+        for m in packages:
+            pkg = m.value
+            package = f"{pkg.get('radioY')}{pkg.get('unit')}"
             dd = {
-                'brand': d.get('brand'),
-                'cat_no': d.get('cat_no'),
-                'package': package_obj.get("stringFormat"),
-                'price': catalog_price and catalog_price.get('Value'),
-                'currency': catalog_price and strip(catalog_price.get('Currency')),
-                'attrs': json.dumps(package_obj),
+                "brand": d.get("brand"),
+                "cat_no": d.get("cat_no"),
+                "package": package,
+                "cost": pkg.get("salesPrice"),
+                "price": pkg.get("price"),
+                "currency": pkg.get("currency"),
+                "attrs": dumps({
+                    "inventories": pkg.get("inventories")
+                })
             }
-            yield JKPackage(**dd)
+            if dd["brand"] in jk_brands:
+                yield ProductPackage(**dd)
+            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(
+                d, dd, "jk", "jk",
+            ))
+
