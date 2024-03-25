@@ -69,9 +69,15 @@ class LeyanSpider(BaseSpider):
             yield Request(urljoin(self.base_url, rel), callback=self.parse_list)
 
     def parse_list(self, response):
-        category_urls = response.xpath('//x//a/@href').getall()
+        category_urls = response.xpath('//x//a/@href').getall()  # TODO This one might be deprecated
         for category_url in category_urls:
             yield Request(urljoin(response.url, category_url), callback=self.parse_list)
+        if category_urls:
+            self.log(f"//x//a/@href hasn't deprecated")
+
+        rel_urls = response.xpath('//div[@class="oneCate-table"]//a/@href').getall()
+        for rel in rel_urls:
+            yield Request(urljoin(response.url, rel), callback=self.parse_detail)
 
         rel_urls = response.xpath('//p[@class="products-thumb"]/a/@href').getall()
         for rel in rel_urls:
