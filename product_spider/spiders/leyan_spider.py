@@ -77,7 +77,7 @@ class LeyanSpider(BaseSpider):
 
         rel_urls = response.xpath('//div[@class="oneCate-table"]//a/@href').getall()
         for rel in rel_urls:
-            yield Request(urljoin(response.url, rel), callback=self.parse_detail)
+            yield Request(urljoin(response.url, rel), callback=self.parse_list)
 
         rel_urls = response.xpath('//p[@class="products-thumb"]/a/@href').getall()
         for rel in rel_urls:
