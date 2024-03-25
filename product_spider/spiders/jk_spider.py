@@ -48,13 +48,18 @@ class JkPrdSpider(scrapy.Spider):
     prd_url = 'https://web.jkchemical.com/api/product-catalog/{catalog_id}/products/{page}'
 
     custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {
+            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        },
+        'PROXY_POOL_REFRESH_STATUS_CODES': [503, 504, 429],
+        'RETRY_TIMES': 10,
         'DEFAULT_REQUEST_HEADERS': {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
                           'AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8',
             # hardcoding?
             'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MCwidW5pdCI6MjQsImd1ZXN0Ijo3NjE2OTUsInVxIjo1'
                              'NCwicm9sZXMiOm51bGwsImlhdCI6MTYyNzk2Njk4NX0.8mea_0U6wOZKvqrb-y6k689j8R1coOcnSUNOIOHyiMo',
-        }
+        },
     }
 
     def start_requests(self):
