@@ -1,4 +1,6 @@
 import json
+import re
+from urllib.parse import urlencode, quote
 
 import scrapy
 from jsonpath_ng import parse
@@ -6,7 +8,7 @@ from scrapy import Request
 from scrapy.http import JsonRequest
 
 from product_spider.items import RawData, SupplierProduct, ProductPackage, RawSupplierQuotation
-from product_spider.utils.functions import dumps
+from product_spider.utils.functions import dumps, first
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 
 jk_brands = {"jk"}
@@ -45,7 +47,8 @@ class JkPrdSpider(scrapy.Spider):
     name = "jk"
     allowed_domains = ["jkchemical.com"]
     base_url = "http://www.jkchemical.com"
-    prd_url = 'https://web.jkchemical.com/api/product-catalog/{catalog_id}/products/{page}'
+    product_url = 'https://www.jkchemical.com/_next/data/o4gC8HmZ5IFTLEhskqrzE/search/{catalog}.json'
+    catalog_url = 'https://www.jkchemical.com/_next/data/o4gC8HmZ5IFTLEhskqrzE/product-catalog/{catalog_id}.json'
 
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {
@@ -73,35 +76,66 @@ class JkPrdSpider(scrapy.Spider):
             callback=self.parse
         )
 
-    def make_request(self, catalog_id, page: int = 1):
+    def make_request(self, catalog_id, catalog_name, page: int = 1):
+        d = {
+            "key": catalog_name,
+            "type": 3,
+            "page": page,
+            "categoryId": catalog_id,
+        }
         return Request(
-            self.prd_url.format(catalog_id=catalog_id, page=page),
-            meta={'page': page, 'catalog_id': catalog_id},
+            f"{self.product_url.format(catalog=quote(catalog_name))}?{urlencode(d)}",
+            meta={'page': page, 'catalog_id': catalog_id, 'catalog_name': catalog_name},
             callback=self.parse_list
+        )
+
+    def catalog_request(self, catalog_id, catalog_name):
+        return Request(
+            self.catalog_url.format(catalog_id=catalog_id),
+            self.parse_catalog,
+            meta={"catalog_id": catalog_id, "catalog_name": catalog_name}
         )
 
     def parse(self, response, **kwargs):
         obj = response.json()
         ret = obj.get('res', '')
         for line in ret.split('\n'):
-            catalog_id, *_ = line.split('\t')
-            yield self.make_request(catalog_id)
+            m = re.match(r"(\d+)\t(\d+)\t(\S+)", line)
+            if not m:
+                continue
+            catalog_id, _, catalog_name, *_ = m.groups()
+            yield self.catalog_request(catalog_id, catalog_name=catalog_name)
+
+    def parse_catalog(self, response):
+        obj = response.json()
+        if first(parse('$..__N_REDIRECT').find(obj), None):
+            catalog_id = response.meta.get("catalog_id")
+            catalog_name = response.meta.get("catalog_name")
+            yield self.make_request(catalog_id, catalog_name)
+            return
+        catalogs = parse('$..currCatalog.children[*]').find(obj)
+        for m in catalogs:
+            catalog = m.value
+            yield self.catalog_request(catalog_id=catalog.get("id"), catalog_name=catalog.get("name"))
 
     def parse_list(self, response):
         obj = response.json()
-        prds = obj.get('hits', [])
-        for prd in prds:
-            if not prd:
+        prds = parse('$..productlist[*]').find(obj)
+        for item in prds:
+            if not item or not (t := item.value) or not (prd := t.get("props")):
                 continue
+            mf = prd.get('molecularFomula')
             d = {
-                'brand': parse_brand(prd.get('brand', {}).get('name')),
+                'brand': parse_brand(prd.get('brandName')),
                 'cat_no': prd.get('origin'),
-                'en_name': prd.get('description'),
-                'chs_name': prd.get('descriptionC'),
-                'cas': cas if (cas := prd.get('CAS')) != '0' else None,
+                'en_name': prd.get('englishName'),
+                'chs_name': prd.get('chineseName'),
+                'cas': cas if (cas := prd.get('cas')) != '0' else None,
                 'purity': prd.get('purity'),
-                'mdl': prd.get('mdlnumber'),
-                'img_url': (img_url_id := prd.get('imageUrl')) and f'https://static.jkchemical.com/Structure/{img_url_id[:3]}/{img_url_id}.png',
+                'mf': mf.replace(" ", "") if mf else None,
+                'mw': prd.get('molecularWeight'),
+                'img_url': (img_url_id := prd.get(
+                    'imageUrl')) and f'https://static.jkchemical.com/Structure/{img_url_id[:3]}/{img_url_id}.png',
                 'prd_url': (tmp := prd.get('id')) and f'https://www.jkchemical.com/product/{tmp}'
             }
 
@@ -119,18 +153,16 @@ class JkPrdSpider(scrapy.Spider):
 
         cur_page = response.meta.get("page")
         catalog_id = response.meta.get("catalog_id")
-        yield self.make_request(catalog_id, cur_page + 1)
+        catalog_name = response.meta.get("catalog_name")
+        yield self.make_request(catalog_id, catalog_name, cur_page + 1)
 
     def parse_package(self, response):
-        tmpl = '//div[text()={!r}]/following-sibling::div[1]//text()'
         d = response.meta.get("prd", {})
         cat_nodes = response.xpath('//div[./div/text()="产品分类"]/following-sibling::div[1]/div')
         categories = [
             "__".join(node.xpath('./span/a/text()').getall())
             for node in cat_nodes
         ]
-        d["mf"] = response.xpath(tmpl.format("分子式")).get()
-        d["mw"] = response.xpath(tmpl.format("分子量")).get()
         attrs = {}
         if categories:
             attrs["categories"] = categories
@@ -162,4 +194,3 @@ class JkPrdSpider(scrapy.Spider):
             yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(
                 d, dd, "jk", "jk",
             ))
-
