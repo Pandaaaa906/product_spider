@@ -19,6 +19,7 @@ def rawdata_to_supplier_product(
         "mw": d.get("mw"),
         "img_url": d.get("img_url"),
         "prd_url": d.get("prd_url"),
+        "attrs": d.get("attrs"),
     }
     return ret
 
