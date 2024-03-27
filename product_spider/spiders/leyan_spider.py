@@ -10,6 +10,7 @@ from scrapy import Request
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import dumps
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -19,8 +20,8 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
 
 class LeyanSpider(BaseSpider):
     name = "leyan"
-    base_url = "http://www.leyan.com.cn/"
-    start_urls = ['http://www.leyan.com.cn/product-center.html', ]
+    base_url = "http://www.leyan.com/"
+    start_urls = ['http://www.leyan.com/product-center.html', ]
 
     custom_settings = {
         # "DOWNLOADER_MIDDLEWARES": {
@@ -61,7 +62,7 @@ class LeyanSpider(BaseSpider):
 
     def parse(self, response, **kwargs):
         a_nodes = response.xpath('//div[@class="row"]/div/a')
-        for a in a_nodes:
+        for a in reversed(a_nodes):
             parent = a.xpath('./span/text()').get()
             if parent in {'耗材', '仪器'}:
                 continue
@@ -73,9 +74,11 @@ class LeyanSpider(BaseSpider):
         for category_url in category_urls:
             yield Request(urljoin(response.url, category_url), callback=self.parse_list)
         if category_urls:
-            self.log(f"//x//a/@href hasn't deprecated")
+            self.logger.info(f"//x//a/@href hasn't deprecated")
 
         rel_urls = response.xpath('//div[@class="oneCate-table"]//a/@href').getall()
+        if rel_urls:
+            self.logger.info(f"scraping page of f{response.url}")
         for rel in rel_urls:
             yield Request(urljoin(response.url, rel), callback=self.parse_list)
 
@@ -116,12 +119,14 @@ class LeyanSpider(BaseSpider):
             'attrs': dumps(attrs),
         }
         yield RawData(**d)
+        yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
 
         rows = response.xpath('//div[@class="table-responsive"]//tr[position()!=1]')
+        pkg_idx = response.xpath('count(//div[@class="table-responsive"]//tr/th[text()="规格"]/preceding-sibling::*)+1').get()
         for row in rows:
-            if not (package := row.xpath('./td[@id="packing"]/text()').get()):
+            if not (package := row.xpath(f'./td[position()={pkg_idx!r}]/text()').get()):
                 continue
-            price_span = response.xpath('//*[@class="red" or @class="font-blue"]/span[@class]')
+            price_span = row.xpath('.//*[@class="red" or @class="font-blue"]/span[@class]')
             font_name = price_span.xpath('./@class').get()
             price = self.decode_price(price_span.xpath('./text()').get(), font_name)
             stock_num = row.xpath('./td[@id="stock"]/text()').get()
@@ -134,37 +139,7 @@ class LeyanSpider(BaseSpider):
                 'delivery_time': 'in-stock' if stock_num == '1' else None,
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
-
-            ddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                "parent": d["parent"],
-                "en_name": d["en_name"],
-                "cas": d["cas"],
-                "mf": d["mf"],
-                "mw": d["mw"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "img_url": d["img_url"],
-                "prd_url": d["prd_url"],
-            }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-                'delivery': 'in-stock' if stock_num == '1' else None,
-                'stock_num': stock_num,
-            }
             yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
+            if not dd['cost']:
+                continue
+            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
