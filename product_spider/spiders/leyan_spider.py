@@ -70,17 +70,11 @@ class LeyanSpider(BaseSpider):
             yield Request(urljoin(self.base_url, rel), callback=self.parse_list)
 
     def parse_list(self, response):
-        category_urls = response.xpath('//x//a/@href').getall()  # TODO This one might be deprecated
+        category_urls = response.xpath('//div[@class="oneCate-table"]//a/@href').getall()
+        if category_urls:
+            self.logger.info(f"scraping page of f{response.url}")
         for category_url in category_urls:
             yield Request(urljoin(response.url, category_url), callback=self.parse_list)
-        if category_urls:
-            self.logger.info(f"//x//a/@href hasn't deprecated")
-
-        rel_urls = response.xpath('//div[@class="oneCate-table"]//a/@href').getall()
-        if rel_urls:
-            self.logger.info(f"scraping page of f{response.url}")
-        for rel in rel_urls:
-            yield Request(urljoin(response.url, rel), callback=self.parse_list)
 
         rel_urls = response.xpath('//p[@class="products-thumb"]/a/@href').getall()
         for rel in rel_urls:
@@ -88,10 +82,10 @@ class LeyanSpider(BaseSpider):
 
         next_page = response.xpath('//a[@aria-label="Next"]/@href').get()
         if next_page:
-            yield Request(urljoin(response.url, next_page), callback=self.parse_list)
+            yield Request(urljoin(response.url, next_page), callback=self.parse_list, priority=999)
 
     def parse_detail(self, response):
-        tmp = '//div[contains(*/text(), {!r})]/following-sibling::div/*/text()'
+        tmp = '//div[contains(*/text(), {!r})]/following-sibling::div[1]/*/text()'
         cat_no = response.xpath('//span[@id="catalogNo"]/text()').get()
         rel_img = response.xpath('//input[@id="image"]/@value').get()
         attrs = {}
