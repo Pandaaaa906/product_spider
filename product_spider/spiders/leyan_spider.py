@@ -1,7 +1,7 @@
 import re
 from io import BytesIO
 from typing import Dict
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 
 import requests
 from fontTools.ttLib import TTFont
@@ -28,7 +28,7 @@ class LeyanSpider(BaseSpider):
         #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         # },
         'PROXY_POOL_REFRESH_STATUS_CODES': [503, 504, 429],
-        'RETRY_HTTP_CODES': [503, 504, 429],
+        'RETRY_HTTP_CODES': [500, 503, 504, 429],
         'RETRY_TIMES': 10,
 
         'CONCURRENT_REQUESTS': 4,
@@ -43,9 +43,23 @@ class LeyanSpider(BaseSpider):
         '-1#7': '5', '-1#8': '6', '-1#9': '7', '-1#10': '8', '-1#11': '9',
     }
 
+    def __init__(self, max_split: int = 16, **kwargs):
+        self.max_split = max_split
+        super().__init__(**kwargs)
+
     def _get_font_map(self, font_name: str):
         font_id = (m := re.search(r'\d+', font_name)) and m.group()
-        r = requests.get(f'https://www.leyan.com/_font_/__font__{font_id}.ttf', headers=headers)
+        tried = 0
+        r = None
+        while tried < 3:
+            try:
+                r = requests.get(f'https://www.leyan.com/_font_/__font__{font_id}.ttf', headers=headers)
+            except Exception as e:
+                self.logger.warn(e)
+            if r and r.status_code == 200:
+                break
+        if not r:
+            raise ValueError(f"cant get font_map of: {font_name}")
         font = TTFont(BytesIO(r.content))
         cmap = font.getBestCmap()
         self._font_mapping[font_name] = str.maketrans({chr(k): self._font_code_mapping[v] for k, v in cmap.items()})
@@ -67,22 +81,31 @@ class LeyanSpider(BaseSpider):
             if parent in {'耗材', '仪器'}:
                 continue
             rel = a.xpath('./@href').get()
-            yield Request(urljoin(self.base_url, rel), callback=self.parse_list)
+            yield Request(urljoin(self.base_url, rel), callback=self.parse_list, priority=999)
 
     def parse_list(self, response):
         category_urls = response.xpath('//div[@class="oneCate-table"]//a/@href').getall()
         if category_urls:
             self.logger.info(f"scraping page of f{response.url}")
         for category_url in category_urls:
-            yield Request(urljoin(response.url, category_url), callback=self.parse_list)
+            yield Request(urljoin(response.url, category_url), callback=self.parse_list, priority=999)
 
         rel_urls = response.xpath('//p[@class="products-thumb"]/a/@href').getall()
         for rel in rel_urls:
             yield Request(urljoin(response.url, rel), callback=self.parse_detail)
 
         next_page = response.xpath('//a[@aria-label="Next"]/@href').get()
-        if next_page:
-            yield Request(urljoin(response.url, next_page), callback=self.parse_list, priority=999)
+        if not next_page:
+            return
+        yield Request(urljoin(response.url, next_page), callback=self.parse_list)
+        max_page = int(response.xpath('//li[a/@aria-label="Next"]/preceding-sibling::li[1]/a/text()').get())
+        cur_page = int(response.xpath('//ul[@class="pagination"]/li[@class="active"]/a/text()').get())
+        if cur_page != 1 or max_page < 500:
+            return
+        self.logger.info(f"Splitting page for url: {response.url}, max_page: {max_page}, with max_split: {self.max_split}")
+        url, query = urljoin(response.url, next_page).split("?")
+        for page in range(max_page//self.max_split, max_page, max_page//self.max_split + self.max_split):
+            yield Request(f"{url}?{urlencode({'pageNum': page})}", callback=self.parse_list, priority=999)
 
     def parse_detail(self, response):
         tmp = '//div[contains(*/text(), {!r})]/following-sibling::div[1]/*/text()'
