@@ -91,12 +91,16 @@ class ClearsynthSpider(BaseSpider):
         smiles = response.xpath(tmp_xpath.format('Smileys')).get()
         smiles = smiles or response.xpath(tmp_xpath.format('Smiles')).get()
         smiles = smiles or response.xpath(tmp_xpath.format('Canonical Smiles')).get()
-
+        en_name = strip(response.xpath('//h1[@class="producttitle"]/text()').get())
+        en_name = en_name or response.xpath(tmp_xpath.format('Product')).get()
+        en_name = en_name or response.xpath(tmp_xpath.format('Chemical Name')).get()
+        cas = strip(response.xpath(tmp_xpath.format('CAS No.')).get())
+        cas = cas or strip(response.xpath(tmp_xpath.format('CAS Registry#')).get())
         d = {
             "brand": self.name,
-            "en_name": response.xpath(tmp_xpath.format('Product')).get(),
+            "en_name": en_name,
             "cat_no": strip(response.xpath(tmp_xpath.format('CAT No.')).get()),
-            "cas": strip(response.xpath(tmp_xpath.format('CAS No.')).get()),
+            "cas": cas,
             "parent": api_name,
             "mw": strip(response.xpath(tmp_xpath.format('Mol. Wt.')).get()),
             "mf": strip(formula_trans(''.join(response.xpath(tmp_xpath.format('Mol. For.')).getall()))),
@@ -135,10 +139,10 @@ class ClearsynthSpider(BaseSpider):
     def parse_package(self, response):
         d = response.meta.get("prd", {})
 
-        rows = response.xpath('//table/input[@name="catnumber"]')
-        for row in rows:
-            qty = row.xpath('./following-sibling::input[@name="qty"]/@value').get()
-            unit = row.xpath('./following-sibling::input[@name="unit"]/@value').get()
+        rows = response.xpath('//table//input[@name="catnumber"]')
+        for idx, row in enumerate(rows, 1):
+            qty = row.xpath(f'./following-sibling::input[@id="add_qty{idx}"]/@value').get()
+            unit = row.xpath(f'./following-sibling::input[@id="add_unit{idx}"]/@value').get()
             package = None
             if isinstance(qty, str) and isinstance(unit, str):
                 package = f"{qty}{unit}"
@@ -146,8 +150,8 @@ class ClearsynthSpider(BaseSpider):
                 "brand": self.name,
                 "cat_no": d['cat_no'],
                 "package": package,
-                "cost": row.xpath('./following-sibling::input[@id="mprice1"]/@value').get(),
-                "price": row.xpath('./following-sibling::input[@id="mprice2"]/@value').get(),
+                "cost": row.xpath(f'./following-sibling::input[@id="mprice{idx}"]/@value').get(),
+                "price": row.xpath(f'./following-sibling::input[@id="add_price{idx}"]/@value').get(),
                 "delivery_time": d.get("stock_info"),
                 "currency": 'USD',
 
