@@ -108,6 +108,17 @@ class LeyanSpider(BaseSpider):
             yield Request(f"{url}?{urlencode({'pageNum': page})}", callback=self.parse_list, priority=999)
 
     def parse_detail(self, response):
+        search_result = response.xpath('//div[@class="s-details"]/span//li[1]/a/@href').getall()
+        if search_result:
+            for rel_url in search_result:
+                yield Request(urljoin(response.url, rel_url), callback=self.parse_detail)
+            return
+        brand = response.xpath('//span[@id="bn"]/text()').get()
+        if brand and brand.lower() != 'leyan':
+            # TODO 其他品牌也要加
+            self.logger.info(f"found brand {brand!r}, skipping")
+            return
+
         tmp = '//div[contains(*/text(), {!r})]/following-sibling::div[1]/*/text()'
         cat_no = response.xpath('//span[@id="catalogNo"]/text()').get()
         rel_img = response.xpath('//input[@id="image"]/@value').get()
@@ -145,7 +156,11 @@ class LeyanSpider(BaseSpider):
                 continue
             price_span = row.xpath('.//*[@class="red" or @class="font-blue"]/span[@class]')
             font_name = price_span.xpath('./@class').get()
-            price = self.decode_price(price_span.xpath('./text()').get(), font_name)
+            try:
+                price = self.decode_price(price_span.xpath('./text()').get(), font_name)
+            except Exception as e:
+                self.logger.error(e)
+                continue
             stock_num = row.xpath('./td[@id="stock"]/text()').get()
             dd = {
                 'brand': self.name,
