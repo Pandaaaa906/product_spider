@@ -1,8 +1,10 @@
-import re
+
 from urllib.parse import urljoin
 
 import scrapy
 from product_spider.items import ProductPackage, RawData, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.cost import parse_cost
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -13,31 +15,29 @@ class TsbiochemSpider(BaseSpider):
     base_url = "https://www.tsbiochem.com/"
 
     def parse(self, response, **kwargs):
-        rows = response.xpath("//div[@class='column']/a")
-        for row in rows:
-            url = row.xpath("./@href").get()
+        rows = response.xpath("//div[@class='column']/a/@href").getall()
+        for rel_url in rows:
             yield scrapy.Request(
-                url=url,
+                url=urljoin(response.url, rel_url),
                 callback=self.parse_list
             )
 
     def parse_list(self, response):
         # catalog list
-        rows = response.xpath("//div[@class='lbylist-new-container']")
-        for row in rows:
-            url = row.xpath("./a/@href").get()
+        rows = response.xpath('//div[@class="block-targets"]/a/@href').getall()
+        for rel_url in rows:
             yield scrapy.Request(
-                url=url,
-                callback=self.parse_detail
+                url=urljoin(response.url, rel_url),
+                callback=self.parse_list
             )
 
         # product list
         nodes = response.xpath("//table[@class='table-cpd-list']//tbody/tr")
         for node in nodes:
-            url = node.xpath("./td[position()=1]/a/@href").get()
+            rel_url = node.xpath("./td[position()=1]/a/@href").get()
             cat_no = node.xpath("./td[position()=1]/a/text()").get()
             yield scrapy.Request(
-                url=url,
+                url=urljoin(response.url, rel_url),
                 callback=self.parse_detail_v2,
                 meta={
                     "cat_no": cat_no,
@@ -51,67 +51,10 @@ class TsbiochemSpider(BaseSpider):
                 callback=self.parse_list
             )
 
-    def parse_detail(self, response):
-        parent = response.xpath("//div[@class='block-title-page ts2']/h1/text()").get()
-        cat_no = re.search(r'(?<=产品编号 ).*', response.xpath("//div[@class='bottom']/div/text()").get()).group()
-        img_url = urljoin(self.base_url, response.xpath("//img[@class='product-top-image']/@src").get())
-        en_name = response.xpath("//div[@class='block-title-page ts2']/div/text()").get()
-        chs_name = response.xpath("//div[@class='block-title-page ts2']/h1/text()").get()
-        rows = response.xpath("//table[@class='prices type2']//tbody/tr")
-        for row in rows:
-            package = row.xpath("./td[position()=1]/text()").get().strip()
-            price = rows.xpath("./td[position()=2]/text()").get().strip()
-            d = {
-                "parent": parent,
-                "brand": self.name,
-                "cat_no": cat_no,
-                "img_url": img_url,
-                "prd_url": response.url,
-                "chs_name": chs_name,
-                "en_name": en_name
-            }
-            dd = {
-                "brand": self.name,
-                "cat_no": cat_no,
-                "package": package,
-                "cost": price,
-                "currency": "RMB",
-            }
-            ddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                "parent": d["parent"],
-                "en_name": d["en_name"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "img_url": d["img_url"],
-                "prd_url": d["prd_url"],
-            }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
-
-            yield RawData(**d)
-            yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
-
     def parse_detail_v2(self, response):
         cat_no = response.meta.get("cat_no")
-        parent = response.xpath("//div[@class='block-breadcrumb style2 zh']/a[last()]/text()").get()
-        en_name = response.xpath("//div[@class='block-title-page ts2']/h1/text()").get()
+        parent = response.xpath('//div[contains(@class, "block-breadcrumb")]/ol[last()]//a/text()').get()
+        en_name = response.xpath('//div[contains(@class, "product-name-title")]/h1/text()').get()
         purity = response.xpath(
             "//table[@class='table-cpd-info']//td[contains(text(), '纯度')]/following-sibling::td/span/text()"
         ).get()
@@ -142,11 +85,14 @@ class TsbiochemSpider(BaseSpider):
             "prd_url": response.url,
             "img_url": img_url,
         }
+
+        yield RawData(**d)
+        yield SupplierProduct(**rawdata_to_supplier_product(d, platform=self.name, vendor=self.name))
         nodes = response.xpath("//tr[@class='line-item']")
         for node in nodes:
             package = node.xpath("./td[position()=1]/text()").get()
-            delivery_time = node.xpath("./td[position()=2]/text()").get().strip()
-            price = node.xpath("./td[position()=3]/text()").get().strip()
+            delivery_time = node.xpath("./td[position()=3]/text()").get()
+            price = parse_cost(node.xpath("./td[position()=2]/text()").get())
             dd = {
                 "brand": self.name,
                 "cat_no": cat_no,
@@ -155,35 +101,6 @@ class TsbiochemSpider(BaseSpider):
                 "cost": price,
                 "currency": "RMB",
             }
-            ddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                "parent": d["parent"],
-                "en_name": d["en_name"],
-                "cas": d["cas"],
-                "mf": d["mf"],
-                "mw": d["mw"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "img_url": d["img_url"],
-                "prd_url": d["prd_url"],
-            }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
-            yield RawData(**d)
             yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
+            if dd.get("cost") and dd.get("cost") != "待询":
+                yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
