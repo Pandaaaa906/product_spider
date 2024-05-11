@@ -130,6 +130,8 @@ class NcrmSpider(BaseSpider):
             'currency': dd["currency"],
         }
         yield RawData(**d)
-        yield ProductPackage(**dd)
+        if dd['package']:
+            yield ProductPackage(**dd)
         yield SupplierProduct(**ddd)
-        yield RawSupplierQuotation(**dddd)
+        if dd['cost']:
+            yield RawSupplierQuotation(**dddd)
