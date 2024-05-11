@@ -12,7 +12,7 @@ class WitegaSpider(BaseSpider):
     start_urls = ["https://auftragssynthese.com/en/nitrofuran-metabolites/", ]
 
     def parse(self, response, *args, **kwargs):
-        rel_urls = response.xpath('//ul[@id="menu-kategorie"]//a/@href').extract()
+        rel_urls = response.xpath('//ul[@id="menu-kategorie" or @id="menu-mixtures"]//a/@href').extract()
         for rel_url in rel_urls:
             yield Request(urljoin(self.base_url, rel_url), callback=self.list_parse)
 
