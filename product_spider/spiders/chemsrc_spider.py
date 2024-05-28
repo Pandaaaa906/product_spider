@@ -9,12 +9,14 @@ import psycopg2
 from scrapy import Request
 
 from product_spider.items.chemsrc_items import ChemSrcChemical
-from product_spider.sql.chemsrc_sql import sql_fetch_cas
+from product_spider.sql.chemsrc_sql import sql_fetch_cas, sql_fetch_cas_by_chem
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class ChemSrcStrategy(str, Enum):
     CATO_PROD = 'CATO_PROD'
+    MOD_CHEMICAL = 'MOD_CHEMICAL'
+    PUBCHEM_SUBSTANCE = 'PUBCHEM_SUBSTANCE'
     LOCAL = 'LOCAL'
 
 
@@ -47,19 +49,22 @@ class ChemSrcSpider(BaseSpider):
         self.ignore_days = ignore_days
         super().__init__(**kwargs)
 
-    def get_urls_from_db(self):
+    def get_urls_from_db(self, sql):
         db_settings = self.settings["DATABASE"]
         now = datetime.now()
         with psycopg2.connect(**db_settings['params']) as conn:
             with conn.cursor(name=f"chemsrc_{uuid4().hex}") as cur:
                 cur.itersize = self.itersize
-                cur.execute(sql_fetch_cas, [now - timedelta(days=self.ignore_days)])
+                cur.execute(sql, [now - timedelta(days=self.ignore_days)])
                 for (cas, ) in cur:
                     yield f"https://www.chemsrc.com/searchResult/{cas}/"
 
     def start_requests(self):
         if self.strategy == ChemSrcStrategy.CATO_PROD:
-            for url in self.get_urls_from_db():
+            for url in self.get_urls_from_db(sql_fetch_cas):
+                yield Request(url)
+        elif self.strategy == ChemSrcStrategy.MOD_CHEMICAL:
+            for url in self.get_urls_from_db(sql_fetch_cas_by_chem):
                 yield Request(url)
         else:
             return super().start_requests()
