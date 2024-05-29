@@ -9,12 +9,13 @@ import psycopg2
 from scrapy import Request
 
 from product_spider.items.chemsrc_items import ChemSrcChemical
-from product_spider.sql.chemsrc_sql import sql_fetch_cas, sql_fetch_cas_by_chem
+from product_spider.sql.chemsrc_sql import sql_fetch_cas, sql_fetch_cas_by_chem, sql_fetch_cas_by_chemsrc_target
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class ChemSrcStrategy(str, Enum):
     CATO_PROD = 'CATO_PROD'
+    CHEMSRC_TARGET = 'CHEMSRC_TARGET'
     MOD_CHEMICAL = 'MOD_CHEMICAL'
     PUBCHEM_SUBSTANCE = 'PUBCHEM_SUBSTANCE'
     LOCAL = 'LOCAL'
@@ -65,6 +66,9 @@ class ChemSrcSpider(BaseSpider):
                 yield Request(url)
         elif self.strategy == ChemSrcStrategy.MOD_CHEMICAL:
             for url in self.get_urls_from_db(sql_fetch_cas_by_chem):
+                yield Request(url)
+        elif self.strategy == ChemSrcStrategy.CHEMSRC_TARGET:
+            for url in self.get_urls_from_db(sql_fetch_cas_by_chemsrc_target):
                 yield Request(url)
         else:
             return super().start_requests()
