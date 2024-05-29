@@ -47,7 +47,7 @@ class ChemSrcSpider(BaseSpider):
     ):
         self.strategy = strategy
         self.itersize = itersize
-        self.ignore_days = ignore_days
+        self.ignore_days = int(ignore_days)
         super().__init__(**kwargs)
 
     def get_urls_from_db(self, sql):
