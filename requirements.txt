@@ -22,7 +22,7 @@ playwright_stealth~=1.0.5
 jsonpath~=0.82
 werkzeug~=2.0.3
 flask-sqlalchemy~=2.5.1
-flask~=2.1.0
+flask~=2.0.0
 scrapy_redis~=0.7.3
 git+https://github.com/Pandaaaa906/scrapydweb.git@dev
 fonttools~=4.40.0
