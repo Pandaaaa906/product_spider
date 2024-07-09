@@ -1,6 +1,7 @@
 scrapely~=0.12.0
 scrapy~=2.5.0
 scrapyd~=1.2.1
+lxml[html_clean]~=5.2.2
 slybot
 logparser~=0.8.2
 pyopenssl==22.0.0
