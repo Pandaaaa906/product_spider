@@ -151,7 +151,7 @@ class ChemicalBookEnSpider(BaseSpider):
             supplier = {
                 'src_type': self.name,
                 'src_id': supp_id,
-                "name": vendor,
+                "en_name": vendor,
                 "region": country,
                 "phone": phone,
                 "email": email,
