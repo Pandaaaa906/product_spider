@@ -52,7 +52,8 @@ class HDPrdSpider(BaseSpider):
         cas = response.xpath("//*[contains(text(), 'CAS号：')]/following-sibling::dd/text()").get()
         mf = ''.join(response.xpath("//*[contains(text(), '分子式：')]/following-sibling::dd//text()").getall())
         mw = response.xpath("//*[contains(text(), '分子量：')]/following-sibling::dd/text()").get()
-        parent = response.xpath("//div[@class='inner_wrap']/li[last()-1]/a/text()").get()
+        # fix API应该为面包屑的最后一项
+        parent = response.xpath("//div[@class='inner_wrap']/li[last()]/a/text()").get()
         img_url = urljoin(self.base_url, response.xpath("//div[@class='autopic']/a/@href").get())
         d = {
             "brand": self.name,
