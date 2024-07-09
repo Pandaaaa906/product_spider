@@ -114,13 +114,13 @@ class LeyanSpider(BaseSpider):
                 yield Request(urljoin(response.url, rel_url), callback=self.parse_detail)
             return
         brand = response.xpath('//span[@id="bn"]/text()').get()
-        if brand and brand.lower() != 'leyan':
-            # TODO 其他品牌也要加
-            self.logger.info(f"found brand {brand!r}, skipping")
-            return
 
         tmp = '//div[contains(*/text(), {!r})]/following-sibling::div[1]/*/text()'
         cat_no = response.xpath('//span[@id="catalogNo"]/text()').get()
+        if brand and (brand := brand.lower()) != self.name:
+            self.logger.info(f"found brand {brand=}, {cat_no=}")
+        if cat_no:
+            cat_no = re.sub(r'^LY-TRC', '', cat_no)
         rel_img = response.xpath('//input[@id="image"]/@value').get()
         attrs = {}
         related_categories = [
@@ -130,7 +130,7 @@ class LeyanSpider(BaseSpider):
         if related_categories:
             attrs["related_categories"] = related_categories
         d = {
-            'brand': self.name,
+            'brand': brand or self.name,
             'parent': '_'.join(response.xpath('//li[@class="active"]/following-sibling::li/a/text()').getall()),
             'cat_no': cat_no,
             'en_name': response.xpath('//h2/span/text()').get(),
@@ -146,8 +146,9 @@ class LeyanSpider(BaseSpider):
             'prd_url': response.url,
             'attrs': dumps(attrs),
         }
-        yield RawData(**d)
-        yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
+        if d['brand'] == self.name:
+            yield RawData(**d)
+        yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, d['brand']))
 
         rows = response.xpath('//div[@class="table-responsive"]//tr[position()!=1]')
         pkg_idx = response.xpath('count(//div[@class="table-responsive"]//tr/th[text()="规格"]/preceding-sibling::*)+1').get()
@@ -174,4 +175,4 @@ class LeyanSpider(BaseSpider):
             yield ProductPackage(**dd)
             if not dd['cost']:
                 continue
-            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
+            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, d['brand']))
