@@ -118,6 +118,9 @@ class ChemicalBookSpider(BaseSpider):
         for node in nodes:
             vendor = node.xpath("./td[position()=1]/a/text()").get()
             vendor_url = node.xpath("./td[position()=1]/a/@href").get()
+            supp_id = None
+            if vendor_url:
+                supp_id = (m := re.search(r'(\d+)/0', vendor_url)) and m.group(1)
             phone = strip(node.xpath("./td[position()=2]/text()").get())
             email = strip(node.xpath("./td[position()=3]/text()").get())
             prd_count = strip(node.xpath("./td[position()=5]/a/text()").get())
@@ -127,7 +130,7 @@ class ChemicalBookSpider(BaseSpider):
                 "platform": self.name,
                 "vendor": vendor,
                 "vendor_origin": country,
-                "source_id": f"{vendor}_{cb_code}",
+                "source_id": f"{supp_id or vendor}_{cb_code}",
                 "brand": self.name,
                 "chs_name": d["chs_name"],
                 "cas": d["cas"],
@@ -142,7 +145,8 @@ class ChemicalBookSpider(BaseSpider):
             }
             yield SupplierProduct(**ddd)
             supplier = {
-                "source": self.name,
+                "src_type": self.name,
+                "src_id": supp_id or vendor,
                 "name": vendor,
                 "region": country,
                 "phone": phone,

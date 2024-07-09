@@ -2,7 +2,8 @@ import scrapyautodb as scrapy
 
 
 class RawSupplier(scrapy.OrderedItem):
-    source = scrapy.Field()
+    src_type = scrapy.Field()
+    src_id = scrapy.Field()
     name = scrapy.Field()
     en_name = scrapy.Field()
     region = scrapy.Field()
@@ -13,7 +14,7 @@ class RawSupplier(scrapy.OrderedItem):
 
     class Meta:
         indexes = (
-            (("source", "name",), True),
+            (("src_type", "src_id",), True),
         )
 
 
