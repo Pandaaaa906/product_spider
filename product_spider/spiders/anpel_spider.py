@@ -257,9 +257,9 @@ class AnpelSpider(BaseSpider):
     name = "anpel"
     base_url = 'https://www.labsci.com.cn/'
     start_urls = [
-        'https://www.labsci.com.cn0032',  # anpel
-        # 'https://www.anpel.com.cn0134',  # cnw
-        # 'https://www.anpel.com.cn0181',  # o2si
+        'https://www.labsci.com.cn/Brands_0032.html',  # anpel
+        # 'https://www.anpel.com.cn/Brands_0134.html',  # cnw
+        # 'https://www.anpel.com.cn/Brands_0181.html',  # o2si
     ]
 
     custom_settings = {
