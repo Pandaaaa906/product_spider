@@ -30,12 +30,13 @@ class ChemstrongSpider(BaseSpider):
         d = {
             'brand': self.brand,
             'parent': response.meta.get('parent'),
-            'cat_no': response.xpath("//div[@class='col-md-4']/div/text()").getall()[0],
+            'cat_no': response.xpath("//div[@class='col-md-4']/div/text()").get(),
             'chs_name': response.xpath("//div[@class='col-md-7 col-md-offset-1']/div/text()").get(),
-            'en_name': response.xpath("//tr/td[contains(text(),'别名:')]/parent::*/td/text()").getall()[1],
-            'cas': response.xpath("//tr/td[contains(text(),'CAS')]/parent::*/td/text()").getall()[1],
-            'mf': response.xpath("//tr/td[contains(text(),'分子式')]/parent::*/td/text()").getall()[1],
-            'mw': response.xpath("//tr/td[contains(text(),'分子量')]/parent::*/td/text()").getall()[1],
+            'en_name': response.xpath("//tr/td[contains(text(),'别名:')]/following-sibling::td[1]/text()").get(),
+            'cas': response.xpath("//tr/td[contains(text(),'别名:')]/following-sibling::td[1]/text()").get(),
+            'mf': response.xpath("//tr/td[contains(text(),'分子式')]/following-sibling::td[1]/text()").get(),
+            'mw': response.xpath("//tr/td[contains(text(),'分子量')]/following-sibling::td[1]/text()").get(),
+            'stock_info': response.xpath("//tr/td[contains(.//text(),'库存状态')]/following-sibling::td[1]//text()").get(),
             'img_url': img_rel and urljoin(self.base_url, img_rel),
             'prd_url': response.url,
         }
