@@ -1,44 +1,47 @@
+from itertools import chain
 from urllib.parse import urljoin
 
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class TCISpider(BaseSpider):
+    """
+    有时它就是慢，第一页拿不到，就会超时，整个退出，scraped 0 items，重新跑就好，不需要改代码
+    """
     name = "tci"
     base_url = "https://www.tcichemicals.com"
-    start_urls = ['https://www.tcichemicals.com/CN/zh/product/index', ]
+    start_urls = ['https://www.tcichemicals.com/CN/zh/', ]
     brand = 'tci'
 
     custom_settings = {
-        'CONCURRENT_REQUESTS': '1',
+        'CONCURRENT_REQUESTS': 8,
+        'USER_AGENT': (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/126.0.0.0 Safari/537.36"
+        ),
     }
 
     def parse(self, response, **kwargs):
-        rel_urls = response.xpath('//div[@class="section-inner"]//p[@class="mark"]/a/@href').getall()
+        rel_urls = response.xpath(
+            '//a[@title="产品"]/following-sibling::ul[1]/li[position()>1]/a/@href'
+        ).getall()
 
         for rel_url in rel_urls:
             yield Request(urljoin(response.url, rel_url), callback=self.parse_cat_list)
 
     def parse_cat_list(self, response):
         rel_urls = response.xpath('//div[@class="card-header"]/a/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.deep_parse_cat_list)
+        rel_urls_v2 = response.xpath('//ul[contains(@class, "mark")]/li/a/@href').getall()
+        for rel_url in chain(rel_urls, rel_urls_v2):
+            yield Request(urljoin(response.url, rel_url), callback=self.parse_cat_list)
 
-    def deep_parse_cat_list(self, response):
-        rel_urls = response.xpath('//div[@class="card-header"]/a/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.deep_parse_cat_list_v2)
-
-    def deep_parse_cat_list_v2(self, response):
-        rel_urls = response.xpath('//div[@class="card-header"]/a/@href').getall()
-        for rel_url in rel_urls:
-            yield Request(urljoin(response.url, rel_url), callback=self.parse_product_list)
-
-    def parse_product_list(self, response):
         nodes = response.xpath("//div[@id = 'product-list-wrap']/div")
         for node in nodes:
             url = node.xpath(".//a/@href").get()
@@ -46,6 +49,8 @@ class TCISpider(BaseSpider):
                 url=urljoin(response.url, url),
                 callback=self.parse_detail
             )
+        if not nodes and rel_urls and rel_urls_v2:
+            self.logger.warning(f"没考虑到该页面情况: {response.url}")
 
     def parse_detail(self, response):
         tmp = '//span[@class={!r}]/text()'
@@ -70,7 +75,9 @@ class TCISpider(BaseSpider):
             'img_url': img_rel and urljoin(self.base_url, img_rel),
             'prd_url': response.url,
         }
+        ddd = rawdata_to_supplier_product(d, self.name, self.name)
         yield RawData(**d)
+        yield SupplierProduct(**ddd)
 
         rows = response.xpath('//table[@id="PricingTable"]/tbody/tr')
         for row in rows:
@@ -80,39 +87,12 @@ class TCISpider(BaseSpider):
                 'cat_no': cat_no,
                 'package': row.xpath('./td[1]/text()').get(),
                 'delivery_time': '现货' if stock_num != '0' else None,
-                'cost': strip(row.xpath('./td[2]/div/text()').get()),
+                'cost': parse_cost(strip(row.xpath('./td[2]/div/text()').get())),
                 'stock_num': stock_num,
                 'currency': 'RMB',
             }
 
-            ddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                "parent": d["parent"],
-                "en_name": d["en_name"],
-                "cas": d["cas"],
-                "mf": d["mf"],
-                "mw": d["mw"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "img_url": d["img_url"],
-                "prd_url": d["prd_url"],
-            }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
             yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
+            if dd.get("cost"):
+                dddd = product_package_to_raw_supplier_quotation(d, dd, self.name, self.name)
+                yield RawSupplierQuotation(**dddd)
