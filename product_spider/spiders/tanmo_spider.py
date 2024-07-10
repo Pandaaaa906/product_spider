@@ -3,7 +3,7 @@ import time
 from ast import literal_eval
 from os import getenv
 
-import demjson
+from demjson3 import decode
 import execjs
 from lxml import etree
 from more_itertools import first
@@ -128,7 +128,7 @@ class TanmoSpider(BaseSpider):
         if is_tanmo(brand):
             brand = self.name
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
-        good_obj = demjson.decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
+        good_obj = decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
 
         chs_name = strip(''.join(response.xpath('//h2[@class="p-right-title"]//text()').getall()))
         cas = strip(response.xpath(tmp.format("CAS号")).get())
