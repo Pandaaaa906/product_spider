@@ -27,6 +27,8 @@ class ChemicalBookEnSpider(BaseSpider):
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500, 302],
+        'RETRY_TIMES': 10,
+        'CONCURRENT_REQUESTS': 8,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -136,7 +138,6 @@ class ChemicalBookEnSpider(BaseSpider):
             ddd = {
                 "platform": self.name,
                 "vendor": vendor,
-                "vendor_origin": country,
                 "source_id": f"{supp_id or vendor}_{cb_id}",
                 "brand": vendor,
                 "en_name": en_name,
@@ -147,6 +148,8 @@ class ChemicalBookEnSpider(BaseSpider):
                 "img_url": img_url,
                 "prd_url": response.url,
             }
+            if country:
+                ddd['vendor_origin'] = country
             yield SupplierProduct(**ddd)
             supplier = {
                 'src_type': self.name,
