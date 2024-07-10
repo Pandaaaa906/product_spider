@@ -32,3 +32,15 @@ Product Package attributes definitions
 |    msds     |   msds   |   clearsynth |     https://www.clearsynth.com/en/msds_sample?catnumber=CS-P-00495&compound=3-Hydroxy%20Abacavir   |
 |    sales_status     |   销售状态   |    nist  |     Now Selling   | 
 
+
+## Change proxy during running
+1. connect to scrapy using telnet
+```bash
+docker exec -it product_spider_scrapyd_1 telnet 127.0.0.1 6023 
+```
+2. send a refresh proxy signal in the shell
+```python
+from product_spider.signals import SHOULD_REFRESH_PROXY
+
+crawler.signals.send_catch_log(SHOULD_REFRESH_PROXY)
+```
