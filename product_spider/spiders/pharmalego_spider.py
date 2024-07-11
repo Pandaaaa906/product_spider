@@ -11,17 +11,16 @@ class PharmalegoSpider(BaseSpider):
     name = "pharmalego"
     brand = "pharmalego"
     start_urls = ['https://cn.pharmalego.com/all-products/index.html']
-    base_url = "https://cn.pharmalego.com"
 
     def parse(self, response, **kwargs):
         urls = response.xpath("//div[@class='Content_list_txt']//a/@href").getall()
         for url in urls:
-            yield Request(urljoin(self.base_url, url), callback=self.parse_list)
+            yield Request(urljoin(response.url, url), callback=self.parse_list)
 
     def parse_list(self, response):
         detail_urls = response.xpath("//a[@class='HProductContent_list_title']/@href").getall()
         for u in detail_urls:
-            yield Request(url=urljoin(self.base_url, u), callback=self.parse_detail, meta=response.meta)
+            yield Request(url=urljoin(response.url, u), callback=self.parse_detail, meta=response.meta)
         next_href = response.xpath("(//div[@class='page']//i)[last()]/parent::*/@href").get()
         if next_href:
             yield Request(url=urljoin(response.url, next_href), callback=self.parse_list)
@@ -41,7 +40,7 @@ class PharmalegoSpider(BaseSpider):
             'mf': formula_trans(response.xpath(info_xpath.format('分子式')).get()),
             'mw': response.xpath(info_xpath.format('分子量')).get(),
             'smiles': response.xpath(info_xpath.format('Smiles Code')).get(),
-            'img_url': img_rel and urljoin(self.base_url, img_rel),
+            'img_url': img_rel and urljoin(response.url, img_rel),
             'prd_url': response.url,
         }
         yield RawData(**d)
