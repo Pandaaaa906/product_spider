@@ -6,46 +6,63 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class AobchemSpider(BaseSpider):
     name = "aobchem"
-    allowed_domains = ["aobchem.com.cn"]
-    start_urls = ["http://www.aobchem.com.cn/product/466.html"]
+    base_url = 'https://www.aobchem.com.cn'
+    start_urls = ["https://www.aobchem.com.cn/pages/437.html"]
+    login_url = 'https://www.aobchem.com.cn/index.aspx?a=ajaxuserlogin'
 
-    def parse(self, response, **kwargs):
-        urls = response.xpath("//div[@class='col-lg-2 col-md-3 col-sm-4 col-xs-12 kj_pronyimg']//a/@href").getall()
-        for url in urls:
-            url = "http:" + url
-            if url:
-                yield Request(
-                    url,
-                    callback=self.parse_detail,
-                )
+    def start_requests(self):
+        # 发送登录请求
+        yield FormRequest(
+            url=self.login_url,
+            formdata={
+                'setsession': '1',
+                'verifyid': '',
+                'username': '18022430560',
+                'password': 'QWER!@#$1234',
+                'loginmethod': 'password',
+            },
+            callback=self.after_login,
+        )
 
-        next_url = "http:" + response.xpath("//nav[@class='text-center kj_product_page']//span[last()-2]/a/@href").get()
-        if next_url:
+    def is_login_successful(self, response):
+        return True
+
+    def after_login(self, response):
+        if self.is_login_successful(response):
+            # 登录成功后，获取初始页面
             yield Request(
-                next_url,
+                url=self.start_urls[0],
                 callback=self.parse
             )
 
+    def parse(self, response, **kwargs):
+        urls = response.xpath("//li[@class='list-group-item']/a/@href").getall()
+        for url in urls:
+            yield Request('http:' + url, callback=self.parse_list)
+
+    def parse_list(self, response):
+        detail_urls = response.xpath("//h4/span/a/@href").getall()
+        for url in detail_urls:
+            yield Request('http:' + url, callback=self.parse_detail)
+        next_url = response.xpath("//a[text()='下一页']/@href").get()
+        if next_url:
+            yield Request('http:' + next_url, callback=self.parse_list)
+
     def parse_detail(self, response):
-        cat_no = response.xpath(
-            "//div[@class='table-responsive kj_cplb']//tr//td[contains(text(), '产品编号')]/following-sibling::td/text()").get()
+        info_xpath = "//div[@class='table-responsive kj_cplb']//tr//td[contains(text(), {!r})]/following-sibling::td[1]/text()"
+        cat_no = response.xpath(info_xpath.format('产品编号')).get()
         parent = response.xpath("//ol[@class='breadcrumb']/li[last()]/a/text()").get()
-        en_name = response.xpath(
-            "//div[@class='table-responsive kj_cplb']//tr//td[contains(text(), '英文名')]/following-sibling::td/text()").get()
+        en_name = response.xpath(info_xpath.format('英文名')).get()
         chs_name = response.xpath(
             "//div[@class=' col-lg-8 col-md-8 col-sm-7 col-xs-12 kj_promcxx']/h1/span/text()").get()
-        cas = response.xpath(
-            "//div[@class='table-responsive kj_cplb']//tr//td[contains(text(), 'CAS号')]/following-sibling::td/text()").get()
-        mw = response.xpath(
-            "//div[@class='table-responsive kj_cplb']//tr//td[contains(text(), '分子量')]/following-sibling::td/text()").get()
+        cas = response.xpath(info_xpath.format('CAS号')).get()
+        mw = response.xpath(info_xpath.format('分子量')).get()
         mf = ''.join(response.xpath('//td[text()="分子式"]/following-sibling::td[1]//text()').getall())
         prd_url = response.url
         img_url = response.xpath("//div[@class='item active']/img/@src").get()
-        img_url = "http:" + img_url
-        mdl = response.xpath(
-            "//div[@class='table-responsive kj_cplb']//tr//td[contains(text(), 'MDL')]/following-sibling::td/text()").get()
-        info1 = response.xpath("//td[@class='kj_sjbm']//text()").get()
-
+        if img_url:
+            img_url = "http:" + img_url
+        mdl = response.xpath(info_xpath.format('MDL')).get()
         prd_id = response.xpath("//input[@name='productcatalog']/@productid").get()
         d = {
             "brand": self.name,
@@ -59,14 +76,13 @@ class AobchemSpider(BaseSpider):
             "prd_url": prd_url,
             "img_url": img_url,
             "mdl": mdl,
-            "info1": info1
         }
         yield FormRequest(
-            url="http://www.aobchem.com.cn/ajaxpro/Web960.Web.index,Web960.Web.ashx",
+            url="https://www.aobchem.com.cn/ajaxpro/Web960.Web.index,Web960.Web.ashx",
             method='POST',
             callback=self.parse_package,
             body=json.dumps({"pd_id": prd_id}),
-            headers={'x-ajaxpro-method': 'LoadGoods'},
+            headers={'X-Ajaxpro-Method': 'LoadGoods'},
             meta={"product": d, "prd_id": prd_id},
         )
 
@@ -75,8 +91,8 @@ class AobchemSpider(BaseSpider):
         yield RawData(**d)
         prd_id = response.meta.get("prd_id")
         j_obj = json.loads(response.text.strip(';/*'))
-        datas = json.loads(j_obj['ObjResult']).get(f"p_{prd_id}", [])
-
+        j_str = j_obj['ObjResult'].replace('\\"', '"').replace('\\\\', '').replace('"{', '{').replace('}"', '}').replace('\\r\\n', '')
+        datas = json.loads(j_str).get(f'p_{prd_id}', [])
         for data in datas:
             for i in data.get("Inventores", []):
                 price = i.get("Price", None)
