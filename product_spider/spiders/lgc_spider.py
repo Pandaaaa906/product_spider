@@ -5,7 +5,6 @@ from os import getenv
 from urllib import parse
 from urllib.parse import urljoin
 
-import scrapy
 from scrapy import Request, FormRequest
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
@@ -16,6 +15,7 @@ from product_spider.utils.spider_mixin import JsonSpider
 
 LGC_USER = getenv('LGC_USER')
 LGC_PWD = getenv('LGC_PWD')
+LGC_BRANDS = {'trc', 'lgc', 'dre', 'easi-tab'}
 
 
 def parse_brand(raw_brand):
@@ -79,7 +79,7 @@ class LGCSpider(JsonSpider):
         if not products:
             return
         for prd in products:
-            brand = parse_brand(prd.get("brand", {}).get("name", None).lower())
+            brand = (brand := parse_brand(prd.get("brand", {}).get("name", None))) and brand.lower()
             cat_no = prd.get("code", None)
             prd_url = '{}{}'.format(self.base_url, prd.get("url"))
 
@@ -87,7 +87,7 @@ class LGCSpider(JsonSpider):
                 "brand": brand,
                 "cat_no": cat_no,
             }
-            yield scrapy.Request(
+            yield Request(
                 url=prd_url,
                 callback=self.parse_detail,
                 meta={"product": d}
@@ -100,7 +100,7 @@ class LGCSpider(JsonSpider):
             query_d['currentPage'] = current_page_num
             parsed_url = list(parsed_url)
             parsed_url[4] = parse.urlencode(query_d)
-            yield scrapy.Request(
+            yield Request(
                 url=parse.urlunparse(parsed_url),
                 callback=self.parse
             )
@@ -142,17 +142,17 @@ class LGCSpider(JsonSpider):
             "img_url": img_url and urljoin(response.url, img_url),
 
             "parent": api_name or categories,
-            "info2": response.xpath("//*[contains(text(), 'Storage Temperature')]/following-sibling::p/text()").get(),
+            "info2": response.xpath(tmpl.format('Storage Temperature')).get(),
             # 储存条件
             "cas": response.xpath("//*[contains(text(), 'CAS Number')]/following-sibling::p/a/text()").get(),
-            "mw": response.xpath("//*[contains(text(), 'Molecular Weight')]/following-sibling::p/text()").get(),
-            'mf': response.xpath("//*[contains(text(), 'Molecular Formula')]/following-sibling::p/text()").get(),
+            "mw": response.xpath(tmpl.format('Molecular Weight')).get(),
+            'mf': response.xpath(tmpl.format('Molecular Formula')).get(),
             "en_name": response.xpath(tmpl.format('Analyte Name')).get(),
             "shipping_info": response.xpath(tmpl.format('Shipping Temperature')).get(),
             "smiles": response.xpath(tmpl.format('SMILES')).get(),
             "attrs": dumps({k: v for k, v in prd_attrs.items() if v}),
         }
-        if d['brand'] in {'trc', 'lgc', 'dre', 'easi-tab'}:
+        if d['brand'] in LGC_BRANDS:
             yield RawData(**d)
         yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
 
@@ -181,7 +181,8 @@ class LGCSpider(JsonSpider):
             "price": cost,
             "currency": json_nth_value(d, f"$.price.currencyIso"),
         }
-        yield ProductPackage(**dd)
+        if dd['brand'] in LGC_BRANDS:
+            yield ProductPackage(**dd)
         if not dd['cost']:
             return
         yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, dd['brand']))
