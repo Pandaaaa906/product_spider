@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlencode
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -23,7 +24,7 @@ class USPSpider(BaseSpider):
             'catalogId': 'cloudCatalog',
             'limit': self.LIMIT,
             'offset': 0,
-            'sort': 'displayName:[object Object]',
+            'sort': 'ID:[object Object]',
             'categoryId': 'USP-1010',
             'includeChildren': 'true',
             'storePriceListGroupId': 'defaultPriceGroup'
@@ -50,6 +51,7 @@ class USPSpider(BaseSpider):
                 'attrs': prd_attrs,
             }
             yield RawData(**d)
+            yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
 
             package_size = product.get('usp_packing_size', '')
             unit = product.get('usp_uom', '')
@@ -65,38 +67,13 @@ class USPSpider(BaseSpider):
                 'currency': 'USD',
                 'delivery_time': product.get('usp_in_stock'),
             }
-
-            ddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                "parent": d["parent"],
-                "en_name": d["en_name"],
-                "cas": d["cas"],
-                "mf": d["mf"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "prd_url": d["prd_url"],
-            }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
             yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
+            if dd['cost']:
+                yield RawSupplierQuotation(
+                    **product_package_to_raw_supplier_quotation(d, dd, self.name, self.name)
+                )
 
-        offset = j.get('offset', 0) + j.get('limit', 250)
+        offset = j.get('offset', 0) + j.get('limit', self.LIMIT)
         if offset > j.get('totalResults', 0):
             return
         data = response.meta.get('data', {})
