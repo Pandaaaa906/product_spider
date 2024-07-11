@@ -20,16 +20,22 @@ class XianglongpharmSpider(BaseSpider):
             url = urljoin(self.base_url, api.xpath('./@href').get(""))
             parent = strip(api.xpath('./text()').get())
             yield Request(url, callback=self.parse_list, meta={"parent": parent})
+        next_url = response.xpath("//a[text()='下一页']/@href").get()
+        if next_url:
+            yield Request(urljoin(self.base_url, next_url), callback=self.parse)
 
     def parse_list(self, response):
         rows = response.xpath("//tbody//tr")
         parent = response.meta.get('parent')
         for row in rows:
             yield RawData(**self.parse_row(row, parent))
+        next_url = response.xpath("//a[text()='下一页']/@href").get()
+        if next_url:
+            yield Request(urljoin(self.base_url, next_url), callback=self.parse_list)
 
     def parse_row(self, row, parent) -> dict:
         tds = row.xpath('./td')
-        d = {
+        return {
             'brand': self.brand,
             "parent": parent,
             "cat_no": tds[0].xpath('./text()').get(),
@@ -41,4 +47,3 @@ class XianglongpharmSpider(BaseSpider):
             'mw': tds[7].xpath('./text()').get(),
             "prd_url": urljoin(self.base_url, tds[-1].xpath('.//a/@href').get('')),
         }
-        return d
