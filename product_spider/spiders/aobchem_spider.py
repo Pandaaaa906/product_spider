@@ -1,7 +1,14 @@
 import json
+from os import getenv
+
 from scrapy import Request, FormRequest
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
+
+
+AOBCHEM_USER = getenv('AOBCHEM_USER')
+AOBCHEM_PWD = getenv('AOBCHEM_PWD')
 
 
 class AobchemSpider(BaseSpider):
@@ -17,8 +24,8 @@ class AobchemSpider(BaseSpider):
             formdata={
                 'setsession': '1',
                 'verifyid': '',
-                'username': '18022430560',
-                'password': 'QWER!@#$1234',
+                'username': AOBCHEM_USER,
+                'password': AOBCHEM_PWD,
                 'loginmethod': 'password',
             },
             callback=self.after_login,
@@ -89,6 +96,7 @@ class AobchemSpider(BaseSpider):
     def parse_package(self, response):
         d = response.meta.get("product")
         yield RawData(**d)
+        yield SupplierProduct(SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name)))
         prd_id = response.meta.get("prd_id")
         j_obj = json.loads(response.text.strip(';/*'))
         j_str = j_obj['ObjResult'].replace('\\"', '"').replace('\\\\', '').replace('"{', '{').replace('}"', '}').replace('\\r\\n', '')
@@ -103,39 +111,11 @@ class AobchemSpider(BaseSpider):
                     "cat_no": cat_no,
                     "package": package,
                     "cost": price,
+                    "price": price,
                     "brand": self.name,
                     "currency": "RMB",
                 }
-
-                ddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                    "parent": d["parent"],
-                    "en_name": d["en_name"],
-                    "cas": d["cas"],
-                    "mf": d["mf"],
-                    "mw": d["mw"],
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'cost': dd['cost'],
-                    "currency": dd["currency"],
-                    "img_url": d["img_url"],
-                    "prd_url": d["prd_url"],
-                }
-                dddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id": f'{self.name}_{d["cat_no"]}',
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'discount_price': dd['cost'],
-                    'price': dd['cost'],
-                    'cas': d["cas"],
-                    'currency': dd["currency"],
-                }
                 yield ProductPackage(**dd)
-                yield SupplierProduct(**ddd)
-                yield RawSupplierQuotation(**dddd)
+                if not dd['cost']:
+                    continue
+                yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
