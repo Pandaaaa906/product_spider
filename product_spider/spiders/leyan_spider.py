@@ -172,7 +172,8 @@ class LeyanSpider(BaseSpider):
                 'delivery_time': 'in-stock' if stock_num == '1' else None,
                 'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
             }
-            yield ProductPackage(**dd)
+            if d['brand'] == self.name:
+                yield ProductPackage(**dd)
             if not dd['cost']:
                 continue
             yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, d['brand']))
