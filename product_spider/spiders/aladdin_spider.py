@@ -1,7 +1,11 @@
 import json
+import re
 
+import execjs
 import parsel
+import requests
 import scrapy
+from scrapy import Request
 from scrapy.http import Response
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
@@ -10,29 +14,55 @@ from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
+def get_last_part_of_url(url):
+    if url.endswith('/'):
+        url = url[:-1]
+    last_slash_index = url.rfind('/')
+    # 截取最后一个 '/' 之后的所有内容
+    last_part = url[last_slash_index + 1:]
+    return last_part
+
+
+def get_complete_cookie(url, headers):
+    complete_cookie = {}
+    # 第一次不带参数访问首页，获取 acw_tc 和 acw_sc__v2
+    response = requests.get(url=url, headers=headers)
+    complete_cookie.update(response.cookies.get_dict())
+    acw_sc__v2 = get_acw_sc_v2(response)
+    complete_cookie.update({"acw_sc__v2": acw_sc__v2})
+    response2 = requests.get(url=url, headers=headers, cookies=complete_cookie)
+    complete_cookie.update(response2.cookies.get_dict())
+    return complete_cookie
+
+
+def get_acw_sc_v2(response):
+    arg1 = re.findall("arg1='(.*?)'", response.text)[0]
+    with open('product_spider/utils/get_acw_sc_v2.js', 'r', encoding='utf-8') as f:
+        acw_sc_v2_js = f.read()
+    return execjs.compile(acw_sc_v2_js).call('getAcwScV2', arg1)
+
+
 class AladdinSpider(BaseSpider):
     """阿拉丁"""
     name = "aladdin"
     start_urls = ["https://www.aladdin-e.com/zh_cn/"]
+    base_url = 'https://www.aladdin-e.com'
 
     headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-        "accept": "application/json, text/javascript, */*; q=0.01",
-        "x-requested-with": "XMLHttpRequest",
+        "Host": "www.aladdin-e.com",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+        "Referer": "https://www.aladdin-e.com/"
     }
 
-    custom_settings = {
-        "DOWNLOADER_MIDDLEWARES": {
-            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
-        },
-        'PROXY_POOL_REFRESH_STATUS_CODES': [403, 504, 503, ],
-        'RETRY_TIMES': 10,
-        'USER_AGENT': (
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/107.0.0.0 Safari/537.36'
-        )
-    }
+    cookies = []
+
+    # custom_settings = {
+    #     "DOWNLOADER_MIDDLEWARES": {
+    #         'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+    #     },
+    #     'PROXY_POOL_REFRESH_STATUS_CODES': [403, 504, 503, ],
+    #     'RETRY_TIMES': 10,
+    # }
 
     def is_proxy_invalid(self, request, response: Response):
         if response.status in {403, 504}:
@@ -40,6 +70,10 @@ class AladdinSpider(BaseSpider):
         if 'document.location.reload' in response.text:
             return True
         return False
+
+    def start_requests(self):
+        self.cookies = get_complete_cookie(self.base_url, self.headers)
+        yield Request(url=self.start_urls[0], cookies=self.cookies, callback=self.parse)
 
     def parse(self, response, **kwargs):
         nodes = response.xpath(
@@ -82,15 +116,15 @@ class AladdinSpider(BaseSpider):
     def parse_detail(self, response):
         parent = response.meta.get("parent")
         img_url = response.meta.get("img_url")
-        cn_name = response.xpath("//h1[@class='page-title']/span/text()").get()
-        en_name = response.xpath("//div[@class='product-name2-regent']/text()").get()
-        purity = response.xpath("//div[@class='product-package']/text()").get()
-        cas = response.xpath("//span[contains(text(), ' CAS编号 ')]/a/text()").get()
-        mf = strip(''.join(response.xpath("//th[contains(text(), '分子式')]//following-sibling::td//text()").getall()))
-        mw = response.xpath("//th[@class='col label molecular_weight']/following-sibling::td/text()").get()
-        mdl = response.xpath("//li[contains(text(), ' MDL号 ')]//a/text()").get()
+        cn_name = response.xpath("//span[@data-ui-id='page-title-wrapper']/text()").get()
+        en_name = strip(response.xpath("//td[@data-th='英文名称']/text()").get())
+        purity = response.xpath("//div/strong[contains(text(),'规格或纯度:')]/parent::*/span//text()").get()
+        cas = response.xpath("//li[.//text()[contains(., 'CAS编号')]]/span/a/text()").get()
+        mf = strip(''.join(response.xpath("//li[.//text()[contains(., '分子式')]]//text()").getall())).strip('分子式:： \n')
+        mw = strip(''.join(response.xpath("//li/strong[contains(text(),'分子量')]/parent::*/text()").getall()))
+        mdl = response.xpath("//li/strong[contains(text(),'MDL号')]/parent::*/span//text()").get()
         shipping_info = strip(response.xpath("//th[contains(text(), '运输条件')]/following-sibling::td/text()").get())
-        cat_no = response.xpath('//div[@class="product-add-form"]/form/@data-product-sku').get()
+        cat_no = get_last_part_of_url(response.url).strip('.html').upper()
         d = {
             "brand": self.name,
             "cat_no": cat_no,
@@ -108,12 +142,15 @@ class AladdinSpider(BaseSpider):
         }
 
         tr_list = response.xpath("//table[@class='table data grouped cart']/tbody/tr")
+        package_ids = [x.strip('prompt_box_') for x in
+                       response.xpath("//div[contains(@id,'prompt_box_')]/@id").getall()]
         packages = {
             tr.xpath("./td[@class='ajaxPrice']/@attr").get(): {
-                "package": tr.xpath("./td[position()=1]/a/text()").get(),
+                "id": package_ids[index],
+                "package": tr.xpath("./td[position()=2]/text()").get().strip(),
                 "delivery_time": tr.xpath("./td[position()=3]/text()").get('').strip(),
             }
-            for tr in tr_list
+            for index, tr in enumerate(tr_list)
         }
         form_data = {f'ajaxUpdatePrice_{_id}': f'ajaxUpdatePrice_{_id}' for _id in packages}
         yield scrapy.FormRequest(
@@ -121,6 +158,7 @@ class AladdinSpider(BaseSpider):
             method='POST',
             callback=self.parse_price,
             formdata=form_data,
+            cookies=self.cookies,
             meta={
                 "product": d,
                 "packages": packages,
