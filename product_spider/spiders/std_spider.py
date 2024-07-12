@@ -9,14 +9,6 @@ from product_spider.utils.functions import dumps
 from product_spider.utils.spider_mixin import BaseSpider
 
 
-def get_total_page(response) -> int:
-    if response.ok:
-        data = json.loads(response.text)
-        return data['count']
-    print('获取页数失败')
-    return 0
-
-
 class STDSpider(BaseSpider):
     name = "std"
     start_urls = []
