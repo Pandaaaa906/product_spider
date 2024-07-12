@@ -16,4 +16,11 @@ def first(l: list, default=None):
     return l[0]
 
 
+is_none = lambda x: x is None
+
+
+def clean_dict(d: dict, func=is_none):
+    return {k: v for k, v in d.items() if func(v)}
+
+
 dumps = partial(json.dumps, ensure_ascii=False)

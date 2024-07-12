@@ -10,7 +10,9 @@ from Crypto.Util.Padding import unpad
 from scrapy import Request
 from scrapy.http import JsonRequest
 
-from product_spider.items import RawData, ProductPackage, RawSupplierQuotation
+from product_spider.items import RawData, ProductPackage, RawSupplierQuotation, SupplierProduct
+from product_spider.utils.functions import dumps, clean_dict
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -211,10 +213,11 @@ class PharmBlockSpider(BaseSpider):
             "stock_info": (m := prd.get("stockCN")) and self.decrypt(m),
             "prd_url": f"https://product.pharmablock.com/cn/product/{prd.get('productCode')}",
             "img_url": img_url,
-            "attrs": json.dumps(attrs)
+            "attrs": dumps(clean_dict(attrs, bool))
         }
         product_id = prd.get("productId")
         yield RawData(**d)
+        yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
 
         yield self.make_package_request(
             product_id=product_id,
@@ -249,20 +252,9 @@ class PharmBlockSpider(BaseSpider):
                 'price': cn_price and self.decrypt(cn_price),
                 'stock_num': pkg_stock and int(stock_num // pkg_stock),
                 'currency': 'RMB',
-                'attrs': json.dumps(attrs),
-            }
-            ddd = {
-                "platform": self.name,
-                "source_id": f"{self.name}_{dd['cat_no']}",
-                "vendor": self.name,
-                "brand": self.name,
-                "cat_no": dd['cat_no'],
-                "package": dd['package'],
-                "discount_price": dd['cost'],
-                "price": dd['cost'],
-                "currency": dd["currency"],
-                "stock_num": dd["stock_num"],
-                "cas": prd["cas"],
+                'attrs': dumps(clean_dict(attrs, bool)),
             }
             yield ProductPackage(**dd)
-            yield RawSupplierQuotation(**ddd)
+            if not dd['cost']:
+                continue
+            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(prd, dd, self.name, self.name))
