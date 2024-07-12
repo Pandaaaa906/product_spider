@@ -23,6 +23,10 @@ class STDSpider(BaseSpider):
     base_url = "https://www.standardpharm.com/"
     api_url = "https://www.standardpharm.com/solr/search/letter"
 
+    custom_settings = {
+        'RETRY_TIMES': 10,
+    }
+
     def start_requests(self):
         form_data = {
             "id": '',
