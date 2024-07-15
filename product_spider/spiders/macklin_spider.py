@@ -1,11 +1,14 @@
 import json
+import re
 from hashlib import md5
 from time import time
 from urllib.parse import urlencode, parse_qsl, urlparse
 
 from scrapy.http import JsonRequest
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, RawSupplierQuotation, SupplierProduct
+from product_spider.utils.functions import dumps, clean_dict
+from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -127,23 +130,31 @@ class MacklinSpider(BaseSpider):
                 "density": product.get('item_density'),
             }
             cat_no = product.get('item_code')
+            if mf := product.get('chem_mf'):
+                mf = re.sub(r'</?su[bp]>', '', mf)
+            cas = product.get('chem_cas')
+            img_url = product.get('up_img')
+            if not img_url and cas and len(tmp := cas.split('-')) == 3:
+                a, b, c = tmp
+                img_url = f"https://img.macklin.cn/pic_sml/{b}/{c}/{cas}.png"
             d = {
                 "brand": self.brand,
                 "cat_no": cat_no,
                 "parent": parent,
                 "en_name": product.get('item_en_name'),
                 "chs_name": product.get('item_name'),
-                "cas": product.get('chem_cas'),
-                "mf": product.get('chem_mf'),
+                "cas": cas,
+                "mf": mf,
                 "info2": product.get('item_en_storage'),
                 "appearance": product.get('item_color'),
                 "purity": product.get('item_specification'),
-                "img_url": product.get('up_img'),
-                "prd_url": f"http://www.macklin.cn/products/{cat_no}",
-                "attrs": json.dumps(attrs),
+                "img_url": img_url,
+                "prd_url": f"https://www.macklin.cn/products/{cat_no}",
+                "attrs": dumps(clean_dict(attrs, bool)),
             }
             yield RawData(**d)
-            yield self._make_package_request(cat_no=cat_no)
+            yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
+            yield self._make_package_request(cat_no=cat_no, meta={"prd": d})
         if not products:
             return
         yield self._make_products_request(
@@ -154,6 +165,7 @@ class MacklinSpider(BaseSpider):
 
     def parse_package(self, response):
         j = json.loads(response.text)
+        d = response.meta.get("prd")
         if not (data := j.get('data', {}).get('list', [])):
             return
         cat_no = response.meta.get('cat_no')
@@ -170,3 +182,7 @@ class MacklinSpider(BaseSpider):
                 "currency": "RMB",
             }
             yield ProductPackage(**dd)
+
+            if not dd['cost']:
+                continue
+            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
