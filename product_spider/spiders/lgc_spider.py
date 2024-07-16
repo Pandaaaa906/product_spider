@@ -13,8 +13,8 @@ from product_spider.utils.items_translate import rawdata_to_supplier_product, pr
 from product_spider.utils.json_path import json_nth_value, json_all_value
 from product_spider.utils.spider_mixin import JsonSpider
 
-LGC_USER = getenv('LGC_USER')
-LGC_PWD = getenv('LGC_PWD')
+LGC_USER = getenv('LGC_USER', 'g.m.office@cato-chem.com')
+LGC_PWD = getenv('LGC_PWD', '6vS-!_hizfLJ7iS')
 LGC_BRANDS = {'trc', 'lgc', 'dre', 'easi-tab'}
 
 
@@ -34,6 +34,7 @@ class LGCSpider(JsonSpider):
     name = "lgc"
     allowed_domains = ["lgcstandards.com"]
     start_urls = [
+        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=TRC%3A%3AmanufacturerName%3ATRC%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
         "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=MM%3A%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
         "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=%3A%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
     ]
@@ -79,7 +80,7 @@ class LGCSpider(JsonSpider):
         if not products:
             return
         for prd in products:
-            brand = (brand := parse_brand(prd.get("brand", {}).get("name", None))) and brand.lower()
+            brand = parse_brand((brand := (prd.get("brand", {}).get("name", None))) and brand.lower())
             cat_no = prd.get("code", None)
             prd_url = '{}{}'.format(self.base_url, prd.get("url"))
 
@@ -109,6 +110,8 @@ class LGCSpider(JsonSpider):
         tmpl = "//*[contains(text(), {!r})]/following-sibling::p/text()"
         brand = json_nth_value(response.meta, '$.product.brand')
         cat_no = json_nth_value(response.meta, '$.product.cat_no')
+        if brand == 'trc' and cat_no:
+            cat_no = (m := re.search(r'[A-Z]\d+(-KIT)?', cat_no)) and m.group()
         api_name = ''.join(response.xpath("//*[contains(text(), 'API Family')]/following-sibling::a/text()").getall())
         t = response.xpath('//div[@class="product__details-left"]/script/text()').get()
         raw_product = (m := re.search(r'var PARENT_PRODUCT = (\{.+});', t)) and m.group(1)
@@ -167,22 +170,24 @@ class LGCSpider(JsonSpider):
             yield Request(
                 f"https://www.lgcstandards.com/CA/en/prices?{parse.urlencode({'productCodeList': dd['cat_no_unit']})}",
                 callback=self.parse_prise,
-                meta={"pkg": dd}
+                meta={"pkg": dd, "product": d}
             )
 
     def parse_prise(self, response):
         dd = response.meta.get("pkg")
-        d = json.loads(response.text)
-        d =d.get(dd['cat_no_unit'], {})
-        cost = json_nth_value(d, f"$.price.value")
+        d = response.meta.get("product")
+
+        j_obj = json.loads(response.text)
+        pkg_data = j_obj.get(dd['cat_no_unit'], {})
+        cost = json_nth_value(pkg_data, f"$.price.value")
         dd = {
             **dd,
             "cost": cost,
             "price": cost,
-            "currency": json_nth_value(d, f"$.price.currencyIso"),
+            "currency": json_nth_value(pkg_data, f"$.price.currencyIso"),
         }
         if dd['brand'] in LGC_BRANDS:
             yield ProductPackage(**dd)
         if not dd['cost']:
             return
-        yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, dd['brand']))
+        yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
