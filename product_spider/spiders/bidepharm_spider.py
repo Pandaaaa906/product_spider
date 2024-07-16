@@ -8,6 +8,7 @@ from urllib.parse import urljoin, urlencode
 from scrapy.http import JsonRequest
 
 from product_spider.items import RawData, ProductPackage, RawSupplierQuotation
+from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -38,12 +39,16 @@ class BidepharmSpider(BaseSpider):
         is_detected = False
         if response.status in {503, 403, 504}:
             is_detected = True
+        elif response.url.startswith('https://gateway.zscloud.net:443'):
+            is_detected = True
         try:
             j = json.loads(response.text)
             if j.get('value', {}).get('errmsg'):
                 is_detected = True
         except Exception as e:
-            self.logger.warning(e)
+            self.logger.warning(f"{e}, when processing {request.url=}, {response.status}")
+            if request.url.startswith(self.products_url):
+                is_detected = True
             pass
         if is_detected:
             self.logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
@@ -100,21 +105,10 @@ class BidepharmSpider(BaseSpider):
                     "currency": "RMB",
                     "delivery_time": 'in-stock' if row.get('p_ishasstock') else None
                 }
-                ddd = {
-                    "platform": self.name,
-                    "source_id": f"{self.name}_{dd['cat_no']}",
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "cat_no": dd['cat_no'],
-                    "package": dd['package'],
-                    "discount_price": dd['cost'],
-                    "price": dd['cost'],
-                    "currency": dd["currency"],
-                    "stock_num": '1' if row.get('p_ishasstock') else None,
-                    "cas": d["cas"],
-                }
                 yield ProductPackage(**dd)
-                yield RawSupplierQuotation(**ddd)
+                if not dd['cost']:
+                    continue
+                yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
 
         total = value.get('total', 0)
         per_page = value.get('pagesize', 0)
