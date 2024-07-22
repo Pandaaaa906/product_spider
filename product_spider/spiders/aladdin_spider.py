@@ -13,8 +13,7 @@ from product_spider.utils.items_translate import product_package_to_raw_supplier
 from product_spider.utils.spider_mixin import BaseSpider
 
 
-def get_acw_sc_v2(response):
-    arg1 = re.findall("arg1='(.*?)'", response.text)[0]
+def get_acw_sc_v2(arg1):
     with open('product_spider/utils/get_acw_sc_v2.js', 'r', encoding='utf-8') as f:
         acw_sc_v2_js = f.read()
     return execjs.compile(acw_sc_v2_js).call('getAcwScV2', arg1)
@@ -26,31 +25,48 @@ class AladdinSpider(BaseSpider):
     home_url = "https://www.aladdin-e.com/zh_cn/"
     start_urls = [home_url, ]
     base_url = 'https://www.aladdin-e.com'
+    price_url = 'https://www.aladdin-e.com/zh_cn/catalogb/ajax/price/'
 
     cookies = {}
 
-    # custom_settings = {
-    #     "DOWNLOADER_MIDDLEWARES": {
-    #         'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
-    #     },
-    #     'PROXY_POOL_REFRESH_STATUS_CODES': [403, 504, 503, ],
-    #     'RETRY_TIMES': 10,
-    # }
+    custom_settings = {
+        # "DOWNLOADER_MIDDLEWARES": {
+        #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        # },
+        # 'PROXY_POOL_REFRESH_STATUS_CODES': [403, 504, 503, ],
+        'RETRY_TIMES': 10,
+        'CONCURRENT_REQUESTS': 1,
+    }
 
     def is_proxy_invalid(self, request, response: Response):
-        if response.status in {403, 504}:
-            return True
-        if 'document.location.reload' in response.text:
-            return True
-        return False
+        is_detected = False
+        if response.status in {403, 504, 503}:
+            is_detected = True
+        if 'document.location.reload' in response.text and request.url != self.home_url:
+            is_detected = True
+        if request.url.startswith(self.price_url):
+            try:
+                _ = json.loads(response.text)
+            except Exception as e:
+                is_detected = True
+                self.logger.warning(f"{e!r}")
+        return is_detected
 
     def start_requests(self):
         yield Request(url=self.home_url, callback=self.set_cookies)
 
-    def set_cookies(self, response):
-        acw_sc__v2 = get_acw_sc_v2(response)
-        self.cookies["acw_sc__v2"] = acw_sc__v2
-        yield Request(url=self.home_url, cookies=self.cookies, callback=self.parse, dont_filter=True)
+    def set_cookies(self, response, req=None):
+        arg1 = (m := re.search("arg1='(.*?)'", response.text)) and m.group(1)
+        if arg1 is not None:
+            acw_sc__v2 = get_acw_sc_v2(arg1)
+            self.cookies["acw_sc__v2"] = acw_sc__v2
+        if req is not None:
+            req.dont_filter = True
+            req.cookies = self.cookies
+            req.priority = 999999
+            yield req
+        else:
+            yield Request(url=self.home_url, cookies=self.cookies, callback=self.parse, dont_filter=True)
 
     def parse(self, response, **kwargs):
         nodes = response.xpath(
@@ -91,6 +107,9 @@ class AladdinSpider(BaseSpider):
             )
 
     def parse_detail(self, response):
+        if '{setCookie("acw_sc__v2", x);document.location.reload();}' in response.text:
+            yield from self.set_cookies(response, response.request)
+            return
         tmpl = '//li[strong[contains(text(), {!r})]]//text()[not(parent::strong)]'
         tmpl_table = '//td[@data-th={!r}]/text()'
         attrs = {
@@ -135,19 +154,31 @@ class AladdinSpider(BaseSpider):
             return
         form_data = {f'ajaxUpdatePrice_{_id}': f'ajaxUpdatePrice_{_id}' for _id in packages}
         yield FormRequest(
-            url='https://www.aladdin-e.com/zh_cn/catalogb/ajax/price/',
+            url=self.price_url,
             callback=self.parse_price,
             formdata=form_data,
             meta={
                 "product": d,
                 "packages": packages,
+                "dont_redirect": True,
+                'handle_httpstatus_all': True,
             },
         )
 
     def parse_price(self, response):
+        if response.status != 200:
+            # self.logger.warning(f"{response.status=}: refreshing cookies")
+            url = response.headers.get(b'Location')
+            url = url and url.decode() or self.home_url
+            yield Request(url, callback=self.set_cookies, cb_kwargs={"req": response.request}, priority=999999)
+            return
+        try:
+            res_obj = json.loads(response.text)
+        except Exception as e:
+            self.logger.error(f"{e!r}, {response.url=}: {response.text[:500]}")
+            return
         d = response.meta.get("product")
         packages = response.meta.get("packages")
-        res_obj = json.loads(response.text)
 
         for _id, cat_no_unit in packages.items():
             package = cat_no_unit.get("package", None)
