@@ -88,7 +88,7 @@ class ChemicalBookEnSpider(BaseSpider):
                 url=f"https://www.chemicalbook.com/ProdSupplierGN_EN.aspx?CBNumber={cb_id}&ProvID=1001",
                 callback=self.parse_cb_supplier_list,
                 meta={"cas": cas, 'dont_redirect': True, 'handle_httpstatus_list': [302]},
-                priority=5,
+                priority=10,
             )
         # 翻页
         next_page = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').get()
