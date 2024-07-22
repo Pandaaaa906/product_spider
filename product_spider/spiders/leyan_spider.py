@@ -57,9 +57,9 @@ class LeyanSpider(BaseSpider):
             max_split: int = 16, itersize: int = 20000, ignore_days: int = 60,
             strategy: LeyanStrategy = LeyanStrategy.WALKTHROUGH,
             **kwargs):
-        self.max_split = max_split
-        self.itersize = itersize
-        self.ignore_days = ignore_days
+        self.max_split = int(max_split)
+        self.itersize = int(itersize)
+        self.ignore_days = int(ignore_days)
         self.strategy = strategy
         super().__init__(**kwargs)
 
@@ -192,6 +192,8 @@ class LeyanSpider(BaseSpider):
         rows = response.xpath('//div[@class="table-responsive"]//tr[position()!=1]')
         pkg_idx = response.xpath(
             'count(//div[@class="table-responsive"]//tr/th[text()="规格"]/preceding-sibling::*)+1').get()
+        stock_idx = response.xpath(
+            'count(//div[@class="table-responsive"]//tr/th[text()="上海"]/preceding-sibling::*)+1').get()
         for row in rows:
             if not (package := row.xpath(f'./td[position()={pkg_idx!r}]/text()').get()):
                 continue
@@ -202,7 +204,7 @@ class LeyanSpider(BaseSpider):
             except Exception as e:
                 self.logger.error(e)
                 continue
-            stock_num = row.xpath('./td[@id="stock"]/text()').get()
+            stock_num = row.xpath('./td[@id="stock" or @class="stock"]/text()').get()
             dd = {
                 'brand': d['brand'],
                 'cat_no': cat_no,
@@ -210,7 +212,7 @@ class LeyanSpider(BaseSpider):
                 'cost': parse_cost(price),
                 'currency': 'RMB',
                 'delivery_time': 'in-stock' if stock_num == '1' else None,
-                'stock_num': row.xpath('./td[@id="stock"]/text()').get(),
+                'stock_num': stock_num,
             }
             if d['brand'] == self.name:
                 yield ProductPackage(**dd)
