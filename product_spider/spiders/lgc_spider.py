@@ -34,9 +34,9 @@ class LGCSpider(JsonSpider):
     name = "lgc"
     allowed_domains = ["lgcstandards.com"]
     start_urls = [
-        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=TRC%3A%3AmanufacturerName%3ATRC%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
-        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=MM%3A%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
-        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=%3A%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
+        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=%3A%3AmanufacturerName%3ATRC%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
+        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=MM%3A%3AmanufacturerName%3AMikromol%3AmanufacturerName%3AMikromol%25E2%2584%25A2%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
+        "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=DRE%3A%3AmanufacturerName%3ADr.%2BEhrenstorfer%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
     ]
     base_url = "https://www.lgcstandards.com/CA/en"
     custom_settings = {
