@@ -1,3 +1,4 @@
+import re
 
 
 def rawdata_to_supplier_product(
@@ -30,6 +31,9 @@ def product_package_to_raw_supplier_quotation(
         platform: str,
         vendor: str,
 ):
+    stock_num = dd.get('stock_num')
+    if stock_num:
+        stock_num = (m := re.search(r'^>?(\d+)', stock_num)) and m.group(1)
     ret = {
         "platform": platform,
         "vendor": vendor,
@@ -41,5 +45,7 @@ def product_package_to_raw_supplier_quotation(
         "price": dd.get('cost'),
         "cas": d.get("cas"),
         "currency": dd["currency"],
+        "delivery": dd.get("delivery_time"),
+        "stock_num": stock_num,
     }
     return ret
