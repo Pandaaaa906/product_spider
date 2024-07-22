@@ -3,8 +3,9 @@ from urllib.parse import urljoin
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, RawSupplierQuotation, SupplierProduct
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -26,6 +27,7 @@ class ShaoyuanSpider(BaseSpider):
     def parse_detail(self, response):
         tmp = '//li[contains(text(), {!r})]//text()'
         func = lambda res, t: res.xpath(tmp.format(t)).get('').lstrip(t) or None
+        func2 = lambda res, t: ''.join(res.xpath(tmp.format(t)).getall()).lstrip(t) or None
         img_rel = response.xpath('//td/img/@src').get()
 
         cat_no = response.xpath('//tr[@id][1]/td[2]/text()').get()
@@ -40,7 +42,7 @@ class ShaoyuanSpider(BaseSpider):
             'cas': func(response, 'CAS号：'),
             'mf': func(response, '分子式：'),
             'mw': func(response, '分子量：'),
-            'purity': func(response, '韶远库存批次纯度：'),
+            'purity': func2(response, '韶远库存批次纯度：'),
 
             'info3': response.xpath('//tr[@id][1]/td[4]/text()').get(),
             'info4': response.xpath('//tr[@id][1]/td[5]/text()').get(),
@@ -50,16 +52,23 @@ class ShaoyuanSpider(BaseSpider):
             'prd_url': response.url,
         }
         yield RawData(**d)
+        yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
 
         for tr in response.xpath('//tr[@id]'):
+            stock_num = tr.xpath('./td[8]/text()').get()
+            cost = tr.xpath('./td[5]/text()').get()
             dd = {
                 'brand': self.brand,
                 'cat_no': cat_no,
                 'package': tr.xpath('./td[4]/text()').get(),
-                'cost': tr.xpath('./td[5]/text()').get(),
+                'cost': cost,
                 'currency': 'RMB',
-                'delivery_time': tr.xpath('./td[8]/text()').get(),
+                'delivery_time': stock_num,
+                'stock_num': stock_num,
             }
             if dd['package'] == 'bulk':
                 continue
             yield ProductPackage(**dd)
+            if not cost or cost == 'POA':
+                continue
+            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
