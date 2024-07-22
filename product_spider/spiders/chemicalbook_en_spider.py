@@ -27,8 +27,8 @@ class ChemicalBookEnSpider(BaseSpider):
             'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500, 302],
-        'RETRY_TIMES': 10,
-        'CONCURRENT_REQUESTS': 8,
+        'RETRY_TIMES': 20,
+        'CONCURRENT_REQUESTS': 6,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -88,6 +88,7 @@ class ChemicalBookEnSpider(BaseSpider):
                 url=f"https://www.chemicalbook.com/ProdSupplierGN_EN.aspx?CBNumber={cb_id}&ProvID=1001",
                 callback=self.parse_cb_supplier_list,
                 meta={"cas": cas, 'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                priority=5,
             )
         # 翻页
         next_page = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').get()
@@ -169,4 +170,5 @@ class ChemicalBookEnSpider(BaseSpider):
                 urljoin(response.url, next_page),
                 callback=self.parse_cb_supplier_list,
                 meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                priority=10,
             )
