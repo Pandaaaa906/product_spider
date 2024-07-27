@@ -10,7 +10,7 @@ from scrapy import Request, FormRequest
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip, dumps
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
-from product_spider.utils.json_path import json_nth_value, json_all_value
+from product_spider.utils.jsonpath import jsonpath_query_nth, jsonpath_query_all
 from product_spider.utils.spider_mixin import JsonSpider
 
 LGC_USER = getenv('LGC_USER', 'g.m.office@cato-chem.com')
@@ -108,8 +108,8 @@ class LGCSpider(JsonSpider):
 
     def parse_detail(self, response):
         tmpl = "//*[contains(text(), {!r})]/following-sibling::p/text()"
-        brand = json_nth_value(response.meta, '$.product.brand')
-        cat_no = json_nth_value(response.meta, '$.product.cat_no')
+        brand = jsonpath_query_nth(response.meta, '$.product.brand')
+        cat_no = jsonpath_query_nth(response.meta, '$.product.cat_no')
         if brand == 'trc' and cat_no:
             cat_no = (m := re.search(r'[A-Z]\d+(-KIT)?', cat_no)) and m.group()
         api_name = ''.join(response.xpath("//*[contains(text(), 'API Family')]/following-sibling::a/text()").getall())
@@ -126,7 +126,7 @@ class LGCSpider(JsonSpider):
             self.logger.warning(e)
             packages = []
 
-        coa_urls = list(chain.from_iterable(d.keys() for d in json_all_value(packages, '$[*]..coaURLs') if d))
+        coa_urls = list(chain.from_iterable(d.keys() for d in jsonpath_query_all(packages, '$[*]..coaURLs') if d))
         categories = ''.join(
             response.xpath("//*[contains(text(), 'Product Categories')]/following-sibling::p//a/text()").getall())
         prd_attrs = {
@@ -165,7 +165,7 @@ class LGCSpider(JsonSpider):
                 "cat_no": d["cat_no"],
                 "package": pkg.get('packSize'),
                 "cat_no_unit": pkg.get('code'),
-                "delivery_time": json_nth_value(pkg, '$.stock.message.title1Msg'),
+                "delivery_time": jsonpath_query_nth(pkg, '$.stock.message.title1Msg'),
             }
             yield Request(
                 f"https://www.lgcstandards.com/CA/en/prices?{parse.urlencode({'productCodeList': dd['cat_no_unit']})}",
@@ -179,12 +179,12 @@ class LGCSpider(JsonSpider):
 
         j_obj = json.loads(response.text)
         pkg_data = j_obj.get(dd['cat_no_unit'], {})
-        cost = json_nth_value(pkg_data, f"$.price.value")
+        cost = jsonpath_query_nth(pkg_data, f"$.price.value")
         dd = {
             **dd,
             "cost": cost,
             "price": cost,
-            "currency": json_nth_value(pkg_data, f"$.price.currencyIso"),
+            "currency": jsonpath_query_nth(pkg_data, f"$.price.currencyIso"),
         }
         if dd['brand'] in LGC_BRANDS:
             yield ProductPackage(**dd)

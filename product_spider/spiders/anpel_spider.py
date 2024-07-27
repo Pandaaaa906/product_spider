@@ -7,7 +7,7 @@ from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
-from product_spider.utils.json_path import json_nth_value, json_all_value
+from product_spider.utils.jsonpath import jsonpath_query_nth, jsonpath_query_all
 from product_spider.utils.spider_mixin import BaseSpider
 
 default_brands = [
@@ -385,31 +385,31 @@ class AnpelSpider(BaseSpider):
 
     def parse(self, response, **kwargs):
         j = response.json()
-        rows = json_all_value(j, '$.data.items[*]')
+        rows = jsonpath_query_all(j, '$.data.items[*]')
         for row in rows:
-            img = json_nth_value(row, '@.photoPath')
-            prd_id = json_nth_value(row, '@.seqNoKey')
+            img = jsonpath_query_nth(row, '@.photoPath')
+            prd_id = jsonpath_query_nth(row, '@.seqNoKey')
             d = {
-                "brand": json_nth_value(row, '@.brandName').lower(),
-                "cat_no": json_nth_value(row, '@.stkNo'),
-                "chs_name": json_nth_value(row, '@.stkName'),
-                "en_name": json_nth_value(row, '@.stkNameEng'),
-                "cas": json_nth_value(row, '@.casNo'),
-                "purity": json_nth_value(row, '@.spec'),
-                "stock_info": json_nth_value(row, '@.totalQtyMeo'),
+                "brand": jsonpath_query_nth(row, '@.brandName').lower(),
+                "cat_no": jsonpath_query_nth(row, '@.stkNo'),
+                "chs_name": jsonpath_query_nth(row, '@.stkName'),
+                "en_name": jsonpath_query_nth(row, '@.stkNameEng'),
+                "cas": jsonpath_query_nth(row, '@.casNo'),
+                "purity": jsonpath_query_nth(row, '@.spec'),
+                "stock_info": jsonpath_query_nth(row, '@.totalQtyMeo'),
 
                 "img_url": img and urljoin('https://dianzi.labsci.com.cn/UpFile/Brand', img.replace('\\', '/')),
                 "prd_url": f"https://www.labsci.com.cn/products?id={prd_id}",
             }
-            price = json_nth_value(row, '@.price')
+            price = jsonpath_query_nth(row, '@.price')
             dd = {
                 "brand": d["brand"],
                 "cat_no": d["cat_no"],
-                "package": json_nth_value(row, '@.specEng'),
+                "package": jsonpath_query_nth(row, '@.specEng'),
                 "currency": "RMB",
-                "cost": json_nth_value(row, '@.price2') or price,
+                "cost": jsonpath_query_nth(row, '@.price2') or price,
                 "price": price,
-                "delivery_time": json_nth_value(row, '@.totalQtyMeo'),
+                "delivery_time": jsonpath_query_nth(row, '@.totalQtyMeo'),
             }
             if d["brand"] == 'anpel':
                 yield RawData(**d)
@@ -425,7 +425,7 @@ class AnpelSpider(BaseSpider):
         per_page = response.meta.get("per_page", 0)
         page = response.meta.get("page", 0)
         keyword = response.meta.get("keyword", '')
-        total = json_nth_value(j, '$.data.totalCount') or 0
+        total = jsonpath_query_nth(j, '$.data.totalCount') or 0
         if total < page * per_page:
             return
         brand_id = response.meta.get("brand_id", "")

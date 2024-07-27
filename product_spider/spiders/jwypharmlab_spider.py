@@ -9,7 +9,7 @@ from scrapy.http import JsonRequest
 from product_spider.items import RawData, ProductPackage, RawSupplierQuotation, SupplierProduct
 from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.spider_mixin import BaseSpider
-from product_spider.utils.json_path import json_nth_value
+from product_spider.utils.jsonpath import jsonpath_query_nth
 
 
 class JWYSpider(BaseSpider):
@@ -79,16 +79,16 @@ class JWYSpider(BaseSpider):
         j = json.loads(j.get("ObjResult"))
         rows = parse('$.*[*]').find(j)
         for row in rows:
-            goods_info = json.loads(json_nth_value(row, '@.Goods_info'))
-            stock_num = json_nth_value(row, '@.Inventores[*].Amount', 0)
+            goods_info = json.loads(jsonpath_query_nth(row, '@.Goods_info'))
+            stock_num = jsonpath_query_nth(row, '@.Inventores[*].Amount', 0)
 
             dd = {
                 "brand": self.name,
                 "cat_no": d["cat_no"],
-                "package": json_nth_value(goods_info, '$.goodsinfo.packaging'),
-                "currency": json_nth_value(row, '@.MoneyUnit'),
-                "cost": json_nth_value(row, '@.Goods_Price'),
-                "price": json_nth_value(row, '@.Goods_Price'),
+                "package": jsonpath_query_nth(goods_info, '$.goodsinfo.packaging'),
+                "currency": jsonpath_query_nth(row, '@.MoneyUnit'),
+                "cost": jsonpath_query_nth(row, '@.Goods_Price'),
+                "price": jsonpath_query_nth(row, '@.Goods_Price'),
                 "stock_num": stock_num,
                 "delivery_time": "现货" if isinstance(stock_num, (int, float)) and stock_num > 0 else "定制",
             }
