@@ -65,11 +65,11 @@ class EDQMSpider(BaseSpider):
             package = parse_package(package)
 
         cost = strip(response.xpath(
-            "//*[contains(text(), 'Price*')]/parent::td/following-sibling::td/font[last()-1]/text()"
+            "//*[contains(text(), 'Price')]/parent::td/following-sibling::td/font[last()-1]/text()"
         ).get())
 
         currency = strip(response.xpath(
-            "//*[contains(text(), 'Price*')]/parent::td/following-sibling::td/font[last()]/text()"
+            "//*[contains(text(), 'Price')]/parent::td/following-sibling::td/font[last()]/text()"
         ).get())
 
         sales_unit = d.pop('sales_unit', '1')
