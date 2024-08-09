@@ -84,6 +84,7 @@ class EDQMSpider(BaseSpider):
             return
 
         package = package if sales_unit == '1' else f'{package}*{sales_unit}'
+        package = str.lower(package) if package else package
         dd = {
             "brand": self.name,
             "cat_no": d["cat_no"],
