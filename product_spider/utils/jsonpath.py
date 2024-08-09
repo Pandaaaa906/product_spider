@@ -1,10 +1,10 @@
-from functools import cache
+from functools import lru_cache
 
 from jsonpath_ng.ext import parse
 from more_itertools import nth
 
 
-parse = cache(parse)
+parse = lru_cache()(parse)
 
 
 def jsonpath_query_all(d: dict, path: str):
