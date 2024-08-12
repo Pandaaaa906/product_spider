@@ -1,4 +1,6 @@
 import json
+import time
+from hashlib import md5
 from itertools import product
 from string import digits
 from urllib.parse import urljoin, urlencode
@@ -251,6 +253,12 @@ default_brands = [
     # {"brand_id": "0385", "alt": "广州牧高"},
 ]
 
+publicKey = (
+    'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCeCDcnFrS7DIRbvZLHreVUzaMbAFy2DYmioxBK606urY4rVR8IgLgUhnyw2'
+    '/GQ99pyr8lGtqPeOoapantw1XwEVyi74MDxs4UDL8j4OZR1Es7HVGOB0GwKWobdU9cm'
+    '/1iDwGyouSmijxKyAePg6KsLNgbjDPYZRS11bYEuZ8/RLQIDAQAB/8008D6C4DB52407FA89761C10A391F21'
+)
+
 
 # TODO 破解图片验证码
 class AnpelSpider(BaseSpider):
@@ -305,7 +313,7 @@ class AnpelSpider(BaseSpider):
         if meta is None:
             meta = {}
         d = {
-            "SearchType": 0,
+            "SearchType": 6,
             "Keyword": keyword,
             "SkipCount": page * per_page,
             "MaxResultCount": per_page,
@@ -315,7 +323,7 @@ class AnpelSpider(BaseSpider):
             "TotalQty": '',
             "PriceType": 0,
             "SortType": 4,
-            "OnlyStandardVariety": True,
+            "OnlyStandardVariety": False,
             "ExistTradingRecord": False,
             "CusId": '',
             "StrIfJY": "",
@@ -324,9 +332,14 @@ class AnpelSpider(BaseSpider):
             "BrandType": 1,
             "nocache": 1,
         }
+        ts = int(time.time() * 1000)
         return Request(
             f"https://star.labsci.com.cn/Elasticsearch/GetBrandWahStock?{urlencode(d)}",
             callback=callback,
+            headers={
+                "Timestamp": f"{ts}",
+                "Selectkey": md5(f"{ts}{publicKey}".encode()).hexdigest(),
+            },
             meta={
                 "brand_id": brand_id,
                 "brand_name": brand_name,
@@ -361,9 +374,14 @@ class AnpelSpider(BaseSpider):
             "CusId": "",
             "nocache": 1
         }
+        ts = int(time.time() * 1000)
         return Request(
             f"https://star.labsci.com.cn/Elasticsearch/GetStandardWahStock?{urlencode(d)}",
             callback=callback,
+            headers={
+                "Timestamp": f"{ts}",
+                "Selectkey": md5(f"{ts}{publicKey}".encode()).hexdigest(),
+            },
             meta={
                 "brand_name": brand_name,
                 "per_page": per_page,
