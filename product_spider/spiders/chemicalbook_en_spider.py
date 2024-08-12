@@ -28,7 +28,7 @@ class ChemicalBookEnSpider(BaseSpider):
         },
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500, 302],
         'RETRY_TIMES': 20,
-        'CONCURRENT_REQUESTS': 6,
+        'CONCURRENT_REQUESTS': 8,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -91,8 +91,12 @@ class ChemicalBookEnSpider(BaseSpider):
                 priority=10,
             )
         # 翻页
-        next_page = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').get()
-        if next_page:
+        next_pages = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').getall()
+        for idx, next_page in enumerate(next_pages):
+            if idx > 32:
+                break
+            if idx not in {0, 2, 8, 32}:
+                continue
             yield Request(
                 url=urljoin(response.url, next_page),
                 callback=self.parse,
@@ -117,7 +121,8 @@ class ChemicalBookEnSpider(BaseSpider):
         img_url = img_url and urljoin(response.url, img_url)
 
         div_supplier_nodes = response.xpath('//div[@id="ContentPlaceHolder1_ProductSupplier"]/div')
-        table_supplier_nodes = response.xpath('//div[@id="ContentPlaceHolder1_ProductSupplier"]/table[@class="ProdGN_4"]')
+        table_supplier_nodes = response.xpath(
+            '//div[@id="ContentPlaceHolder1_ProductSupplier"]/table[@class="ProdGN_4"]')
         for supp_node in chain(div_supplier_nodes, table_supplier_nodes):
             supp_id = supp_node.xpath('.//input[@name="cbsid"]/@data-cbsid').get()
             vendor = supp_node.xpath('.//tr[1]/td/a[1]//text()').get()
@@ -126,7 +131,8 @@ class ChemicalBookEnSpider(BaseSpider):
             email = supp_node.xpath('.//td[text()="Email:"]/following-sibling::td//text()').get()
             website = supp_node.xpath('.//td[text()="WebSite:"]/following-sibling::td//text()').get()
             cb_idx = supp_node.xpath('.//td[text()="CB Index:"]/following-sibling::td//text()').get()
-            catalog_node = supp_node.xpath('.//td[text()="Related Information:"]/following-sibling::td/a[contains(text(), "Catalog")]')
+            catalog_node = supp_node.xpath(
+                './/td[text()="Related Information:"]/following-sibling::td/a[contains(text(), "Catalog")]')
             tmp = catalog_node.xpath('./text()').get('')
             prd_count = (m := re.match(r'Catalog\((\d+)\)', tmp)) and m.group(1)
             vendor_url = catalog_node.xpath('./@href').get()
