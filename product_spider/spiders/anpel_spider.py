@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from hashlib import md5
 from itertools import product
@@ -407,12 +408,15 @@ class AnpelSpider(BaseSpider):
         for row in rows:
             img = jsonpath_query_nth(row, '@.photoPath')
             prd_id = jsonpath_query_nth(row, '@.seqNoKey')
+            cas = jsonpath_query_nth(row, '@.casNo')
+            if cas:
+                cas = re.sub(r'[\[\]]', '', cas)
             d = {
                 "brand": jsonpath_query_nth(row, '@.brandName').lower(),
                 "cat_no": jsonpath_query_nth(row, '@.stkNo'),
                 "chs_name": jsonpath_query_nth(row, '@.stkName'),
                 "en_name": jsonpath_query_nth(row, '@.stkNameEng'),
-                "cas": jsonpath_query_nth(row, '@.casNo'),
+                "cas": cas,
                 "purity": jsonpath_query_nth(row, '@.spec'),
                 "stock_info": jsonpath_query_nth(row, '@.totalQtyMeo'),
 
