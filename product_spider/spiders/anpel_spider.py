@@ -2,16 +2,25 @@ import json
 import re
 import time
 from hashlib import md5
+from io import BytesIO
 from itertools import product
 from string import digits
 from urllib.parse import urljoin, urlencode
 
+import requests
+from fontTools.ttLib import TTFont
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.jsonpath import jsonpath_query_nth, jsonpath_query_all
 from product_spider.utils.spider_mixin import BaseSpider
+
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
+    'AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8'
+}
 
 default_brands = [
     {"brand_id": "0032", "alt": "ANPEL"},
@@ -259,6 +268,7 @@ publicKey = (
     '/GQ99pyr8lGtqPeOoapantw1XwEVyi74MDxs4UDL8j4OZR1Es7HVGOB0GwKWobdU9cm'
     '/1iDwGyouSmijxKyAePg6KsLNgbjDPYZRS11bYEuZ8/RLQIDAQAB/8008D6C4DB52407FA89761C10A391F21'
 )
+cmap_char = f'.{digits}'
 
 
 # TODO 破解图片验证码
@@ -286,6 +296,45 @@ class AnpelSpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_DOMAIN': 5,
         'CONCURRENT_REQUESTS_PER_IP': 5,
     }
+    _font_mapping = {}
+    _font_code_mapping = {
+        'otilde': '3',
+        'odieresis': '2',
+        'divide': '1',
+        'oslash': '0',
+        'ugrave': '.',
+        'uacute': '9',
+        'ucircumflex': '8',
+        'udieresis': '7',
+        'yacute': '6',
+        'thorn': '5',
+        'ydieresis': '4',
+
+        'ebreve': '3',
+        'Edotaccent': '2',
+        'edotaccent': '1',
+        'Eogonek': '0',
+        'eogonek': '.',
+        'Ecaron': '9',
+        'ecaron': '8',
+        'Gcircumflex': '7',
+        'gcircumflex': '6',
+        'Gbreve': '5',
+        'gbreve': '4',
+
+        'agrave': '6',
+        'aacute': '7',
+        'acircumflex': '8',
+        'atilde': '9',
+        'adieresis': '.',
+        'aring': '0',
+        'ae': '1',
+        'ccedilla': '2',
+        'egrave': '3',
+        'eacute': '4',
+        'ecircumflex': '5',
+    }
+    _font_blacklist = set()
 
     def __init__(self, brands=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -304,7 +353,19 @@ class AnpelSpider(BaseSpider):
             detected_ip = response.xpath('//span[@id="lblIP"]/text()').get()
             self.logger.warning(f"IP being detected {detected_ip}, using proxy {proxy}")
             return True
+        for c in ('GetBrandWahStock', 'GetStandardWahStock'):
+            if c not in response.url:
+                continue
+            if not response.text.startswith('{'):
+                return True
         return False
+
+    def _get_headers(self):
+        ts = int(time.time() * 1000)
+        return {
+            "Timestamp": f"{ts}",
+            "Selectkey": md5(f"{ts}{publicKey}".encode()).hexdigest(),
+        }
 
     def make_request(
             self, brand_id: str = '', brand_name: str = '', keyword: str = '',
@@ -333,14 +394,10 @@ class AnpelSpider(BaseSpider):
             "BrandType": 1,
             "nocache": 1,
         }
-        ts = int(time.time() * 1000)
         return Request(
             f"https://star.labsci.com.cn/Elasticsearch/GetBrandWahStock?{urlencode(d)}",
             callback=callback,
-            headers={
-                "Timestamp": f"{ts}",
-                "Selectkey": md5(f"{ts}{publicKey}".encode()).hexdigest(),
-            },
+            headers=self._get_headers(),
             meta={
                 "brand_id": brand_id,
                 "brand_name": brand_name,
@@ -351,8 +408,8 @@ class AnpelSpider(BaseSpider):
             }
         )
 
-    @staticmethod
     def make_search_request(
+            self,
             brand_name: str = '', keyword: str = '',
             per_page: int = 28, page: int = 0,
             callback=None, meta: dict = None
@@ -375,14 +432,10 @@ class AnpelSpider(BaseSpider):
             "CusId": "",
             "nocache": 1
         }
-        ts = int(time.time() * 1000)
         return Request(
             f"https://star.labsci.com.cn/Elasticsearch/GetStandardWahStock?{urlencode(d)}",
             callback=callback,
-            headers={
-                "Timestamp": f"{ts}",
-                "Selectkey": md5(f"{ts}{publicKey}".encode()).hexdigest(),
-            },
+            headers=self._get_headers(),
             meta={
                 "brand_name": brand_name,
                 "per_page": per_page,
@@ -400,10 +453,12 @@ class AnpelSpider(BaseSpider):
             if not brand_id:
                 continue
             for a, b, c in product(digits, repeat=3):
-                yield self.make_search_request(brand_name=brand_name, keyword=f"{a}{b}-{c}", callback=self.parse)
+                # yield self.make_search_request(brand_name=brand_name, keyword=f"{a}{b}-{c}", callback=self.parse)
+                yield self.make_request(brand_id=brand_id, keyword=f"{a}{b}-{c}", callback=self.parse)
 
     def parse(self, response, **kwargs):
         j = response.json()
+        font_name = jsonpath_query_nth(j, '$.data.fontPath')
         rows = jsonpath_query_all(j, '$.data.items[*]')
         for row in rows:
             img = jsonpath_query_nth(row, '@.photoPath')
@@ -423,13 +478,26 @@ class AnpelSpider(BaseSpider):
                 "img_url": img and urljoin('https://dianzi.labsci.com.cn/UpFile/Brand', img.replace('\\', '/')),
                 "prd_url": f"https://www.labsci.com.cn/products?id={prd_id}",
             }
-            price = jsonpath_query_nth(row, '@.price')
+            price = jsonpath_query_nth(row, '@.priceStr')
+            try:
+                price = self.decode_price(price, font_name)
+            except ValueError as e:
+                self.logger.error(e)
+                new_request = response.request.copy()
+                new_request.dont_filter = True
+                for k, v in self._get_headers().items():
+                    new_request.headers[k] = v
+                yield new_request
+                break
+            price = price if price != '0.00' else None
+            cost = self.decode_price(jsonpath_query_nth(row, '@.price2Str'), font_name)
+            cost = cost if cost != '0.00' else price
             dd = {
                 "brand": d["brand"],
                 "cat_no": d["cat_no"],
-                "package": jsonpath_query_nth(row, '@.specEng'),
+                "package": jsonpath_query_nth(row, '@.spec') or '',
                 "currency": "RMB",
-                "cost": jsonpath_query_nth(row, '@.price2') or price,
+                "cost": cost,
                 "price": price,
                 "delivery_time": jsonpath_query_nth(row, '@.totalQtyMeo'),
             }
@@ -451,7 +519,56 @@ class AnpelSpider(BaseSpider):
         if total < page * per_page:
             return
         brand_id = response.meta.get("brand_id", "")
-        brand_name = response.meta.get("brand_name", "")
-        yield self.make_search_request(
-            brand_name=brand_name, keyword=keyword, per_page=per_page, page=page,
+        # brand_name = response.meta.get("brand_name", "")
+        # yield self.make_search_request(
+        #     brand_name=brand_name, keyword=keyword, per_page=per_page, page=page,
+        #     callback=self.parse)
+        yield self.make_request(
+            brand_id=brand_id, keyword=keyword, per_page=per_page, page=page,
             callback=self.parse)
+
+    def _get_cmap(self, font_name, max_try=3):
+        tried = 0
+        r = None
+        while tried < max_try:
+            try:
+                r = requests.get(urljoin("https://www.labsci.com.cn/", font_name), headers=headers)
+            except Exception as e:
+                self.logger.warn(e)
+            if r and r.status_code == 200:
+                break
+        if not r:
+            raise ValueError(f"cant get font_map of: {font_name}")
+        font = TTFont(BytesIO(r.content))
+        cmap = font.getBestCmap()
+        return cmap
+
+    def decode_price(self, value: str, font_name):
+        if not isinstance(value, str):
+            return value
+        if font_name in self._font_blacklist:
+            raise ValueError(f"blacklist font: {font_name}")
+        if font_name not in self._font_mapping:
+            *_, dot, zero1, zero2 = value
+            if zero1 != zero2:
+                raise ValueError(f"value not ends with double zeros, {value}")
+            cmap = self._get_cmap(font_name)
+            keys = {k: idx for idx, k in enumerate(cmap.keys())}  # 如果对方都是用字节序排，其实可以不用这样写
+            idx_dot = keys[ord(dot)]
+            idx_zero1 = keys[ord(zero1)]
+            # 9 = len(cmap) - 2
+            if abs(idx_dot - idx_zero1) % 9 != 1:
+                self._font_blacklist.add(font_name)
+                raise ValueError(f"dot and zero should be neighbour: {font_name=}, {dot=}, {zero1=}, {cmap=}")
+            min_cmap = min(cmap.keys())
+            if (idx_dot < idx_zero1 and not(idx_dot == 0 and idx_zero1 == 10)) or (idx_dot == 10 and idx_zero1 == 0):
+                l_cmap_char = cmap_char
+            else:
+                l_cmap_char = tuple(reversed(cmap_char))
+                min_cmap += 1
+            self._font_mapping[font_name] = str.maketrans({chr(k): l_cmap_char[k - min_cmap - idx_dot] for k in cmap.keys()})
+        ret = value.translate(self._font_mapping[font_name])
+        if ret.endswith('.99'):
+            raise ValueError(f"wrong translation: {value} -> {ret}")
+        return ret
+
