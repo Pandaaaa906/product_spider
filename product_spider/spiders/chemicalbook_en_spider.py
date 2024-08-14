@@ -138,7 +138,7 @@ class ChemicalBookEnSpider(BaseSpider):
             vendor_url = catalog_node.xpath('./@href').get()
             vendor_url = vendor_url and urljoin(response.url, vendor_url)
             if not supp_id:
-                supp_id = (m := re.search(r'ShowSupplierProductsList(\d+)', vendor_url)) and m.group()
+                supp_id = (m := re.search(r'ShowSupplierProductsList(\d+)', vendor_url)) and m.group(1)
             attrs = {
                 "prd_count": prd_count,
                 "adv_score": cb_idx,
