@@ -1,5 +1,6 @@
 import re
-from urllib.parse import urljoin
+from enum import Enum
+from urllib.parse import urljoin, parse_qsl, urlencode
 import scrapy
 from scrapy import Request
 from scrapy.http import Response
@@ -8,6 +9,12 @@ from product_spider.items import SupplierProduct, RawSupplier, ChemicalBookChemi
 from product_spider.utils.functions import strip, dumps
 
 from product_spider.utils.spider_mixin import BaseSpider
+
+
+class ChemicalBookStrategy(str, Enum):
+    FROM_CB_CHEM = 'FROM_CB_CHEM'
+    WALK_THROUGH_CAS = 'WALK_THROUGH_CAS'
+    CUSTOM_CB_CODES = 'CUSTOM_CB_CODES'
 
 
 class ChemicalBookSpider(BaseSpider):
@@ -30,21 +37,38 @@ class ChemicalBookSpider(BaseSpider):
         )
     }
 
-    def __init__(self, page_start=0, page_end=35, crawl_chem_detail=False, **kwargs):
-        # 默认爬12-20，带CAS，不带Cas的取0-35
+    def __init__(
+            self,
+            strategy: ChemicalBookStrategy = ChemicalBookStrategy.WALK_THROUGH_CAS,
+            page_start=1, page_end=35, crawl_chem_detail=False, **kwargs
+    ):
+        # 默认爬12-20，带CAS，不带Cas的取1-35
         super().__init__(**kwargs)
+        self.strategy = strategy
         self.page_start = int(page_start)
         self.page_end = int(page_end)
         self.crawl_chem_detail = crawl_chem_detail
 
     def start_requests(self):
-        for i in range(self.page_start, self.page_end + 1):
-            url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
-            yield scrapy.Request(
-                url=url,
-                callback=self.parse,
-                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
-            )
+        if self.strategy == ChemicalBookStrategy.WALK_THROUGH_CAS:
+            for i in range(self.page_start, self.page_end + 1):
+                url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
+                yield scrapy.Request(
+                    url=url,
+                    callback=self.parse,
+                    meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+                )
+        elif self.strategy == ChemicalBookStrategy.CUSTOM_CB_CODES:
+            with open('data/cb_codes') as f:
+                for line in f:
+                    cb_id = line.strip()
+                    yield Request(
+                        url=f"https://www.chemicalbook.com/ProdSupplierGN.aspx?CBNumber={cb_id}&ProvID=1001",
+                        callback=self.parse_cb_supplier_list,
+                        meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+                    )
+        else:
+            raise NotImplemented
 
     def is_proxy_invalid(self, request, response):
         if response.status in {403, 500, 302}:
@@ -117,13 +141,13 @@ class ChemicalBookSpider(BaseSpider):
 
         for supp_node in div_supplier_nodes:
             supp_id = supp_node.xpath('./@data-cbsid').get()
-            vendor = strip(supp_node.xpath('.//div[@class="supplier_list_li"]/div[@class="supplier_name"]/div/text()').get())
+            vendor = strip(supp_node.xpath('.//div[@class="supplier_name"]/div/text()').get())
             ddd = {
                 "platform": self.name,
                 "vendor": vendor,
                 "source_id": f"{supp_id or vendor}_{cb_id}",
                 "brand": vendor,
-                "cn_name": cn_name,
+                "chs_name": cn_name,
                 "cas": cas,
                 "mf": mf,
                 "mw": mw,
@@ -133,42 +157,71 @@ class ChemicalBookSpider(BaseSpider):
             }
             yield SupplierProduct(**ddd)
 
+            supp_url = f'https://www.chemicalbook.com/ShowSupplierProductsList{supp_id}/0.htm'
+            raw_prd_count = supp_node.xpath('//span[text()="相关信息："]/following-sibling::a[1]/text()').get('')
+            prd_count = (m := re.search(r'\((\d+)\)', raw_prd_count)) and m.group(1)
+            attrs = {
+                "prd_count": prd_count,
+                "adv_score": supp_node.xpath('.//span[text()="CB指数："]/parent::div/a/text()').get(),
+                "src_url": supp_url,
+            }
+            attrs = {k: v for k, v in attrs.items() if v}
+            supplier = {
+                "src_type": self.name,
+                "src_id": supp_id,
+                "name": vendor,
+                "phone": supp_node.xpath('.//span[text()="联系电话："]/parent::div/text()').get(),
+                "email": supp_node.xpath('.//span[text()="电子邮件："]/parent::div/text()').get(),
+                "website": supp_node.xpath('.//span[text()="网址："]/parent::div/a/@href').get(),
+                "attrs": dumps(attrs),
+            }
             yield Request(
-                url=f'https://www.chemicalbook.com/ShowSupplierProductsList{supp_id}/0.htm',
+                url=supp_url,
                 callback=self.parse_supplier,
-                meta={'dont_redirect': True, 'handle_httpstatus_list': [302], "supp_id": supp_id},
+                meta={
+                    'dont_redirect': True, 'handle_httpstatus_list': [302, 404],
+                    "supp_id": supp_id, "supplier": supplier
+                },
                 priority=10,
             )
 
-        next_page = response.xpath('//a[./span/text()="下一页"]/@href').get()
+        next_page = response.xpath('//a[./span/text()="下一页"]/@data-page-number').get()
         if next_page:
+            url, query = response.url.split('?')
+            params = dict(parse_qsl(query))
+            params['start'] = next_page
             yield Request(
-                url=urljoin(response.url, next_page),
+                url=f"{url}?{urlencode(params)}",
                 callback=self.parse_cb_supplier_list,
                 meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
                 priority=10,
             )
 
     def parse_supplier(self, response):
+        supplier = response.meta.get("supplier")
+        if response.status == 404:
+            yield RawSupplier(**supplier)
+            return
         supp_id = response.meta.get("supp_id")
         attrs = {
-            "prd_count": response.xpath('//li[text()="产品总数："]//a/text()').get(),
-            "adv_score": response.xpath('//li[text()="产品总数："]//a/text()').get(),
+            "prd_count": response.xpath('//li[text()="产品总数："]/span/text()').get(),
+            "adv_score": response.xpath('//li[text()="CB指数："]/span/text()').get(),
             "src_url": response.url,
         }
         attrs = {k: v for k, v in attrs.items() if v}
         phones = response.xpath('//li[text()="手机：" or text()="电话："]//span/text()').getall()
-
+        region = response.xpath('//li[text()="国籍："]/span/text()').get()
         supplier = {
             'src_type': self.name,
             'src_id': supp_id,
-            "cn_name": response.xpath('//div[@id="Content_SupplierContact"]//h3//text()').get(),
-            "region": response.xpath('//li[text()="国籍："]/span/text()').get(),
+            "name": response.xpath('//div[@id="Content_SupplierContact"]//h3//text()').get(),
             "phone": ';'.join(phones),
             "email": response.xpath('//li[text()="邮箱："]//a/text()').get(),
             "website": response.xpath('//li[text()="网址："]//a/text()').get(),
             "attrs": dumps(attrs),
         }
+        if region:
+            supplier["region"] = region
 
         yield RawSupplier(**supplier)
 
