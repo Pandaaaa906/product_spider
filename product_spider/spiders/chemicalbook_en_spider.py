@@ -13,6 +13,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 class ChemicalBookStrategy(str, Enum):
     FROM_CB_CHEM = 'FROM_CB_CHEM'
     WALK_THROUGH_CAS = 'WALK_THROUGH_CAS'
+    CUSTOM_CB_CODES = 'CUSTOM_CB_CODES'
 
 
 class ChemicalBookEnSpider(BaseSpider):
@@ -70,9 +71,19 @@ class ChemicalBookEnSpider(BaseSpider):
                     callback=self.parse,
                     meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
                 )
-        elif self.strategy == ChemicalBookStrategy.WALK_THROUGH_CAS:
+        elif self.strategy == ChemicalBookStrategy.CUSTOM_CB_CODES:
+            with open('data/cb_codes') as f:
+                for line in f:
+                    cb_id = line.strip()
+                    yield Request(
+                        url=f"https://www.chemicalbook.com/ProdSupplierGN_EN.aspx?CBNumber={cb_id}&ProvID=1001",
+                        callback=self.parse_cb_supplier_list,
+                        meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+                    )
+        elif self.strategy == ChemicalBookStrategy.FROM_CB_CHEM:
             raise NotImplemented
-        raise NotImplemented
+        else:
+            raise NotImplemented
 
     def parse(self, response, **kwargs):
         a_nodes = response.xpath("//div[@id='mainDiv']//tr/td[1]/a")
@@ -164,12 +175,13 @@ class ChemicalBookEnSpider(BaseSpider):
                 'src_type': self.name,
                 'src_id': supp_id,
                 "en_name": vendor,
-                "region": country,
                 "phone": phone,
                 "email": email,
                 "website": website,
                 "attrs": dumps(attrs)
             }
+            if country:
+                supplier["region"] = country
             yield RawSupplier(**supplier)
 
         next_page = response.xpath('//div[@align="center"]/b/following-sibling::a/@href').get()
