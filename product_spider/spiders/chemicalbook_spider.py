@@ -6,7 +6,7 @@ from scrapy import Request
 from scrapy.http import Response
 
 from product_spider.items import SupplierProduct, RawSupplier, ChemicalBookChemical
-from product_spider.utils.functions import strip, dumps
+from product_spider.utils.functions import strip, dumps, clean_dict
 
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -62,9 +62,14 @@ class ChemicalBookSpider(BaseSpider):
             with open('data/cb_codes') as f:
                 for line in f:
                     cb_id = line.strip()
+                    # yield Request(
+                    #     url=f"https://www.chemicalbook.com/ProdSupplierGN.aspx?CBNumber={cb_id}&ProvID=1001",
+                    #     callback=self.parse_cb_supplier_list,
+                    #     meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+                    # )
                     yield Request(
-                        url=f"https://www.chemicalbook.com/ProdSupplierGN.aspx?CBNumber={cb_id}&ProvID=1001",
-                        callback=self.parse_cb_supplier_list,
+                        url=f"https://www.chemicalbook.com/productlist.aspx?cbn={cb_id}",
+                        callback=self.parse_cb_product_list,
                         meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
                     )
         else:
@@ -101,11 +106,16 @@ class ChemicalBookSpider(BaseSpider):
                     priority=10,
                 )
 
-            yield scrapy.Request(
-                url=f"https://www.chemicalbook.com/ProdSupplierGN.aspx?CBNumber={cb_id}&ProvID=1001",
-                callback=self.parse_cb_supplier_list,
-                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
-                priority=10,
+            # yield scrapy.Request(
+            #     url=f"https://www.chemicalbook.com/ProdSupplierGN.aspx?CBNumber={cb_id}&ProvID=1001",
+            #     callback=self.parse_cb_supplier_list,
+            #     meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+            #     priority=10,
+            # )
+            yield Request(
+                url=f"https://www.chemicalbook.com/productlist.aspx?cbn={cb_id}",
+                callback=self.parse_cb_product_list,
+                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
             )
         # 翻页
         next_pages = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').getall()
@@ -193,6 +203,92 @@ class ChemicalBookSpider(BaseSpider):
             yield Request(
                 url=f"{url}?{urlencode(params)}",
                 callback=self.parse_cb_supplier_list,
+                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                priority=10,
+            )
+
+    def parse_cb_product_list(self, response):
+        """
+        https://www.chemicalbook.com/productlist.aspx?cbn=CB8265719
+        :param response:
+        :return:
+        """
+        tmpl = '//dt[strong/text()={!r}]/following-sibling::dd/text()'
+
+        cb_id = response.xpath('//*[contains(@data-cbnumber, "CB")]/@data-cbnumber').get()
+        cn_name = ''.join(response.xpath('//div[@class="PLbox"]/h2//text()').getall())
+        cas = response.xpath(tmpl.format("CAS号：")).get()
+        mf = response.xpath(tmpl.format("分子式：")).get()
+        mw = response.xpath(tmpl.format("分子量：")).get()
+        img_url = response.xpath('//div[@class="PLbox"]//a/img/@src').get()
+
+        div_supplier_nodes = response.xpath('//div[contains(@class, "ProLbox") and not(contains(@class, "ProLboxTit"))]')
+
+        for supp_node in div_supplier_nodes:
+            supp_id = supp_node.xpath('.//h1/div/@data-cbsid').get()
+            vendor = supp_node.xpath('.//h1/div[@data-suppliername]/@data-suppliername').get()
+            raw_top = supp_node.xpath('./@class').get()
+            if raw_top:
+                is_top = "Top"
+            else:
+                is_top = None
+            attrs = {
+                "tags": [*filter(bool, (
+                    is_top,
+                    supp_node.xpath('.//span[@class="gold"]/text()').get(),
+                    supp_node.xpath('.//i[text()="大货"]/text()').get(),
+                ))]
+            }
+            ddd = {
+                "platform": self.name,
+                "vendor": vendor,
+                "source_id": f"{supp_id or vendor}_{cb_id}",
+                "brand": vendor,
+                "chs_name": cn_name,
+                "cas": cas,
+                "mf": mf,
+                "mw": mw,
+                "cat_no": cb_id,
+                "img_url": img_url,
+                "prd_url": response.url,
+                "attrs": dumps(clean_dict(attrs)),
+            }
+            yield SupplierProduct(**ddd)
+
+            supp_url = f'https://www.chemicalbook.com/ShowSupplierProductsList{supp_id}/0.htm'
+            raw_prd_count = ''.join(supp_node.xpath('.//span[text()="相关信息："]/following-sibling::a[1]//text()').getall())
+            prd_count = (m := re.search(r'\((\d+)\)', raw_prd_count)) and m.group(1)
+            supp_attrs = {
+                "prd_count": prd_count,
+                "adv_score": supp_node.xpath('.//span[text()="CB指数："]/following-sibling::b/text()').get(),
+                "src_url": supp_url,
+            }
+            phone = supp_node.xpath('.//span[text()="联系电话："]/following-sibling::p/text()').get()
+            if phone:
+                phone = re.sub(r'\s+', ' ', strip(phone))
+            supplier = {
+                "src_type": self.name,
+                "src_id": supp_id,
+                "name": vendor,
+                "phone": phone,
+                "website": supp_node.xpath('.//span[text()="公司网址："]/following-sibling::b/a/@href').get(),
+                "attrs": dumps(clean_dict(supp_attrs)),
+            }
+            yield Request(
+                url=supp_url,
+                callback=self.parse_supplier,
+                meta={
+                    'dont_redirect': True, 'handle_httpstatus_list': [302, 404],
+                    "supp_id": supp_id, "supplier": supplier
+                },
+                priority=10,
+            )
+
+        next_page = response.xpath('//div[@class="page"]//li[@class]/following-sibling::li/a/@href').get()
+        if next_page:
+            yield Request(
+                url=next_page,
+                callback=self.parse_cb_product_list,
                 meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
                 priority=10,
             )

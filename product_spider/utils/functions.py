@@ -16,10 +16,10 @@ def first(l: list, default=None):
     return l[0]
 
 
-is_none = lambda x: x is None
+is_not_none = lambda x: x is not None
 
 
-def clean_dict(d: dict, func=is_none):
+def clean_dict(d: dict, func=is_not_none):
     return {k: v for k, v in d.items() if func(v)}
 
 
