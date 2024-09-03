@@ -25,7 +25,7 @@ class ChemicalBookSpider(BaseSpider):
 
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {
-            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+            # 'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
         },
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500, 302],
         'RETRY_TIMES': 20,
@@ -50,6 +50,12 @@ class ChemicalBookSpider(BaseSpider):
         self.crawl_chem_detail = crawl_chem_detail
 
     def start_requests(self):
+        yield Request(
+            url=f"https://www.chemicalbook.com/ProductList.aspx?cbn=CB8265719",
+            callback=self.parse_cb_product_list,
+            meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+        )
+        return
         if self.strategy == ChemicalBookStrategy.WALK_THROUGH_CAS:
             for i in range(self.page_start, self.page_end + 1):
                 url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"
@@ -284,10 +290,14 @@ class ChemicalBookSpider(BaseSpider):
                 priority=10,
             )
 
-        next_page = response.xpath('//div[@class="page"]//li[@class]/following-sibling::li/a/@href').get()
+        next_page = response.xpath('//div[@class="page"]//li[@class]/following-sibling::li/a/@data-page-number').get()
         if next_page:
+            url, query = response.url.split('?')
+            params = dict(parse_qsl(query))
+            params['page'] = next_page
+            params['current'] = "page"
             yield Request(
-                url=next_page,
+                url=f"{url}?{urlencode(params)}",
                 callback=self.parse_cb_product_list,
                 meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
                 priority=10,
