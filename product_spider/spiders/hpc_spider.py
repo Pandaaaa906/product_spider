@@ -22,8 +22,10 @@ class HPCSpider(BaseSpider):
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
             'Chrome/127.0.0.0 Safari/537.36'
-        )
+        ),
+        "DOWNLOAD_DELAY": 3,
     }
+
     def parse(self, response, **kwargs):
         urls = response.xpath('//li[@class="second-level"]/a/@href').getall()
         for url in urls:
