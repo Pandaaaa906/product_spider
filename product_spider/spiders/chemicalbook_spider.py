@@ -115,7 +115,8 @@ class ChemicalBookSpider(BaseSpider):
             yield Request(
                 url=f"https://www.chemicalbook.com/productlist.aspx?cbn={cb_id}",
                 callback=self.parse_cb_product_list,
-                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]}
+                meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                priority=10,
             )
         # 翻页
         next_pages = response.xpath('//div[@class="page_jp"]/b/following-sibling::a/@href').getall()
