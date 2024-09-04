@@ -217,7 +217,7 @@ class ChemicalBookSpider(BaseSpider):
         tmpl = '//dt[strong/text()={!r}]/following-sibling::dd/text()'
 
         cb_id = response.xpath('//*[contains(@data-cbnumber, "CB")]/@data-cbnumber').get()
-        cn_name = ''.join(response.xpath('//div[@class="PLbox"]/h2//text()').getall())
+        cn_name = ''.join(response.xpath('//div[@class="PLbox"][1]/h2//text()').getall())
         cas = response.xpath(tmpl.format("CAS号：")).get()
         mf = response.xpath(tmpl.format("分子式：")).get()
         mw = response.xpath(tmpl.format("分子量：")).get()
