@@ -82,6 +82,9 @@ class ChemicalBookSpider(BaseSpider):
         if '系统忙' in response.text[:50]:
             self.logger.warning(f'system busy: {request.url}')
             return True
+        if response.xpath('//p[text()="请进行人机身份验证"]'):
+            self.logger.warning(f'进行人机验证, 准备更换代理: {request.url}')
+            return True
         if request.url.startswith('https://www.chemicalbook.com/ShowAllProductByIndexID') \
                 and not bool(response.xpath("//div[@id='mainDiv']//tr/td[1]/a")):
             self.logger.warning(f'empty cas list: {request.url}')
