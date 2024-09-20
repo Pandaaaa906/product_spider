@@ -42,7 +42,7 @@ class ChemSrcSpider(BaseSpider):
     def __init__(
             self, strategy: ChemSrcStrategy = ChemSrcStrategy.CATO_PROD,
             itersize: int = 5000,
-            ignore_days: int = 60,
+            ignore_days: int = 365,
             **kwargs
     ):
         self.strategy = strategy
@@ -60,7 +60,17 @@ class ChemSrcSpider(BaseSpider):
                 for (cas, ) in cur:
                     yield f"https://www.chemsrc.com/searchResult/{cas}/"
 
+    def is_proxy_invalid(self, request, response):
+        if response.status in {403, 500, 302}:
+            self.logger.warning(f'status code:{response.status}, {request.url}')
+            return True
+        if len(response.text) < 500:
+            self.logger.warning(f'进行人机验证, 准备更换代理: {request.url}')
+            return True
+        return False
+
     def start_requests(self):
+        self.logger.info(f"current strategy is {self.strategy!r}")
         if self.strategy == ChemSrcStrategy.CATO_PROD:
             for url in self.get_urls_from_db(sql_fetch_cas):
                 yield Request(url)
