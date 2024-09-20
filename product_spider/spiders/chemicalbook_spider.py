@@ -82,6 +82,9 @@ class ChemicalBookSpider(BaseSpider):
         if '系统忙' in response.text[:50]:
             self.logger.warning(f'system busy: {request.url}')
             return True
+        if len(response.text) < 100:
+            self.logger.warning(f'被反爬识别, 准备更换代理: {request.url}')
+            return True
         if response.xpath('//p[text()="请进行人机身份验证"]'):
             self.logger.warning(f'进行人机验证, 准备更换代理: {request.url}')
             return True
