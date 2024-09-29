@@ -29,7 +29,7 @@ class ChemicalBookSpider(BaseSpider):
         },
         'PROXY_POOL_REFRESH_STATUS_CODES': [403, 500, 302],
         'RETRY_TIMES': 20,
-        'CONCURRENT_REQUESTS': 8,
+        'CONCURRENT_REQUESTS': 4,
         'USER_AGENT': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
