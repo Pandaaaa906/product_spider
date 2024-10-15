@@ -234,8 +234,8 @@ class ChemicalBookSpider(BaseSpider):
         for supp_node in div_supplier_nodes:
             supp_id = supp_node.xpath('.//h1/div/@data-cbsid').get()
             vendor = supp_node.xpath('.//h1/div[@data-suppliername]/@data-suppliername').get()
-            raw_top = supp_node.xpath('./@class').get()
-            if raw_top:
+            raw_top = supp_node.xpath('./@class').get('')
+            if re.search(r'\bTop\d+\b', raw_top):
                 is_top = "Top"
             else:
                 is_top = None
