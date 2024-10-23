@@ -12,6 +12,7 @@ from scrapy.http.request.json_request import JsonRequest
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import dumps
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.maketrans import T_SPACES
 
@@ -253,6 +254,9 @@ class SigmaSpider(BaseSpider):
         if d['brand'] not in IGNORE_BRANDS:
             yield RawData(**d)
 
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        yield SupplierProduct(**ddd)
+
         yield self.make_price_request(
             brand,
             catalog_id,
@@ -268,22 +272,6 @@ class SigmaSpider(BaseSpider):
         j = json.loads(response.text)
         rows = parse('$..materialPricing[*]').find(j)
         now = datetime.now()
-        ddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": prd['brand'],
-            "source_id": f'{self.name}_{prd["cat_no"]}',
-            "parent": prd["parent"],
-            "en_name": prd.get("en_name"),
-            "cas": prd.get("cas"),
-            "mf": prd.get("mf"),
-            "mw": prd.get("mw"),
-            "cat_no": prd.get("cat_no"),
-            "smiles": prd.get("smiles"),
-            "img_url": prd.get("img_url"),
-            "prd_url": response.url,
-        }
-        yield SupplierProduct(**ddd)
         for row in rows:
             available = first(parse('@.availabilities[?@.key="AVAILABLE_TO_SHIP_ON"]').find(row), None)
             ts = (m := first(parse('@.availabilities[0].date').find(row), None)) and m.value
@@ -310,17 +298,5 @@ class SigmaSpider(BaseSpider):
             if dd['brand'] not in IGNORE_BRANDS:
                 yield ProductPackage(**dd)
 
-            dddd = {
-                "platform": self.name,
-                "source_id": f'{prd.get("brand")}_{prd.get("cat_no")}',
-                "vendor": self.name,
-                "brand": prd.get("brand"),
-                "cat_no": prd.get("cat_no"),
-                "package": dd.get("package"),
-                "discount_price": dd.get("cost"),
-                "price": dd.get("price"),
-                "currency": dd.get("currency"),
-                "stock_num": dd.get("stock_num"),
-                "delivery": dd.get("delivery_time"),
-            }
+            dddd = product_package_to_raw_supplier_quotation(prd, dd, platform=self.name, vendor=self.name)
             yield RawSupplierQuotation(**dddd)
