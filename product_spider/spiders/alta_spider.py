@@ -5,6 +5,7 @@ from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -88,13 +89,16 @@ class AltaSpider(BaseSpider):
         for k in d:
             d[k] = d[k] if d[k] != 'NA' else None
         yield RawData(**d)
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        yield SupplierProduct(**ddd)
+
         rows = response.xpath('//table[@class="c_p_size"]//tr[td and td/text()!="NA"]')
         for row in rows:
             if (cost := row.xpath('./td[2]/text()').get()) == 'NA':
                 cost = None
             package = parse_package(row.xpath('./td[1]/text()').get())
             delivery_time = row.xpath('./td[3]/text()').get()
-            sub_brand = row.xpath("./td[4]/text()").get()
+            # sub_brand = row.xpath("./td[4]/text()").get()  # Not sure why
 
             dd = {
                 'brand': self.brand,
@@ -106,36 +110,5 @@ class AltaSpider(BaseSpider):
             }
             yield ProductPackage(**dd)
 
-            if not sub_brand or sub_brand == "First Standard":
-                ddd = {
-                    "platform": self.brand,
-                    "vendor": self.brand,
-                    "brand": self.brand,
-                    "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                    "parent": d["parent"],
-                    "en_name": d["en_name"],
-                    "cas": d["cas"],
-                    "mf": d["mf"],
-                    "mw": d["mw"],
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'cost': dd['cost'],
-                    "currency": dd["currency"],
-                    "stock_info": dd["delivery_time"],
-                    "img_url": d["img_url"],
-                    "prd_url": response.url,
-                }
-                dddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id": f'{self.name}_{d["cat_no"]}',
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'discount_price': dd['cost'],
-                    'price': dd['cost'],
-                    'cas': d["cas"],
-                    'currency': dd["currency"],
-                }
-                yield SupplierProduct(**ddd)
-                yield RawSupplierQuotation(**dddd)
+            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
+            yield RawSupplierQuotation(**dddd)

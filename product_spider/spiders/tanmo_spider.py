@@ -9,9 +9,10 @@ from lxml import etree
 from more_itertools import first
 from scrapy import Request, FormRequest
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.middlewares.handle521 import get_params, encrypt_cookies, hash_d
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 TANMO_USER = getenv('TANMO_USER')
@@ -176,19 +177,11 @@ class TanmoSpider(BaseSpider):
             d['en_name'] = first(html.xpath('//span[text()="Product Name"]/following-sibling::span//text()'), None)
             d['appearance'] = first(html.xpath('//span[text()="Appearance"]/following-sibling::span//text()'), None)
             d['img_url'] = first(html.xpath("//div[@class='boxcenterch']//img/@src"), None)
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
 
-        sp = SupplierProduct(
-            platform=self.name,
-            source_id=f'{brand}_{cat_no}_{package}',
-            vendor=self.name,
-            brand=brand,
-            cat_no=cat_no,
-            package=package,
-            price=cost,
-            stock_num=good_obj.get('number'),
-            delivery=good_obj.get('time_name'),
-        )
-        yield sp
+        yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)
         if not is_tanmo(brand) and brand not in TANMO_OTHER_BRANDS:
             self.other_brands.add(brand)
             return

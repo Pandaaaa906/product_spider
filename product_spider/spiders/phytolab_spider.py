@@ -3,6 +3,7 @@ import re
 import json
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -34,6 +35,9 @@ class PhytolabSpider(BaseSpider):
                 "img_url": f'https://phyproof.phytolab.com/f/product_img/jpg/reference-substance-withaferin-a-{cat_no}.jpg'
             }
             yield RawData(**d)
+            ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+            yield SupplierProduct(**ddd)
+
             for key, value in data.items():
                 m = re.match(r'^price(?P<unit>[a-zA-Z]{1,2})(?P<quantity>\d+)$', key)
                 if not m:
@@ -45,35 +49,7 @@ class PhytolabSpider(BaseSpider):
                     "package": f'{m["quantity"]}{m["unit"].lower()}',
                     "currency": "EUR"
                 }
-
-                ddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                    "parent": d["parent"],
-                    "en_name": d["en_name"],
-                    "cas": d["cas"],
-                    "mf": d["mf"],
-                    "mw": d["mw"],
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'cost': dd['cost'],
-                    "currency": dd["currency"],
-                    "img_url": d["img_url"],
-                    "prd_url": d["prd_url"],
-                }
-                dddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id":  f'{self.name}_{d["cat_no"]}',
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'discount_price': dd['cost'],
-                    'price': dd['cost'],
-                    'currency': dd["currency"],
-                }
                 yield ProductPackage(**dd)
-                yield SupplierProduct(**ddd)
+
+                dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
                 yield RawSupplierQuotation(**dddd)

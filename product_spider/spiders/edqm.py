@@ -4,6 +4,7 @@ from more_itertools import first
 import json
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -97,31 +98,7 @@ class EDQMSpider(BaseSpider):
         }
         yield ProductPackage(**dd)
 
-        ddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-            "en_name": d["en_name"],
-            "cas": d["cas"],
-            'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'cost': dd['cost'],
-            "currency": dd["currency"],
-            "prd_url": d["prd_url"],
-            "stock_info": d["stock_info"],
-        }
-        dddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}',
-            'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'discount_price': dd['cost'],
-            'price': dd['cost'],
-            'cas': d["cas"],
-            'currency': dd["currency"],
-        }
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
         yield SupplierProduct(**ddd)
         yield RawSupplierQuotation(**dddd)

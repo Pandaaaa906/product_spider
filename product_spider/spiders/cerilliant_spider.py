@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from scrapy import Request, FormRequest
 from more_itertools import first
 
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 from product_spider.utils.functions import strip
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
@@ -118,37 +119,11 @@ class CerilliantSpider(BaseSpider):
             "cost": cost,
             "currency": "USD",
         }
-        ddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-            "parent": d["parent"],
-            "cas": d["cas"],
-            "mf": d["mf"],
-            "mw": d["mw"],
-            "en_name": d["en_name"],
-            'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'cost': dd['cost'],
-            "currency": dd["currency"],
-            "img_url": d["img_url"],
-            "prd_url": d["prd_url"],
-        }
-        dddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}',
-            'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'discount_price': dd['cost'],
-            'price': dd['cost'],
-            'cas': d["cas"],
-            'currency': dd["currency"],
-        }
 
         yield RawData(**d)
         yield ProductPackage(**dd)
+
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
         yield SupplierProduct(**ddd)
         yield RawSupplierQuotation(**dddd)

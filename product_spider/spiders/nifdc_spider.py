@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from scrapy import FormRequest, Request
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -82,28 +83,9 @@ class NifdcSpider(BaseSpider):
                 "attrs": package_attrs,
             }
             yield ProductPackage(**dd)
-            ddd = {
-                'platform': self.brand,
-                'vendor': self.brand,
-                'brand': self.brand,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                'cat_no': cat_no,
-                'package': dd['package'],
-                'price': dd['cost'],
-                'stock_num': dd['stock_num'],
-            }
+            ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
 
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
             yield SupplierProduct(**ddd)
             yield RawSupplierQuotation(**dddd)
 

@@ -6,6 +6,7 @@ from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -25,6 +26,7 @@ def add_zero_before_point(package):
         raw_num = float(raw_num)
     package = "{}{}".format(raw_num, raw_unit)
     return package
+
 
 class TRCSpider(BaseSpider):
     name = "trc"
@@ -87,6 +89,8 @@ class TRCSpider(BaseSpider):
             'prd_url': response.request.url,  # 产品详细连接
         }
         yield RawData(**d)
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        yield SupplierProduct(**ddd)
 
         rows = response.xpath('//table[@id="orderProductTable"]/tbody/tr')
         for row in rows:
@@ -107,36 +111,7 @@ class TRCSpider(BaseSpider):
                 'cost': cost,
                 'currency': 'USD',
             }
-
-            ddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                # "parent": d["parent"],
-                "en_name": d["en_name"],
-                "cas": d["cas"],
-                "mf": d["mf"],
-                "mw": d["mw"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "img_url": d["img_url"],
-                "prd_url": d["prd_url"],
-            }
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id": f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
-
             yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
+
+            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
             yield RawSupplierQuotation(**dddd)

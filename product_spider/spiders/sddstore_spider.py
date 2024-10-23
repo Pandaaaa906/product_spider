@@ -6,7 +6,9 @@ from scrapy import Request, FormRequest
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
+
 
 def trans_brand(raw_brand):
     """转换诗丹德"""
@@ -14,6 +16,7 @@ def trans_brand(raw_brand):
         return raw_brand
     else:
         return "sdd"
+
 
 def is_sdd(brand):
     if not brand or brand not in ["诗丹德"]:
@@ -24,7 +27,7 @@ def is_sdd(brand):
 
 class SddStoreSpider(BaseSpider):
     """诗丹德"""
-    name = "sddstore"
+    name = "sdd"
     base_url = "http://www.sddstore.com/"
     prd_url = 'http://www.sddstore.com/web/item/info/getAll.do'
     other_brands = set()
@@ -78,7 +81,7 @@ class SddStoreSpider(BaseSpider):
             stock_num = strip(row.xpath("./td[last()-2]/text()").get())
 
             d = {
-                "brand": "sdd",
+                "brand": self.name,
                 "cat_no": cat_no,
                 "chs_name": chs_name,
                 "purity": purity,
@@ -92,7 +95,7 @@ class SddStoreSpider(BaseSpider):
                 "prd_url": response.url,
             }
             dd = {
-                "brand": d["brand"],
+                "brand": self.name,
                 "cat_no": cat_no,
                 "package": package,
                 "cost": cost,
@@ -100,33 +103,9 @@ class SddStoreSpider(BaseSpider):
                 "currency": "RMB",
             }
 
-            ddd = {
-                "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                "platform": "sdd",
-                "vendor": "sdd",
-                "brand": brand,
-                "cas": d["cas"],
-                "mf": d["mf"],
-                "mw": d["mw"],
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'cost': dd['cost'],
-                "currency": dd["currency"],
-                "img_url": d["img_url"],
-                "prd_url": d["prd_url"],
-            }
+            ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
 
-            dddd = {
-                "platform": self.name,
-                "vendor": self.name,
-                "brand": self.name,
-                "source_id":  f'{self.name}_{d["cat_no"]}',
-                'cat_no': d["cat_no"],
-                'package': dd['package'],
-                'discount_price': dd['cost'],
-                'price': dd['cost'],
-                'currency': dd["currency"],
-            }
             yield SupplierProduct(**ddd)
             yield RawSupplierQuotation(**dddd)
             if not is_sdd(brand):
