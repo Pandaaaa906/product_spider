@@ -48,8 +48,8 @@ class BepureSpider(BaseSpider):
         next_url = None
         if current_page and total_pages:
             current_page = int(current_page.group().strip())
-            # total_pages = int(total_pages.group().strip())
-            total_pages = 5
+            total_pages = int(total_pages.group().strip())
+            # total_pages = 5
             if current_page < total_pages:
                 next_url = f'https://list.bepurecrm.com/list_goods/0/{current_page + 1}.html'
         self.logger.info(f"next_url:{next_url}")
