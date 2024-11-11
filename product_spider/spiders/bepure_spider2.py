@@ -130,13 +130,14 @@ class BepureSpider(BaseSpider):
         d = response.meta.get('product')
         if not j_obj:
             self.logger.warn(f'Get price and stock number failed, product_id:{response.meta.get("product_id")}')
+            return
         else:
             stock_num = number_2_str(j_obj.get('number'))
             d['stock_num'] = stock_num
             response.meta['stock_num'] = stock_num
             response.meta['price'] = number_2_str(j_obj.get('price'))
             response.meta['sell_price'] = number_2_str(j_obj.get('sellPrice'))
-        yield from self.save_data(response, d)
+            yield from self.save_data(response, d)
 
     def save_data(self, response, d):
         self.logger.debug(f'save data, product_id:{response.meta.get("product_id")}')
@@ -153,13 +154,15 @@ class BepureSpider(BaseSpider):
             'purity': d.get('purity'),
             'delivery_time': response.meta.get('delivery_time'),
         }
+        ddd = rawdata_to_supplier_product(d, self.name, self.name)
+        dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
         if d['brand'] == self.brand:
             yield RawData(**d)
             yield ProductPackage(**dd)
+            yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
         else:
             try:
-                ddd = rawdata_to_supplier_product(d, self.name, self.name)
-                dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
                 yield SupplierProduct(**ddd)
                 yield RawSupplierQuotation(**dddd)
             except Exception as e:
