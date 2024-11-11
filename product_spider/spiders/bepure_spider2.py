@@ -142,7 +142,6 @@ class BepureSpider(BaseSpider):
     def save_data(self, response, d):
         self.logger.debug(f'save data, product_id:{response.meta.get("product_id")}')
         package = response.meta['package']
-        yield RawData(**d)
         dd = {
             "brand": self.brand,
             "cat_no": d['cat_no'],
