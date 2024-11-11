@@ -8,11 +8,20 @@ from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils import bepure_util
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
 
 BEPURE_USER = getenv('BEPURE_USER')
 BEPURE_PWD = getenv('BEPURE_PWD')
+
+
+def number_2_str(_d):
+    if _d is None:
+        _d = ''
+    else:
+        _d = str(_d).strip()
+    return _d
 
 
 class BepureSpider(BaseSpider):
@@ -49,10 +58,9 @@ class BepureSpider(BaseSpider):
         if current_page and total_pages:
             current_page = int(current_page.group().strip())
             total_pages = int(total_pages.group().strip())
-            # total_pages = 5
             if current_page < total_pages:
                 next_url = f'https://list.bepurecrm.com/list_goods/0/{current_page + 1}.html'
-        self.logger.info(f"next_url:{next_url}")
+        self.logger.debug(f"next_url:{next_url}")
         if next_url:
             yield Request(url=next_url, callback=self.parse)
 
@@ -66,8 +74,6 @@ class BepureSpider(BaseSpider):
         if not brand:
             return
         brand = str(brand).strip().lower()
-        if brand != self.brand:
-            return
 
         search_purity = None
         expiry_date = None
@@ -80,7 +86,7 @@ class BepureSpider(BaseSpider):
                 expiry_date = None
             search_purity = re.search(r'(?<=norm:).+?(?=,)', good_obj_str)
         d = {
-            'brand': self.brand,
+            'brand': brand,
             'parent': response.xpath("//a[@class='el-breadcrumb__item'][last()]/span/text()").get(),
             'cat_no': response.xpath(info_xpath.format('产品编号')).get(),
             'chs_name': response.xpath("//div/h2[@class='p-right-title']/span/text()").get(),
@@ -125,14 +131,15 @@ class BepureSpider(BaseSpider):
         if not j_obj:
             self.logger.warn(f'Get price and stock number failed, product_id:{response.meta.get("product_id")}')
         else:
-            d['stock_num'] = j_obj.get('number')
-            response.meta['stock_num'] = j_obj.get('number')
-            response.meta['price'] = j_obj.get('price')
-            response.meta['sell_price'] = j_obj.get('sellPrice')
-        next(self.save_data(response, d))
+            stock_num = number_2_str(j_obj.get('number'))
+            d['stock_num'] = stock_num
+            response.meta['stock_num'] = stock_num
+            response.meta['price'] = number_2_str(j_obj.get('price'))
+            response.meta['sell_price'] = number_2_str(j_obj.get('sellPrice'))
+        yield from self.save_data(response, d)
 
     def save_data(self, response, d):
-        self.logger.info(f'save data, product_id:{response.meta.get("product_id")}')
+        self.logger.debug(f'save data, product_id:{response.meta.get("product_id")}')
         package = response.meta['package']
         yield RawData(**d)
         dd = {
@@ -146,35 +153,14 @@ class BepureSpider(BaseSpider):
             'purity': d.get('purity'),
             'delivery_time': response.meta.get('delivery_time'),
         }
-        ddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f"{self.name}_{d.get('cat_no')}_{package}",
-            "parent": d["parent"],
-            "en_name": d["en_name"],
-            "cas": d["cas"],
-            "mf": d["mf"],
-            "mw": d["mw"],
-            'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'cost': dd['cost'],
-            "currency": dd["currency"],
-            "img_url": d["img_url"],
-            "prd_url": d["prd_url"],
-        }
-        dddd = {
-            "platform": self.name,
-            "vendor": self.name,
-            "brand": self.name,
-            "source_id": f'{self.name}_{d["cat_no"]}',
-            'cat_no': d["cat_no"],
-            'package': dd['package'],
-            'discount_price': dd['cost'],
-            'price': dd['cost'],
-            'cas': d["cas"],
-            'currency': dd["currency"],
-        }
-        yield ProductPackage(**dd)
-        yield SupplierProduct(**ddd)
-        yield RawSupplierQuotation(**dddd)
+        if d['brand'] == self.brand:
+            yield RawData(**d)
+            yield ProductPackage(**dd)
+        else:
+            try:
+                ddd = rawdata_to_supplier_product(d, self.name, self.name)
+                dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
+                yield SupplierProduct(**ddd)
+                yield RawSupplierQuotation(**dddd)
+            except Exception as e:
+                self.logger.error(f'product:{d} write supplier err:{e}')
