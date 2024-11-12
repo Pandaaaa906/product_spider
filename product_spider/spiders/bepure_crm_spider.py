@@ -87,19 +87,22 @@ class BepureSpider(BaseSpider):
             return
         brand = str(brand).strip().lower()
 
-        good_obj_str = re.search(r'goodObj:\s?\{([^}]*)}', response.text)
-        expiry_date = None
-        purity = None
-        if good_obj_str:
-            good_obj_str = good_obj_str.group().replace(' ', '').replace('\n', '')
-            search_exp_date = re.search(r'(?<=date:).+?(?=,)', good_obj_str)
-            expiry_date = search_exp_date.group().strip('"') if search_exp_date else None
-            search_purity = re.search(r'(?<=norm:).+?(?=,)', good_obj_str)
-            purity = search_purity.group().strip('"') if search_purity else None
+        good_obj_str = (m := re.search(r'goodObj:\s?\{([^}]*)}', response.text)) and m.group().translate(
+            str.maketrans({' ': '', '\n': ''}))
 
+        expiry_date = ((m := re.search(r'(?<=date:).+?(?=,)', good_obj_str))
+                       and m.group().strip('"')) if good_obj_str else None
+        purity = ((m := re.search(r'(?<=norm:).+?(?=,)', good_obj_str))
+                  and m.group().strip('"')) if good_obj_str else None
+        delivery_time = ((m := re.search(r'(?<=time_name:).+?(?=,)', good_obj_str))
+                         and m.group().strip('"')) if good_obj_str else None
+
+        if ((parent := response.xpath("//a[@class='el-breadcrumb__item'][last()]/span/text()").get())
+                and '首页' in parent):
+            parent = None
         d = {
             'brand': brand,
-            'parent': response.xpath("//a[@class='el-breadcrumb__item'][last()]/span/text()").get(),
+            'parent': parent,
             'cat_no': response.xpath(info_xpath.format('产品编号')).get(),
             'chs_name': response.xpath("//div/h2[@class='p-right-title']/span/text()").get(),
             'en_name': response.xpath(info_xpath.format('英文名称')).get(),
@@ -133,6 +136,7 @@ class BepureSpider(BaseSpider):
                 'product_id': product_id,
                 'product': d,
                 'package': package,
+                'delivery_time': delivery_time,
             },
             callback=self.handle_req_price_and_stock_number,
         )
@@ -165,8 +169,5 @@ class BepureSpider(BaseSpider):
         if self.brand in d['brand']:
             yield RawData(**d)
             yield ProductPackage(**dd)
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
-        else:
-            yield SupplierProduct(**ddd)
-            yield RawSupplierQuotation(**dddd)
+        yield SupplierProduct(**ddd)
+        yield RawSupplierQuotation(**dddd)
