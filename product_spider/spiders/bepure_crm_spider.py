@@ -1,3 +1,4 @@
+import hashlib
 import re
 import time
 import urllib
@@ -7,7 +8,6 @@ from urllib.parse import urljoin
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
-from product_spider.utils import bepure_util
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
@@ -20,17 +20,18 @@ def number_2_str(_d):
     if _d is None:
         _d = ''
     else:
-        _d = str(_d).strip()
+        _d = str(_d)
     return _d
 
 
 class BepureSpider(BaseSpider):
-    name = "bepure"
+    name = "bepure_crm"
     base_url = "http://www.bepurestandards.com/"
     api_url = 'http://www.bepurestandards.com/a.aspx?'
     start_urls = [
         "https://list.bepurecrm.com/list_goods/0/1.html",
     ]
+    page_url_pattern = 'https://list.bepurecrm.com/list_goods/0/{!r}.html'
     brand = 'bepure'
     currency = 'RMB'
 
@@ -38,31 +39,42 @@ class BepureSpider(BaseSpider):
         yield Request(
             url=self.start_urls[0],
             callback=self.parse,
+            meta={'next_page': 1}
         )
 
     def parse(self, response, **kwargs):
         rows = response.xpath("//table[@class='table product_table']/tbody//tr")
         for row in rows:
-            url = row.xpath("//a[@class='title-cn goods-detail-a']/@href").get()
-            delivery_time = row.xpath("//div[@class='td_time_name']/text()").get().strip()  # 货期
-            if url and delivery_time:
+            url = row.xpath(".//a[@class='title-cn goods-detail-a']/@href").get()
+            delivery_time = row.xpath(".//div[@class='td_time_name']/text()").get()  # 货期
+            if url:
                 yield Request(urljoin(response.url, url), callback=self.parse_detail,
                               meta={'delivery_time': delivery_time})
             else:
-                self.logger.warn(f"url或货期为空 url:{url} delivery_time:{delivery_time}")
+                self.logger.debug(f"产品url为空 row:{row}")
 
         # 切换页码
-        current_page = re.search(r'(?<=pno:)\s*\d+(?=,)', response.text)
+        current_page = response.meta['next_page']
         total_pages = re.search(r'(?<=total:)\s*\d+(?=,)', response.text)
         next_url = None
         if current_page and total_pages:
-            current_page = int(current_page.group().strip())
+            current_page = int(current_page)
             total_pages = int(total_pages.group().strip())
             if current_page < total_pages:
-                next_url = f'https://list.bepurecrm.com/list_goods/0/{current_page + 1}.html'
-        self.logger.debug(f"next_url:{next_url}")
+                next_url = self.page_url_pattern.format(current_page + 1)
         if next_url:
-            yield Request(url=next_url, callback=self.parse)
+            yield Request(url=next_url, callback=self.parse,
+                          meta={'next_page': current_page + 1, 'total_pages': total_pages},
+                          errback=self.handle_error_page)
+
+    def handle_error_page(self, failure):
+        err_page = failure.request.meta.get('next_page')
+        total_pages = failure.request.meta.get('total_pages')
+        self.logger.warn(f"Get page:{err_page} err, url:{failure.request.url}")
+        next_url = self.page_url_pattern.format(err_page + 1)
+        yield Request(url=next_url, callback=self.parse,
+                      meta={'next_page': err_page + 1, 'total_pages': total_pages},
+                      errback=self.handle_error_page)
 
     def parse_detail(self, response):
         product_id = response.url.split('/')[-1].strip('.html')
@@ -81,7 +93,7 @@ class BepureSpider(BaseSpider):
         if good_obj_str:
             good_obj_str = good_obj_str.group().replace(' ', '').replace('\n', '')
             search_exp_date = re.search(r'(?<=date:).+?(?=,)', good_obj_str)
-            expiry_date = search_exp_date.group().strip('"').strip() if search_exp_date else None,
+            expiry_date = search_exp_date.group().strip('"') if search_exp_date else None,
             if not expiry_date and len(expiry_date) == 0:
                 expiry_date = None
             search_purity = re.search(r'(?<=norm:).+?(?=,)', good_obj_str)
@@ -107,10 +119,11 @@ class BepureSpider(BaseSpider):
 
         _url = "https://item.bepurecrm.com/bms_ec_web/site/front/product/async_get_product_detail_by_id"
         now_timestamp = str(int(time.time() * 1000))
+        sign_str = product_id + "GOODS_INFO_CHECK_KEY" + now_timestamp
         params = {
             'idStr': product_id,
             'time': now_timestamp,
-            'sign': bepure_util.md5(product_id + "GOODS_INFO_CHECK_KEY" + now_timestamp)
+            'sign': hashlib.md5(sign_str.encode('utf-8')).hexdigest()
         }
         _url = f'{_url}?{urllib.parse.urlencode(params)}'
         yield Request(
@@ -122,32 +135,26 @@ class BepureSpider(BaseSpider):
                 'package': package,
             },
             callback=self.handle_req_price_and_stock_number,
-            headers={'referer': d.get('prd_url')}
         )
 
     def handle_req_price_and_stock_number(self, response):
-        j_obj = response.json().get('body')
+        j_obj = response.json().get('body') if response.json() else None
         d = response.meta.get('product')
         if not j_obj:
-            self.logger.warn(f'Get price and stock number failed, product_id:{response.meta.get("product_id")}')
+            self.logger.warn(
+                f'Get price and stock number failed, url:{response.request.url} res:{response.json()}')
             return
-        else:
-            stock_num = number_2_str(j_obj.get('number'))
-            d['stock_num'] = stock_num
-            response.meta['stock_num'] = stock_num
-            response.meta['price'] = number_2_str(j_obj.get('price'))
-            response.meta['sell_price'] = number_2_str(j_obj.get('sellPrice'))
-            yield from self.save_data(response, d)
-
-    def save_data(self, response, d):
-        self.logger.debug(f'save data, product_id:{response.meta.get("product_id")}')
+        d['stock_num'] = number_2_str(j_obj.get('number'))
+        # price = number_2_str(j_obj.get('price'))
+        sell_price = number_2_str(j_obj.get('sellPrice'))
         package = response.meta['package']
+
         dd = {
-            "brand": self.brand,
-            "cat_no": d['cat_no'],
+            "brand": d['brand'],
+            "cat_no": d.get('cat_no'),
             "package": package,
-            "price": response.meta.get('sell_price'),
-            "cost": response.meta.get('sell_price'),
+            "price": sell_price,
+            "cost": sell_price,
             "currency": self.currency,
             'stock_num': d.get('stock_num'),
             'purity': d.get('purity'),
@@ -155,14 +162,11 @@ class BepureSpider(BaseSpider):
         }
         ddd = rawdata_to_supplier_product(d, self.name, self.name)
         dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
-        if d['brand'] == self.brand:
+        if self.brand in d['brand']:
             yield RawData(**d)
             yield ProductPackage(**dd)
             yield SupplierProduct(**ddd)
             yield RawSupplierQuotation(**dddd)
         else:
-            try:
-                yield SupplierProduct(**ddd)
-                yield RawSupplierQuotation(**dddd)
-            except Exception as e:
-                self.logger.error(f'product:{d} write supplier err:{e}')
+            yield SupplierProduct(**ddd)
+            yield RawSupplierQuotation(**dddd)
