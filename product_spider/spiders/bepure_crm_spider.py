@@ -87,16 +87,16 @@ class BepureSpider(BaseSpider):
             return
         brand = str(brand).strip().lower()
 
-        search_purity = None
-        expiry_date = None
         good_obj_str = re.search(r'goodObj:\s?\{([^}]*)}', response.text)
+        expiry_date = None
+        purity = None
         if good_obj_str:
             good_obj_str = good_obj_str.group().replace(' ', '').replace('\n', '')
             search_exp_date = re.search(r'(?<=date:).+?(?=,)', good_obj_str)
-            expiry_date = search_exp_date.group().strip('"') if search_exp_date else None,
-            if not expiry_date and len(expiry_date) == 0:
-                expiry_date = None
+            expiry_date = search_exp_date.group().strip('"') if search_exp_date else None
             search_purity = re.search(r'(?<=norm:).+?(?=,)', good_obj_str)
+            purity = search_purity.group().strip('"') if search_purity else None
+
         d = {
             'brand': brand,
             'parent': response.xpath("//a[@class='el-breadcrumb__item'][last()]/span/text()").get(),
@@ -112,7 +112,7 @@ class BepureSpider(BaseSpider):
             'stock_info': response.xpath(info_xpath.format('储存条件')).get(),
             'expiry_date': expiry_date,
             'stock_num': None,
-            'purity': search_purity.group() if search_purity else None,
+            'purity': purity,
         }
         package = response.xpath(info_xpath.format('规格')).get()
         package = package.strip().lower() if package else None
