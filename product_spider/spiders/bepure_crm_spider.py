@@ -24,7 +24,7 @@ def number_2_str(_d):
 class BepureSpider(BaseSpider):
     name = "bepure_crm"
     base_url = "http://www.bepurestandards.com/"
-    api_url = 'http://www.bepurestandards.com/a.aspx?'
+    api_package_url = "https://item.bepurecrm.com/bms_ec_web/site/front/product/async_get_product_detail_by_id"
     start_urls = [
         "https://list.bepurecrm.com/list_goods/0/1.html",
     ]
@@ -63,12 +63,16 @@ class BepureSpider(BaseSpider):
 
     def handle_error_page(self, failure):
         err_page = failure.request.meta.get('current_page')
-        total_page = failure.request.meta.get('total_page')
         self.logger.warn(f"Get page:{err_page} err, url:{failure.request.url}")
+        req = failure.request.copy()
+        req.dont_filter = True
+        yield req
+
+        total_page = failure.request.meta.get('total_page')
         next_url = self.page_url_pattern.format(err_page + 1)
         yield Request(
             url=next_url, callback=self.parse,
-            meta={'next_page': err_page + 1, 'total_page': total_page},
+            meta={'current_page': err_page + 1, 'total_page': total_page},
             errback=self.handle_error_page
         )
 
@@ -107,32 +111,42 @@ class BepureSpider(BaseSpider):
         }
         package = strip(response.xpath(info_xpath.format('规格')).get())
 
-        _url = "https://item.bepurecrm.com/bms_ec_web/site/front/product/async_get_product_detail_by_id"
+        yield self.make_package_request(product_id, callback=self.parse_package_info, meta={
+            'product': d,
+            'package': package,
+            'delivery_time': delivery_time,
+        })
+
+    def make_package_request(self, product_id, *, callback, meta: dict = None):
+        if meta is None:
+            meta = {}
+        meta["product_id"] = product_id
         now_timestamp = str(int(time.time() * 1000))
-        sign_str = product_id + "GOODS_INFO_CHECK_KEY" + now_timestamp
+        sign_str = f"{product_id}GOODS_INFO_CHECK_KEY{now_timestamp}"
         params = {
             'idStr': product_id,
             'time': now_timestamp,
             'sign': hashlib.md5(sign_str.encode('utf-8')).hexdigest()
         }
-        _url = f'{_url}?{urllib.parse.urlencode(params)}'
-        yield Request(
-            url=_url,
-            method='GET',
-            meta={
-                'product': d,
-                'package': package,
-                'delivery_time': delivery_time,
-            },
-            callback=self.parse_package_info,
+        return Request(
+            url=f'{self.api_package_url}?{urllib.parse.urlencode(params)}',
+            callback=callback,
+            meta=meta
         )
 
     def parse_package_info(self, response):
-        j_obj = response.json().get('body') if response.json() else None
+        j_obj = j.get('body') if (j := response.json()) else None
         d = response.meta.get('product')
         if not j_obj:
-            self.logger.warn(
-                f'Get price and stock number failed, url:{response.request.url} res:{response.json()}')
+            # self.logger.warn(
+            #     f'Get price and stock number failed, cat_no: {d.get("cat_no")}, url:{response.request.url} res:{j}'
+            # )
+            product_id = response.meta.get('product_id')
+            meta = response.meta
+            meta["retry_times"] = meta.get("retry_times", 0)
+            req = self.make_package_request(product_id=product_id, callback=self.parse_package_info, meta=meta)
+            req.priority = 999999
+            yield req
             return
         d['stock_num'] = number_2_str(j_obj.get('number'))
         sell_price = number_2_str(j_obj.get('sellPrice'))
