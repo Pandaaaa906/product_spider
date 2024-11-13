@@ -2,18 +2,15 @@ import hashlib
 import re
 import time
 import urllib
-from os import getenv
 from urllib.parse import urljoin
 
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.utils.functions import strip
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
-
-BEPURE_USER = getenv('BEPURE_USER')
-BEPURE_PWD = getenv('BEPURE_PWD')
 
 
 def number_2_str(_d):
@@ -35,71 +32,62 @@ class BepureSpider(BaseSpider):
     brand = 'bepure'
     currency = 'RMB'
 
-    def start_requests(self):
-        yield Request(
-            url=self.start_urls[0],
-            callback=self.parse,
-            meta={'next_page': 1}
-        )
-
     def parse(self, response, **kwargs):
         rows = response.xpath("//table[@class='table product_table']/tbody//tr")
         for row in rows:
             url = row.xpath(".//a[@class='title-cn goods-detail-a']/@href").get()
             delivery_time = row.xpath(".//div[@class='td_time_name']/text()").get()  # 货期
             if url:
-                yield Request(urljoin(response.url, url), callback=self.parse_detail,
-                              meta={'delivery_time': delivery_time})
+                yield Request(
+                    urljoin(response.url, url), callback=self.parse_detail,
+                    meta={'delivery_time': delivery_time}
+                )
             else:
                 self.logger.debug(f"产品url为空 row:{row}")
 
         # 切换页码
-        current_page = response.meta['next_page']
-        total_pages = re.search(r'(?<=total:)\s*\d+(?=,)', response.text)
+        current_page = response.meta.get('current_page', 1)
+        total_page = (m := re.search(r'(?<=total:)\s*(\d+)(?=,)', response.text)) and m.group(1)
         next_url = None
-        if current_page and total_pages:
+        if current_page and total_page:
             current_page = int(current_page)
-            total_pages = int(total_pages.group().strip())
-            if current_page < total_pages:
+            total_page = int(total_page)
+            if current_page < total_page:
                 next_url = self.page_url_pattern.format(current_page + 1)
         if next_url:
-            yield Request(url=next_url, callback=self.parse,
-                          meta={'next_page': current_page + 1, 'total_pages': total_pages},
-                          errback=self.handle_error_page)
+            yield Request(
+                url=next_url, callback=self.parse,
+                meta={'current_page': current_page + 1, 'total_page': total_page},
+                errback=self.handle_error_page
+            )
 
     def handle_error_page(self, failure):
-        err_page = failure.request.meta.get('next_page')
-        total_pages = failure.request.meta.get('total_pages')
+        err_page = failure.request.meta.get('current_page')
+        total_page = failure.request.meta.get('total_page')
         self.logger.warn(f"Get page:{err_page} err, url:{failure.request.url}")
         next_url = self.page_url_pattern.format(err_page + 1)
-        yield Request(url=next_url, callback=self.parse,
-                      meta={'next_page': err_page + 1, 'total_pages': total_pages},
-                      errback=self.handle_error_page)
+        yield Request(
+            url=next_url, callback=self.parse,
+            meta={'next_page': err_page + 1, 'total_page': total_page},
+            errback=self.handle_error_page
+        )
 
     def parse_detail(self, response):
         product_id = response.url.split('/')[-1].strip('.html')
-        img_rel = re.search(r'(?<=showImg:\s").+(?=")', response.text)
-        if img_rel:
-            img_rel = img_rel.group()
+        img_rel = (m := re.search(r'(?<=showImg:\s").+(?=")', response.text)) and m.group()
         info_xpath = "//el-form-item[@label={!r}]/span/text()"
         brand = response.xpath(info_xpath.format('品牌')).get()
         if not brand:
             return
-        brand = str(brand).strip().lower()
+        brand = strip(brand).lower()
 
-        good_obj_str = (m := re.search(r'goodObj:\s?\{([^}]*)}', response.text)) and m.group().translate(
-            str.maketrans({' ': '', '\n': ''}))
+        good_obj_str = (m := re.search(r'goodObj:\s?\{([^}]*)}', response.text)) and m.group()
+        expiry_date = (m := re.search(r'(?<=date:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
+        purity = (m := re.search(r'(?<=norm:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
+        delivery_time = (m := re.search(r'(?<=time_name:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
 
-        expiry_date = ((m := re.search(r'(?<=date:).+?(?=,)', good_obj_str))
-                       and m.group().strip('"')) if good_obj_str else None
-        purity = ((m := re.search(r'(?<=norm:).+?(?=,)', good_obj_str))
-                  and m.group().strip('"')) if good_obj_str else None
-        delivery_time = ((m := re.search(r'(?<=time_name:).+?(?=,)', good_obj_str))
-                         and m.group().strip('"')) if good_obj_str else None
+        parent = response.xpath("//a[@class='el-breadcrumb__item'][last() and position() != 1]/span/text()").get()
 
-        if ((parent := response.xpath("//a[@class='el-breadcrumb__item'][last()]/span/text()").get())
-                and '首页' in parent):
-            parent = None
         d = {
             'brand': brand,
             'parent': parent,
@@ -117,8 +105,7 @@ class BepureSpider(BaseSpider):
             'stock_num': None,
             'purity': purity,
         }
-        package = response.xpath(info_xpath.format('规格')).get()
-        package = package.strip().lower() if package else None
+        package = strip(response.xpath(info_xpath.format('规格')).get())
 
         _url = "https://item.bepurecrm.com/bms_ec_web/site/front/product/async_get_product_detail_by_id"
         now_timestamp = str(int(time.time() * 1000))
@@ -133,15 +120,14 @@ class BepureSpider(BaseSpider):
             url=_url,
             method='GET',
             meta={
-                'product_id': product_id,
                 'product': d,
                 'package': package,
                 'delivery_time': delivery_time,
             },
-            callback=self.handle_req_price_and_stock_number,
+            callback=self.parse_package_info,
         )
 
-    def handle_req_price_and_stock_number(self, response):
+    def parse_package_info(self, response):
         j_obj = response.json().get('body') if response.json() else None
         d = response.meta.get('product')
         if not j_obj:
@@ -149,9 +135,8 @@ class BepureSpider(BaseSpider):
                 f'Get price and stock number failed, url:{response.request.url} res:{response.json()}')
             return
         d['stock_num'] = number_2_str(j_obj.get('number'))
-        # price = number_2_str(j_obj.get('price'))
         sell_price = number_2_str(j_obj.get('sellPrice'))
-        package = response.meta['package']
+        package = response.meta.get('package')
 
         dd = {
             "brand": d['brand'],
