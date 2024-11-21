@@ -124,12 +124,14 @@ class TansooleSpider(BaseSpider):
         """dre价格在泰坦官网获取"""
         if "非法请求" in response.text:
             self.log(f"非法请求: {response.url}")
-        rows = response.xpath("//ul[@class='show-list show-list-head']/following-sibling::ul/li[position()=1]")
+        rows = response.xpath("//ul[@class='show-list show-list-head']/following-sibling::ul")
         for row in rows:
-            url = urljoin(self.base_url, row.xpath("./a/@href").get())
+            purity = row.xpath('./li[7]/span/text()').get()
+            url = urljoin(self.base_url, row.xpath("./li[position()=1]/a/@href").get())
             yield scrapy.Request(
                 url=url,
-                callback=self.parse_package
+                callback=self.parse_package,
+                meta={"purity": purity}
             )
         # 获取下一页
         d = self._get_search_params(response)
@@ -162,11 +164,12 @@ class TansooleSpider(BaseSpider):
                 "t": f"{(time()*1000):.0f}",
             },
             callback=self.parse_cost,
-            meta={"prd_url": response.url, "font_name": font_name}
+            meta={"prd_url": response.url, "font_name": font_name, "purity": response.meta.get("purity")}
         )
 
     def parse_cost(self, response):
         prd_url = response.meta.get("prd_url", None)
+        purity = response.meta.get("purity", None)
         font_name = response.meta.get("font_name", None)
         res = response.json().get("data", None)
         if not res:
@@ -197,6 +200,7 @@ class TansooleSpider(BaseSpider):
             "cat_no": cat_no,
             "chs_name": chs_name,
             "cas": cas,
+            "purity": purity,
             "package": package,
             "prd_url": prd_url,
             "price": price,
