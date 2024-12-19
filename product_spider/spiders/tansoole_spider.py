@@ -58,13 +58,19 @@ class TansooleSpider(BaseSpider):
 
     def get_font_map(self, font_name: str):
         if font_name not in self._font_mapping:
-            self._get_font_map(font_name)
-        return self._font_mapping[font_name]
+            try:
+                self._get_font_map(font_name)
+            except Exception as e:
+                self.log(e)
+        return self._font_mapping.get(font_name, None)
 
     def decode_price(self, value: str, font_name):
-        if isinstance(value, str):
-            return value.translate(self.get_font_map(font_name))
-        return value
+        if not isinstance(value, str):
+            return value
+        m = self.get_font_map(font_name)
+        if not m:
+            return value
+        return value.translate(m)
 
     def is_proxy_invalid(self, request, response):
         if "系统繁忙" in response.text:
@@ -186,7 +192,7 @@ class TansooleSpider(BaseSpider):
         price = res.get("productEntryPrice", None)
         price = self.decode_price(price, font_name)
         cost = res.get("entryPrice", None)
-        cost = self.decode_price(cost, font_name)
+        cost = self.decode_price(cost, font_name) or price
 
         stock_num = res.get("transportDesc", None)
         if stock_num == '现货':
@@ -225,4 +231,5 @@ class TansooleSpider(BaseSpider):
             'currency': ddd["currency"],
         }
         yield SupplierProduct(**ddd)
-        yield RawSupplierQuotation(**dddd)
+        if cost:
+            yield RawSupplierQuotation(**dddd)
