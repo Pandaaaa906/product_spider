@@ -26,6 +26,21 @@ class SeebioSpider(BaseSpider):
     base_url = "http://www.seebio.cn/"
     start_urls = ["http://www.seebio.cn/product_category.php?id=1", ]
 
+    custom_settings = {
+        'RETRY_HTTP_CODES': [503, 504, 502],
+        'RETRY_TIMES': 10,
+    }
+
+    # def is_proxy_invalid(self, request, response):
+    #     proxy = request.meta.get('proxy')
+    #     is_detected = False
+    #     if response.status in {502, 503, 403, 504}:
+    #         is_detected = True
+    #     if is_detected:
+    #         self.logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
+    #         return True
+    #     return False
+
     def parse(self, response, **kwargs):
         hrefs = response.xpath("//li[contains(@class,'drop')]//a/@href").getall()
         for href in hrefs:
