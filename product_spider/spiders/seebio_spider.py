@@ -5,7 +5,7 @@ from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
-from product_spider.utils.functions import strip
+from product_spider.utils.functions import strip, clean_dict
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -70,7 +70,7 @@ class SeebioSpider(BaseSpider):
             parent = None
 
         cat_no = strip(response.xpath(tmp.format("编码")).get(), "").strip("编码：")
-        introduction = strip(response.xpath(tmp.format("简介")).get(), "").strip("简介：")
+        introduction = strip(response.xpath(tmp.format("简介")).get("").strip("简介："))
 
         if not (en_name := response.xpath(tmp2.format("英文名")).get()):
             # 如果基本信息中没有英文名 尝试从上面的别名获取
@@ -104,7 +104,7 @@ class SeebioSpider(BaseSpider):
             'purity': strip(response.xpath(tmp.format("级别")).get(), "").strip("级别："),
             'img_url': img_url,
             'prd_url': response.url,
-            'attrs': json.dumps(attrs, ensure_ascii=False),
+            'attrs': json.dumps(clean_dict(attrs), ensure_ascii=False),
         }
 
         ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
