@@ -1,7 +1,9 @@
+import hashlib
 import re
 import time
 from ast import literal_eval
 from os import getenv
+from urllib.parse import urlencode
 
 from demjson3 import decode
 import execjs
@@ -129,7 +131,15 @@ class TanmoSpider(BaseSpider):
         if is_tanmo(brand):
             brand = self.name
         cat_no = strip(response.xpath(tmp.format("产品编号")).get())
-        good_obj = decode(first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}'))
+
+        good_obj_raw_str = first(re.findall(r'goodObj: ({[^}]+}),', response.text), '{}')
+        try:
+            good_obj = decode(good_obj_raw_str)
+        except Exception as e:
+            # handle illegal quoted like： spec: "1mg*("*"指规格随批次变化)",
+            good_obj_raw_str = re.sub(r'(?<!: )"(.*?)(?=")', lambda m: '{}'.format(m.group(0).replace('"', r'\"')),
+                                      good_obj_raw_str)
+            good_obj = decode(good_obj_raw_str)
 
         chs_name = strip(''.join(response.xpath('//h2[@class="p-right-title"]//text()').getall()))
         cas = strip(response.xpath(tmp.format("CAS号")).get())
@@ -167,6 +177,11 @@ class TanmoSpider(BaseSpider):
             'delivery_time': good_obj.get('time_name'),
         }
 
+        # 25/01/09 fix: Get stock number from api
+        product_id = good_obj.get('id')
+        if product_id:
+            yield from self.get_stock_num(str(product_id), d, dd)
+
         t = first(re.findall(r"certInfo: ?('.+'),", response.text), None)
         if t is not None:
             t = literal_eval(t)
@@ -178,15 +193,46 @@ class TanmoSpider(BaseSpider):
             d['appearance'] = first(html.xpath('//span[text()="Appearance"]/following-sibling::span//text()'), None)
             d['img_url'] = first(html.xpath("//div[@class='boxcenterch']//img/@src"), None)
         ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
-        dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
+        # dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
 
         yield SupplierProduct(**ddd)
-        yield RawSupplierQuotation(**dddd)
+        # yield RawSupplierQuotation(**dddd)
         if not is_tanmo(brand) and brand not in TANMO_OTHER_BRANDS:
             self.other_brands.add(brand)
             return
         yield RawData(**d)
-        yield ProductPackage(**dd)
+        # yield ProductPackage(**dd)
 
     def closed(self, reason):
         self.logger.info(f'其他品牌: {self.other_brands}')
+
+    def get_stock_num(self, id_str: str, d: dict, dd: dict):
+        base_url = 'https://item.gbw-china.com/official_web/product_front/front/product/async_get_product_detail_by_id'
+        _time = int(time.time() * 1000)
+        _sign_str = f"{id_str}GOODS_INFO_CHECK_KEY{_time}"
+        sign = hashlib.md5(_sign_str.encode('utf-8')).hexdigest()
+        params = {
+            'idStr': id_str,
+            'time': _time,
+            'sign': sign,
+        }
+        url = f"{base_url}?{urlencode(params)}"
+        yield Request(url, meta={'dd': dd, 'd': d},
+                      callback=self.handle_get_stock_num_result)
+
+    def handle_get_stock_num_result(self, response):
+        meta = response.meta
+        dd = meta['dd']
+        d = meta['d']
+        stock_num = None
+        if json_obj := response.json():
+            if good_obj := json_obj.get('body'):
+                stock_num = good_obj.get('number')
+
+        if stock_num is not None:
+            dd['stock_num'] = str(stock_num)
+        else:
+            self.logger.warn(f'Error fetch stock number response_url:{response.url}')
+        yield ProductPackage(**dd)
+        dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
+        yield RawSupplierQuotation(**dddd)
