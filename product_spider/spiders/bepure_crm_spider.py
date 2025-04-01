@@ -33,7 +33,7 @@ class BepureSpider(BaseSpider):
     currency = 'RMB'
 
     def parse(self, response, **kwargs):
-        rows = response.xpath("//table[@class='table product_table']/tbody//tr")
+        rows = response.xpath("//table[contains(@class,'table product_table')]/tbody//tr")
         for row in rows:
             url = row.xpath(".//a[@class='title-cn goods-detail-a']/@href").get()
             delivery_time = row.xpath(".//div[@class='td_time_name']/text()").get()  # 货期
