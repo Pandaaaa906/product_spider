@@ -75,6 +75,8 @@ class AladdinSpider(BaseSpider):
         )
         for node in nodes:
             url = node.xpath("./@href").get()
+            if 'javascript:void(0)'.lower() in url.lower():
+                continue
             parent = node.xpath("./span/text()").get()
             yield Request(
                 url=url,
@@ -87,10 +89,10 @@ class AladdinSpider(BaseSpider):
 
     def parse_list(self, response):
         parent = response.meta.get("parent")
-        img_url = response.xpath("//img[@class='product-image-photo']/@src").get()
-        rows = response.xpath("//div[@class='products wrapper grid products-grid product-cate-grid']//li")
+        rows = response.xpath("//div[contains(@class,'product-item-actions')]/a")
         for row in rows:
-            url = row.xpath(".//div[@class='product-item-info']/a/@href").get()
+            url = row.xpath("./@href").get()
+            img_url = row.xpath(".//img[@class='product-image-photo']/@src").get()
             yield Request(
                 url=url,
                 callback=self.parse_detail,
@@ -152,6 +154,8 @@ class AladdinSpider(BaseSpider):
         if not packages:
             self.logger.warning(f"prd page have not packages: {response.url}")
             return
+
+        # TODO 反爬升级
         form_data = {f'ajaxUpdatePrice_{_id}': f'ajaxUpdatePrice_{_id}' for _id in packages}
         yield FormRequest(
             url=self.price_url,
@@ -167,7 +171,7 @@ class AladdinSpider(BaseSpider):
 
     def parse_price(self, response):
         if response.status != 200:
-            # self.logger.warning(f"{response.status=}: refreshing cookies")
+            self.logger.warning(f"{response.status=}: refreshing cookies")
             url = response.headers.get(b'Location')
             url = url and url.decode() or self.home_url
             yield Request(url, callback=self.set_cookies, cb_kwargs={"req": response.request}, priority=999999)
