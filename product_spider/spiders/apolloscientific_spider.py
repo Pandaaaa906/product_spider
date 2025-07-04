@@ -76,7 +76,8 @@ class ApolloScientificSpider(BaseSpider):
             "img_url": img_url,
             'mdl': response.xpath(
                 "//dt[contains(text(),'MDL Number')]/following-sibling::*[1]//text()").get(),
-            'purity': response.xpath("//dt[contains(text(),'Purity')]/following-sibling::*[1]//text()").get()
+            'purity': response.xpath("//dt[contains(text(),'Purity')]/following-sibling::*[1]//text()").get(),
+            'prd_url': response.url,
         }
         yield RawData(**d)
 

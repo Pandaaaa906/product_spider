@@ -98,7 +98,8 @@ class FluorochemSpider(BaseSpider):
                 "(//div[@id='content']//*[contains(text(),'Molecular Formula')])[1]/parent::*[1]/following-sibling::*[1]/text()").get(),
             "img_url": response.xpath("//div[@class='product-card__image']/img/@src").get(),
             'mdl': response.xpath(
-                "(//div[@id='content']//*[contains(text(),'MDL Number')])[1]/following-sibling::*[1]/text()")
+                "(//div[@id='content']//*[contains(text(),'MDL Number')])[1]/following-sibling::*[1]/text()"),
+            'prd_url': response.url,
         }
         yield RawData(**d)
 
