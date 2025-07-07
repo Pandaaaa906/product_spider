@@ -9,7 +9,7 @@ class ApolloScientificSpider(BaseSpider):
     name = "apolloscientific"
     start_urls = ["https://www.apolloscientific.co.uk/	", ]
     base_url = "https://www.apolloscientific.co.uk/	"
-    brand = 'Apollo Scientific'
+    brand = 'apolloscientific'
     custom_settings = {
         'CONCURRENT_REQUESTS': 8,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
