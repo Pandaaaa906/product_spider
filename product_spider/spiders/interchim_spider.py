@@ -2,8 +2,9 @@ import re
 
 from scrapy import Request, FormRequest
 
-from product_spider.items import RawData, ProductPackage
+from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import get_url
+from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -127,6 +128,8 @@ class InterchimSpider(BaseSpider):
                 'prd_url': response.url,
             }
             yield RawData(**d)
+            ddd = rawdata_to_supplier_product(d, platform=self.brand, vendor=self.brand)
+            yield SupplierProduct(**ddd)
             if pack:
                 dd = {
                     "brand": self.brand,
@@ -134,3 +137,5 @@ class InterchimSpider(BaseSpider):
                     "package": pack,
                 }
                 yield ProductPackage(**dd)
+                dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.brand, vendor=self.brand)
+                yield RawSupplierQuotation(**dddd)
