@@ -11,6 +11,7 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 class A2bchemSpider2(BaseSpider):
     name = "a2bchem2"
+    brand = "a2bchem"
     allow_domain = ["a2bchem.com"]
     start_urls = ["https://www.a2bchem.com/", ]
     custom_settings = {
@@ -57,7 +58,7 @@ class A2bchemSpider2(BaseSpider):
         })
 
         d = {
-            "brand": self.name,
+            "brand": self.brand,
             "parent": response.xpath("//div[@class='crumbs']//a[last()]/text()").get(),
             "cat_no": cat_no,
             "en_name": response.xpath("//td[contains(text(), 'Chemical Name:')]/following-sibling::td/text()").get(),
