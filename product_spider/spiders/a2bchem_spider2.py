@@ -73,7 +73,7 @@ class A2bchemSpider2(BaseSpider):
             "attrs": prd_attrs,
         }
         yield RawData(**d)
-        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        ddd = rawdata_to_supplier_product(d, platform=self.brand, vendor=self.brand)
         yield SupplierProduct(**ddd)
 
         rows = response.xpath("//table[@class='q_table']/tbody/tr")
@@ -92,5 +92,5 @@ class A2bchemSpider2(BaseSpider):
             }
             yield ProductPackage(**dd)
 
-            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
+            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.brand, vendor=self.brand)
             yield RawSupplierQuotation(**dddd)
