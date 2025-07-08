@@ -35,3 +35,23 @@ def get_url(base_url: str, target_url: str):
             return None
         return urllib.parse.urljoin(base_url, target_url)
     return target_url
+
+
+def generate_all_cas_numbers():
+    def calculate_check_digit(_cas_body: str) -> str:
+        """计算CAS号的校验码"""
+        digits = _cas_body.replace('-', '')
+        total = sum(int(digit) * (i + 1) for i, digit in enumerate(reversed(digits)))
+        return str(total % 10)
+
+    """遍历所有合法 CAS 号"""
+    for a_length in range(1, 8):
+        start = 10 ** (a_length - 1)
+        end = 10 ** a_length
+        for a in range(start, end):
+            a_str = str(a)
+            for b in range(0, 100):
+                b_str = f"{b:02d}"
+                cas_body = a_str + b_str
+                check_digit = calculate_check_digit(cas_body)
+                yield f"{a_str}-{b_str}-{check_digit}"
