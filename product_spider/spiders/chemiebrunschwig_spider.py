@@ -53,7 +53,7 @@ class ChemieBrunschwigSpider(BaseSpider):
 
         cas_detail_url = f'https://www.chemie-brunschwig.ch/shop/cas/{search_cas}'
         yield Request(cas_detail_url, callback=self.parse_cas_detail, meta={'items': items, 'cas': search_cas},
-                      priority=5, errback=self.parse_cas_detail)
+                      priority=5, errback=self.handle_no_cas_data)
 
         skip += len(items)
         param = {"fulltext": search_cas, "brandid": "", "skip": skip, "take": 50, "startWithSearch": False,
