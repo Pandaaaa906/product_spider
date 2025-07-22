@@ -55,3 +55,15 @@ def generate_all_cas_numbers():
                 cas_body = a_str + b_str
                 check_digit = calculate_check_digit(cas_body)
                 yield f"{a_str}-{b_str}-{check_digit}"
+
+
+def is_valid_element(symbol: str) -> bool:
+    """
+    判断传入字符串是否是合法的单质
+    """
+    valid_elements = {
+        "B", "C", "F", "H", "I", "K", "N",
+        "P", "S", "U", "V", "W", "Y", "Ag", "Al", "Fe", "Cu", "Au", "Pb", "Zn", "Sn", "Mg", "Ca", "Na", "Li", "Mn",
+        "Cr", "Co", "Ni", "Pt", "Pd", 'Bi', 'Sc', 'Rh', 'Ta', 'Gd', 'Zr'
+    }
+    return symbol in valid_elements
