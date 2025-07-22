@@ -111,15 +111,19 @@ class BolindaSpider(BaseSpider):
         }
         yield RawData(**d)
         for v in j_obj.get('variants', []):
+            purity = v.get('option_1')
+            if not purity or '定制' in purity:
+                continue
+            package = f'{v.get("option_2")} {purity}'
             price = v.get('price', 0) / 100
             dd = {
                 "brand": self.name,
                 "cat_no": 'cat_no',
-                "package": v.get('option_2'),
+                "package": package,
                 "cost": price,
                 "price": price,
                 "currency": self.currency,
-                'purity': v.get('option_1'),
+                'purity': purity,
                 'stock_num': v.get('stock'),
             }
             yield ProductPackage(**dd)
