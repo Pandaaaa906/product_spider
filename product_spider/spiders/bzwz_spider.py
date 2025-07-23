@@ -78,11 +78,17 @@ class BzwzSpider(BaseSpider):
         price = response.xpath("//span[@id='product_out_price']/text()").get()
         if price:
             price = price.replace('￥', '')
-        package = response.xpath("//li[@id='lot_0']/text()").getall()
-        if package:
-            package = ''.join(package)
+        raw_package = response.xpath("//li[@id='lot_0']/text()").getall()
+        purity = None
+        if raw_package:
+            for package_item in raw_package:
+                if 'g/ml' in package_item.lower():
+                    purity = package_item
+                    break
+            package = ''.join(raw_package)
         else:
             return
+
         dd = {
             "brand": d['brand'],
             "cat_no": d['cat_no'],
@@ -90,5 +96,6 @@ class BzwzSpider(BaseSpider):
             "cost": price,
             "price": price,
             "currency": self.currency,
+            'purity': purity,
         }
         yield ProductPackage(**dd)
