@@ -107,6 +107,7 @@ class AltaSpider(BaseSpider):
                 'cost': cost,
                 "delivery_time": delivery_time,
                 'currency': 'RMB',
+                'purity': d.get('purity'),
             }
             yield ProductPackage(**dd)
 
