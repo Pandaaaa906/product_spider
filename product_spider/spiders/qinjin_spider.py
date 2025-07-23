@@ -84,7 +84,7 @@ class QinjinSpider(BaseSpider):
         product_id = first(re.findall(r'id:\s?"?(\d+)"?', good_obj_raw_str), None)
 
         dd = {
-            "brand": self.name,
+            "brand": self.brand,
             "cat_no": d['cat_no'],
             "package": package,
             "cost": price,
