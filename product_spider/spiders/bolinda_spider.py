@@ -118,7 +118,7 @@ class BolindaSpider(BaseSpider):
             price = v.get('price', 0) / 100
             dd = {
                 "brand": self.name,
-                "cat_no": 'cat_no',
+                "cat_no": d['cat_no'],
                 "package": package,
                 "cost": price,
                 "price": price,
