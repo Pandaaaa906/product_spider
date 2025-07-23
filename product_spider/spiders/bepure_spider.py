@@ -109,7 +109,8 @@ class BepureSpider(BaseSpider):
                 'package': product.get('pack'),
                 'cost': product.get('price'),
                 'currency': 'RMB',
-                'delivery_time': product.get('cnum')
+                'delivery_time': product.get('cnum'),
+                'purity': d.get('purity'),
             }
             yield SupplierProduct(
                 platform='bepure',
