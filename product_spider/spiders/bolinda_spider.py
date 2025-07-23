@@ -1,13 +1,12 @@
+import json
 import re
 
 from scrapy import Request
 
-from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.items import RawData, ProductPackage
 from product_spider.utils.functions import get_url, is_valid_element
-from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.maketrans import formula_trans
 from product_spider.utils.spider_mixin import BaseSpider
-import json
 
 
 class BolindaSpider(BaseSpider):
