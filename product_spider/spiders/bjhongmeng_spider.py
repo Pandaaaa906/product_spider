@@ -5,53 +5,76 @@ from urllib.parse import urljoin
 from more_itertools import first
 from scrapy import Request
 
-from product_spider.items import HongmengItem
-from product_spider.utils.functions import strip
+from product_spider.items import HongmengItem, RawData, ProductPackage
+from product_spider.utils.functions import strip, get_url
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class HongmengSpider(BaseSpider):
     name = "hongmeng"
+    brand = '海岸鸿蒙'
     start_urls = ["http://www.bjhongmeng.com/shop/", ]
     base_url = "http://www.bjhongmeng.com/"
 
-    def parse(self, response):
-        a_nodes = response.xpath('//ul[@class="kj_sc_list l"]//li[not(child::ul/li/a)]/a')
-        for a in a_nodes:
-            parent = a.xpath('./text()').get()
-            url = a.xpath('./@href').get()
-            yield Request(urljoin(self.base_url, url), callback=self.parse_list, meta={'parent': parent})
+    def parse(self, response, **kwargs):
+        rel_urls = response.xpath(
+            '//ul[@class="dropdown-menu"]/li/a[contains(@href,"www.bjhongmeng.com/product/")]/@href').getall()
+        for rel_url in rel_urls:
+            url = get_url(response.url, rel_url)
+            yield Request(url, callback=self.parse_list, )
 
     def parse_list(self, response):
-        urls = response.xpath('//h4[@class="c"]/a/@href').getall()
-        parent = response.meta.get('parent')
-        for url in urls:
+        product_urls = response.xpath('//div[@class="product_list"]//tbody/tr/td[1]/a/@href').getall()
+        parent = response.xpath("//ol[@class='breadcrumb']/li[@class='active']//text()").get()
+        for url in set(product_urls):
             yield Request(urljoin(self.base_url, url), callback=self.parse_detail, meta={'parent': parent})
 
-        next_page = response.xpath('//ul[contains(@class, "pagination")]/li[@class="active"]/following-sibling::li/a/@href').get()
+        next_page = response.xpath("//li[@class='active']/following-sibling::li[1]/a/@href").get()
         if next_page:
-            yield Request(urljoin(self.base_url, next_page), callback=self.parse_list, meta={'parent': parent})
+            next_page = get_url(response.url, next_page)
+            yield Request(next_page, callback=self.parse_list, meta={'parent': parent})
 
     def parse_detail(self, response):
         d = {
-            'brand': '海岸鸿蒙',
+            'brand': self.brand,
             'parent': response.meta.get('parent'),
-            'cat_no': strip(response.xpath('//span[contains(@class, "kj_customno")]/text()').get()),
-            'cas': strip(response.xpath('//p/text()[contains(self::text(), "CAS")]/following-sibling::span/text()').get()),
-            'cn_name': strip(response.xpath('//h4[@class="c red1"]/text()').get()),
+            'cat_no': response.xpath('//div[@class="pro_title"]/h3/text()').get(),
+            'chs_name': response.xpath('//div[@class="pro_title"]/h1/text()').get(),
+            'cas': response.xpath('//label[contains(text(),"CAS号")]/following-sibling::span[1]//text()').get(),
             'prd_url': response.url,
         }
-        pd_id = response.xpath('//input[@id="nowproductid"]/@value').get()
-        if not pd_id:
-            return
-        yield Request(
-            'http://www.bjhongmeng.com/ajaxpro/Web960.Web.index,Web960.Web.ashx',
-            method='POST',
-            body=json.dumps({'pd_id': pd_id, }),
-            headers={'X-AjaxPro-Method': 'LoadGoods', },
-            callback=self.parse_price,
-            meta={'product': d}
-        )
+        yield RawData(**d)
+
+        product_trs = response.xpath("//div[@class='table-responsive kj-table']/table/tbody/tr")
+
+        headers = response.xpath("//div[@class='table-responsive kj-table']/table/thead//th/text()").getall()
+        headers = [x.strip() for x in headers]
+        property_map = {}
+        for index, th in enumerate(headers):
+            property_map[th] = index
+
+        for tr in product_trs:
+            tds = tr.xpath('./td')
+            script_text = tr.xpath("./script/text()").get()
+            try:
+                package_info_match = re.search(r"=\s?\((.+?)\);", script_text)
+                package_info_str: str = package_info_match.group(1)
+                j_obj: dict = json.loads(package_info_str)
+            except Exception as e:
+                self.logger.warning(f'Parse pacakge info error, {response.url}')
+                continue
+
+            dd = {
+                "brand": self.brand,
+                "cat_no": d['cat_no'],
+                "package": tds[property_map.get('规格')].xpath('.//text()').get(),
+                'price': j_obj.get('Price'),
+                'cost': j_obj.get('Price'),
+                "currency": 'RMB',
+                'purity': tds[property_map.get('浓度')].xpath('.//text()').get(),
+                'stock_num': j_obj.get('AmountTotal'),
+            }
+            yield ProductPackage(**dd)
 
     def parse_price(self, response):
         t = first(re.findall(r'({.+});', response.text))
