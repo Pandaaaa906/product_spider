@@ -8,7 +8,7 @@ from scrapy.http import Response
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
-from product_spider.utils.functions import strip, dumps
+from product_spider.utils.functions import strip, dumps, get_url
 from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -69,39 +69,35 @@ class AladdinSpider(BaseSpider):
             yield Request(url=self.home_url, cookies=self.cookies, callback=self.parse, dont_filter=True)
 
     def parse(self, response, **kwargs):
-        nodes = response.xpath(
+        urls = response.xpath(
             '//div[@id="store.menu"]//a[not(following-sibling::ul)'
-            ' and not(contains(@href,"faq")) and not(contains(@href,"points-exchange"))]'
-        )
-        for node in nodes:
-            url = node.xpath("./@href").get()
-            if 'javascript:void(0)'.lower() in url.lower():
-                continue
-            parent = node.xpath("./span/text()").get()
-            yield Request(
-                url=url,
-                callback=self.parse_list,
-                dont_filter=True,
-                meta={
-                    "parent": parent
-                }
-            )
+            ' and not(contains(@href,"faq")) and not(contains(@href,"points-exchange"))]/@href'
+        ).getall()
+        for url in urls:
+            url = get_url(response.url, url)
+            if url:
+                yield Request(
+                    url=url,
+                    callback=self.parse_list,
+                )
 
     def parse_list(self, response):
-        parent = response.meta.get("parent")
         rows = response.xpath("//div[contains(@class,'product-item-actions')]/a")
         for row in rows:
-            url = row.xpath("./@href").get()
+            url = get_url(response.url, row.xpath("./@href").get())
+            if not url:
+                continue
             img_url = row.xpath(".//img[@class='product-image-photo']/@src").get()
             yield Request(
                 url=url,
                 callback=self.parse_detail,
                 meta={
-                    "parent": parent,
                     "img_url": img_url,
-                }
+                },
+                priority=1000,
             )
         next_url = response.xpath("//span[contains(text(), '下一步')]/parent::a/@href").get()
+        next_url = get_url(response.url, next_url)
         if next_url:
             yield Request(
                 url=next_url,
@@ -111,6 +107,7 @@ class AladdinSpider(BaseSpider):
     def parse_detail(self, response):
         if '{setCookie("acw_sc__v2", x);document.location.reload();}' in response.text:
             yield from self.set_cookies(response, response.request)
+            self.logger.info(f'setCookie {response.url}')
             return
         tmpl = '//li[strong[contains(text(), {!r})]]//text()[not(parent::strong)]'
         tmpl_table = '//td[@data-th={!r}]/text()'
@@ -119,12 +116,14 @@ class AladdinSpider(BaseSpider):
         }
         purity = response.xpath("//div[strong[contains(text(),'规格或纯度:')]]/span//text()").get()
         purity_table = strip(response.xpath(tmpl_table.format('规格或纯度')).get())
+        parent = response.xpath("//div[@class='breadcrumbs']/ul"
+                                "/li[contains(@class,'item category') and position()=last()-1]/a/text()").get()
         d = {
             "brand": self.name,
             "cat_no": (m := re.search(r'"product_sku": \'(.+)\'', response.text)) and m.group(1),
             "chs_name": response.xpath("//span[@data-ui-id='page-title-wrapper']/text()").get(),
             "en_name": strip(response.xpath(tmpl_table.format('英文名称')).get()),
-            "parent": response.meta.get("parent"),
+            "parent": parent,
             "purity": purity or purity_table,
             "cas": response.xpath("//li[strong[contains(text(), 'CAS编号')]]/span/a/text()").get(),
             "mf": strip(''.join(response.xpath(tmpl.format("分子式:")).getall())),
@@ -170,27 +169,32 @@ class AladdinSpider(BaseSpider):
         )
 
     def parse_price(self, response):
+        d = response.meta.get("product")
+        packages = response.meta.get("packages")
+        res_obj = {}
         if response.status != 200:
             self.logger.warning(f"{response.status=}: refreshing cookies")
             url = response.headers.get(b'Location')
             url = url and url.decode() or self.home_url
             yield Request(url, callback=self.set_cookies, cb_kwargs={"req": response.request}, priority=999999)
-            return
-        try:
-            res_obj = json.loads(response.text)
-        except Exception as e:
-            self.logger.error(f"{e!r}, {response.url=}: {response.text[:500]}")
-            return
-        d = response.meta.get("product")
-        packages = response.meta.get("packages")
+        else:
+            try:
+                res_obj = json.loads(response.text)
+            except Exception as e:
+                self.logger.error(f"{e!r}, {response.url}: {response.text[:500]}")
 
         for _id, cat_no_unit in packages.items():
             package = cat_no_unit.get("package", None)
             if not package:
                 continue
-            _, package = package.rsplit("-", 1)
+            temp = package.rsplit("-", 1)
+            if len(temp) == 2:
+                _, package = temp
+
             delivery_time = cat_no_unit.get("delivery_time")
-            price = Selector(res_obj.get(_id)).xpath("//span[@class='price']//text()").get()
+            price = None
+            if pacakge_html := res_obj.get(_id):
+                price = Selector(pacakge_html).xpath("//span[@class='price']//text()").get()
 
             dd = {
                 "brand": self.name,
