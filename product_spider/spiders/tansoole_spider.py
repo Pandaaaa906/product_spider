@@ -14,7 +14,9 @@ from product_spider.utils.spider_mixin import BaseSpider
 
 
 brands_mapping = {
-    "dre.e": "dre"
+    "dre.e": "dre",
+    "adamas": "adamas",
+    "adamas life": "adamas_life",
 }
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
                          'AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8'}
