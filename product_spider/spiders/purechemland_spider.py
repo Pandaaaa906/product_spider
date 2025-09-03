@@ -60,7 +60,7 @@ class PurechemlandSpider(BaseSpider):
                 self.logger.info('Call parse_detail2')
                 yield from self.parse_detail2(response)
                 return
-        cas = response.xpath("//dt[contains(text(),'CAS')]/following-sibling::*[1]//text()").get(),
+        cas = response.xpath("//dt[contains(text(),'CAS')]/following-sibling::*[1]//text()").get()
         if cas and 'N/A' in cas:
             cas = None
         img_url = response.xpath("//img[@id='current-img']/@src").get()
