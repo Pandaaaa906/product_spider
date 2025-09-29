@@ -50,14 +50,16 @@ class AltaSpider(BaseSpider):
                     parent = parent.strip()
                     if parent.startswith('NA'):
                         parent = None
-                    else:
-                        # parent: 杀虫剂 Insecticides
-                        parent = parent.split(' ')[0]
             yield Request(
                 get_url(response.url, rel_url),
                 callback=self.parse_detail,
                 meta={'parent': parent},
             )
+
+        next_url = response.xpath('//a[contains(text(), "下一页")]/@href').get()
+        next_url = get_url(response.url, next_url)
+        if next_url:
+            yield Request(next_url, callback=self.parse_search_list)
 
     def parse_list(self, response):
         parent = response.meta.get('parent')
