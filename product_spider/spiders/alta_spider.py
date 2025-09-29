@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from scrapy import Request
 
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
-from product_spider.utils.functions import strip
+from product_spider.utils.functions import strip, get_url
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.parsepackage import parse_package
 from product_spider.utils.spider_mixin import BaseSpider
@@ -16,13 +16,48 @@ class AltaSpider(BaseSpider):
     brand = 'alta'
     base_url = "http://www.altascientific.com/"
     start_urls = ['http://www.altascientific.com/', ]
+    additional_keywords = ['混标', 'solution']
 
     def parse(self, response, **kwargs):
+        for keyword in self.additional_keywords:
+            url = f'https://www.altascientific.cn/product/search.php?key_1={keyword}&Submit2.x=14&Submit2.y=17'
+            yield Request(url, callback=self.parse_search_list)
         a_nodes = response.xpath('//li[position()<7]//li[not(ul)]/a')
         for a in a_nodes:
             parent = a.xpath('./text()').get()
             rel_url = a.xpath('./@href').get()
             yield Request(urljoin(self.base_url, rel_url), callback=self.parse_list, meta={'parent': parent})
+
+    def parse_search_list(self, response):
+        trs = response.xpath('//div[@id="newsquery"]//tr')
+        if not trs:
+            self.logger.info(f"No result in url:{response.url}")
+            return
+        theads = trs[0].xpath('./td')
+        parent_index = None
+        for index, thead in enumerate(theads):
+            _text = thead.xpath('./div/text()').get()
+            if _text and '分类' in _text:
+                parent_index = index
+        for tr in trs[1:]:
+            rel_url = tr.xpath('.//a[@class="linkall"]/@href').get()
+            if not rel_url:
+                continue
+
+            parent: str = None
+            if parent_index:
+                if parent := tr.xpath(f'./td[{parent_index + 1}]/div/text()').get():
+                    parent = parent.strip()
+                    if parent.startswith('NA'):
+                        parent = None
+                    else:
+                        # parent: 杀虫剂 Insecticides
+                        parent = parent.split(' ')[0]
+            yield Request(
+                get_url(response.url, rel_url),
+                callback=self.parse_detail,
+                meta={'parent': parent},
+            )
 
     def parse_list(self, response):
         parent = response.meta.get('parent')
