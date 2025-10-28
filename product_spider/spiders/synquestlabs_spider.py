@@ -72,7 +72,7 @@ class SynquestlabsSpider(BaseSpider):
             "en_name": response.xpath("//div[contains(@class,'product-details')]/h2/text()").get(),
             "cas": cas,
             "mf": response.xpath("//td[text()='Molecular Formula']/following-sibling::td[1]/span/text()").get(),
-            "purity": response.xpath("//td[text()='Molecular Formula']/following-sibling::td[1]/span/text()").get(),
+            "purity": response.xpath("//td[text()='Purity']/following-sibling::td[1]/span/text()").get(),
             "mdl": response.xpath("//td[text()='MDL Number']/following-sibling::td[1]/span/text()").get(),
             "mw": response.xpath("//td[text()='Molecular Weight']/following-sibling::td[1]/span/text()").get(),
             "img_url": img_url,
