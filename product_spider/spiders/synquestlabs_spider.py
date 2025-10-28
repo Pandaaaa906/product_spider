@@ -35,7 +35,7 @@ class SynquestlabsSpider(BaseSpider):
         'https://synquestlabs.com/ProductV2/SearchResults?page=2&pageSize=20&SearchText=41-'
         for i in range(0, 100):
             for j in range(0, 10):
-                keyword = f'{j:02}-{j}'
+                keyword = f'{i:02}-{j}'
                 params = {
                     'SearchText': keyword,
                     'page': 1,
