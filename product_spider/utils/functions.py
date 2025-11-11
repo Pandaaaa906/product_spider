@@ -67,3 +67,21 @@ def is_valid_element(symbol: str) -> bool:
         "Cr", "Co", "Ni", "Pt", "Pd", 'Bi', 'Sc', 'Rh', 'Ta', 'Gd', 'Zr'
     }
     return symbol in valid_elements
+
+
+def extract_adjacent_property(response, keyword: str, base_xpath: str = None, sub_text: bool = False) -> str:
+    """
+    常用于提取类似 <td>CAS号:</td><td>145-875-6</td> 这样的结构
+    :param response: Scrapy的响应
+    :param keyword: 属性名关键词 如CAS号
+    :param base_xpath: 基础的xpath 用于精确匹配
+    :return: str 属性值字符串
+    """
+    base_xpath = base_xpath or '//*'
+    if sub_text:
+        temp = response.xpath(f"{base_xpath}[contains(text(),'{keyword}')]/following-sibling::*[1]//text()").getall()
+        temp = ''.join(temp)
+        return temp
+    else:
+        temp = response.xpath(f"{base_xpath}[contains(text(),'{keyword}')]/following-sibling::*[1]/text()").get()
+    return temp
