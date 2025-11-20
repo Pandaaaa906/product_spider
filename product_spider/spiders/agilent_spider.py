@@ -137,6 +137,7 @@ class AgilentSpider(BaseSpider):
         contents = self.extract_json_content(response)
         if not contents:
             if response.meta.get('depth', 0) < 10:
+                self.logger.info(f"Retry fetch products json url:{response.url}")
                 yield Request(response.url, callback=self.parse_products_json, meta=response.meta)
             return
         cat_id = response.meta.get('cat_id')
@@ -164,12 +165,13 @@ class AgilentSpider(BaseSpider):
             main_content = contents[0].get('mainContent', [])
             return main_content
         except Exception as e:
-            self.logger.warning(f"Parse json err:{e} url:{response.url}")
+            self.logger.warning(f"Parse json err:{e} url:{response.url} response:{response.text[:200]}")
 
     def parse_category_json(self, response):
         contents = self.extract_json_content(response)
         if not contents:
             if response.meta.get('depth', 0) < 10:
+                self.logger.info(f"Retry fetch category json url:{response.url}")
                 yield Request(response.url, callback=self.parse_category_json, meta=response.meta)
             return
         if main_content := list(filter(lambda x: x and x.get('@type') == 'ResultsList', contents)):
