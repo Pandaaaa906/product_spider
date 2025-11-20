@@ -161,7 +161,8 @@ class AgilentSpider(BaseSpider):
         if match := re.compile(r"^[^(]+\((.*)\)\s*$", re.S).search(response.text):
             j_str = match.group(1)
         else:
-            raise ValueError("No valid json found")
+            self.logger.warning(f"No valid json found:url:{response.url} response:{response.text[:200]}")
+            return
         try:
             j_obj = json.loads(j_str)
             contents = j_obj.get('contents')
