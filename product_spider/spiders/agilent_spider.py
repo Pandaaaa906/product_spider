@@ -158,7 +158,10 @@ class AgilentSpider(BaseSpider):
                     self.logger.warning(f'extract product error:{e} url:{response.url}')
 
     def extract_json_content(self, response) -> List:
-        j_str = response.text.replace('callbackfn', '').strip('()')
+        if match := re.compile(r"^[^(]+\((.*)\)\s*$", re.S).search(response.text):
+            j_str = match.group(1)
+        else:
+            raise ValueError("No valid json found")
         try:
             j_obj = json.loads(j_str)
             contents = j_obj.get('contents')
