@@ -41,6 +41,8 @@ class USPSpider(BaseSpider):
                 prd_attrs["regulated_info"] = "US DEA Regulated Item"
             if oem_brand := product.get('brand'):
                 prd_attrs["oem_brand"] = oem_brand
+            if usp_country_of_origin := product.get('usp_country_of_origin'):
+                prd_attrs["country_of_origin"] = usp_country_of_origin
             prd_attrs = json.dumps(prd_attrs, ensure_ascii=False)
             d = {
                 'brand': self.brand,
