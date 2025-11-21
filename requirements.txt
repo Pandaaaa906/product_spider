@@ -14,6 +14,7 @@ six
 tzlocal~=1.5.1
 itemadapter
 requests_html
+fake-useragent==1.5.1
 pyexecjs
 demjson3
 sqlalchemy~=1.3.24
