@@ -25,7 +25,7 @@ class USPSpider(BaseSpider):
             'limit': self.LIMIT,
             'offset': 0,
             'sort': 'ID:[object Object]',
-            'categoryId': 'USP-1010',
+            # 'categoryId': 'USP-1010',
             'includeChildren': 'true',
             'storePriceListGroupId': 'defaultPriceGroup'
         }
