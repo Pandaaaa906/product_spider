@@ -35,10 +35,13 @@ class USPSpider(BaseSpider):
         j = response.json()
         products = j.get('items', [])
         for product in products:
+            prd_attrs = {}
             raw_danger_desc = product.get("usp_control_substance_percent", None)
-            prd_attrs = json.dumps({
-                "regulated_info": "US DEA Regulated Item"
-            }) if raw_danger_desc is not None else None
+            if raw_danger_desc is not None:
+                prd_attrs["regulated_info"] = "US DEA Regulated Item"
+            if oem_brand := product.get('brand'):
+                prd_attrs["oem_brand"] = oem_brand
+            prd_attrs = json.dumps(prd_attrs, ensure_ascii=False)
             d = {
                 'brand': self.brand,
                 'cat_no': (cat_no := product.get('repositoryId')),
