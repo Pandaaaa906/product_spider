@@ -31,6 +31,11 @@ class BepureSpider(BaseSpider):
     page_url_pattern = 'https://list.bepurecrm.com/list_goods/0/{!r}.html'
     brand = 'bepure'
     currency = 'RMB'
+    custom_settings = {
+        "DEFAULT_REQUEST_HEADERS": {
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        }
+    }
 
     def parse(self, response, **kwargs):
         rows = response.xpath("//table[contains(@class,'table product_table')]/tbody//tr")
@@ -80,12 +85,9 @@ class BepureSpider(BaseSpider):
         product_id = response.url.split('/')[-1].strip('.html')
         img_rel = (m := re.search(r'(?<=showImg:\s").+(?=")', response.text)) and m.group()
         info_xpath = "//el-form-item[@label={!r}]/span/text()"
-        brand = response.xpath(info_xpath.format('品牌')).get()
-        if not brand:
-            return
-        brand = strip(brand).lower()
 
         good_obj_str = (m := re.search(r'goodObj:\s?\{([^}]*)}', response.text)) and m.group()
+        brand = (m := re.search(r'(?<=brand_name:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
         expiry_date = (m := re.search(r'(?<=date:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
         purity = (m := re.search(r'(?<=norm:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
         delivery_time = (m := re.search(r'(?<=time_name:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
@@ -95,10 +97,10 @@ class BepureSpider(BaseSpider):
         d = {
             'brand': brand,
             'parent': parent,
-            'cat_no': response.xpath(info_xpath.format('产品编号')).get(),
+            'cat_no': (m := re.search(r'(?<=code:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1),
             'chs_name': response.xpath("//div/h2[@class='p-right-title']/span/text()").get(),
             'en_name': response.xpath(info_xpath.format('英文名称')).get(),
-            'cas': response.xpath(info_xpath.format('CAS号')).get(),
+            'cas': (m := re.search(r'(?<=cas_code:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1),
             'mf': formula_trans(response.xpath(info_xpath.format('分子式')).get()),
             'mw': response.xpath(info_xpath.format('分子量')).get(),
             'img_url': img_rel,
@@ -109,7 +111,7 @@ class BepureSpider(BaseSpider):
             'stock_num': None,
             'purity': purity,
         }
-        package = strip(response.xpath(info_xpath.format('规格')).get())
+        package = (m := re.search(r'(?<=spec:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
 
         yield self.make_package_request(product_id, callback=self.parse_package_info, meta={
             'product': d,
