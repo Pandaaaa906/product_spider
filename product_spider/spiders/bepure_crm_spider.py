@@ -88,6 +88,7 @@ class BepureSpider(BaseSpider):
 
         good_obj_str = (m := re.search(r'goodObj:\s?\{([^}]*)}', response.text)) and m.group()
         brand = (m := re.search(r'(?<=brand_name:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
+        brand = brand.lower() if brand else None
         expiry_date = (m := re.search(r'(?<=date:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
         purity = (m := re.search(r'(?<=norm:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
         delivery_time = (m := re.search(r'(?<=time_name:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
