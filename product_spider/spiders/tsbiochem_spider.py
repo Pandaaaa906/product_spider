@@ -19,23 +19,32 @@ class TsbiochemSpider(BaseSpider):
     product_base_url = "https://www.targetmol.cn/"
 
     def parse(self, response, **kwargs):
-        hrefs = response.xpath("//div[@class='dropbox-new ay-dropdown']//a/@href").getall()
-        targets = ['product', 'protein', 'pathway', 'labware', ]
+        hrefs = response.xpath("//div[text()='生命科学产品']/following-sibling::div/a/@href").getall()
+        if not hrefs:
+            self.logger.warning("No first level category url!")
+        hrefs.extend(['https://www.targetmol.cn/all-antibodies',
+                      'https://www.targetmol.cn/all-molecular_and_cellular_research_reagents',
+                      'https://www.targetmol.cn/all-disease-modeling',
+                      'https://www.targetmol.cn/pathway/antibody_drug_conjugate_adc_related',
+                      'https://www.targetmol.cn/all-dye-reagents',
+                      'https://www.targetmol.cn/pathway/protac',
+                      'https://www.targetmol.cn/standard'
+                      ])
         hrefs = set(hrefs)
-        hrefs = [s for s in hrefs if any(element in s for element in targets)]
         for href in hrefs:
             yield scrapy.Request(
-                url=urljoin(self.base_url, href),
+                url=urljoin(response.url, href),
                 callback=self.parse_list
             )
 
+        # TODO
         # 化合物库产品分类
-        library_catalog_hrefs = [s for s in hrefs if 'library' in s]
-        for href in library_catalog_hrefs:
-            yield scrapy.Request(
-                url=urljoin(self.base_url, href),
-                callback=self.parse_library_list
-            )
+        # library_catalog_hrefs = [s for s in hrefs if 'library' in s]
+        # for href in library_catalog_hrefs:
+        #     yield scrapy.Request(
+        #         url=urljoin(response.url, href),
+        #         callback=self.parse_library_list
+        #     )
 
     custom_settings = {
         'RETRY_HTTP_CODES': [503, 504, 502],
@@ -44,11 +53,11 @@ class TsbiochemSpider(BaseSpider):
 
     def parse_detail(self, response):
         en_name = response.xpath(
-            "//div[@class='product-details']//div[@class='product-details-content row']/div/h1//text()").get()
+            "//div[contains(@class,'product-info__center-header')]/h1//text()").get()
         chs_name = response.xpath(
-            "//div[@class='product-details-content row']//span[@class='catalog-no-alias text-cut']/b/text()").get()
+            "//div[contains(@class,'product-info__center-catalogNo')]//span[contains(text(),'别名')]/b/text()").get()
         cat_no = response.xpath(
-            "//div[@class='catalog-no product-Web']//span[contains(text(),'产品编号')]/b/text()").get()
+            "//div[contains(@class,'product-info__center-catalogNo')]//span[contains(text(),'货号')]/b/text()").get()
         if not cat_no:
             self.logger.warning(f"Cat_no not found, url:{response.url}")
             return
@@ -57,7 +66,7 @@ class TsbiochemSpider(BaseSpider):
         purity = response.xpath("//div[contains(text(),'纯度')]/span//text()").get()
         cas = response.xpath("//div[@class='catalog-no product-Web']//span[contains(text(),'Cas')]/b/text()").get()
 
-        img_url: str = response.xpath("//div[@class='image-content']/img/@src").get()
+        img_url: str = response.xpath("//div[@class='product-info__left-image']/img/@src").get()
         if img_url and not img_url.startswith('http'):
             img_url = urljoin(self.product_base_url, img_url)
         mw = response.xpath("//td[contains(text(), '分子量')]/following-sibling::td//text()").get()
@@ -68,8 +77,12 @@ class TsbiochemSpider(BaseSpider):
         attrs = {
             'product_info': introduction
         }
-        parent = response.meta.get('parent', response.xpath("//nav[@class='router-links']/a[last()]/text()").get())
-
+        parent = response.xpath(
+            "//nav[@class='ts-breadcrumb']/div[position()=last()-1]/text()").get() or response.meta.get('parent')
+        if parent and (parent.lower() in ('其他', '其它', 'others')):
+            all_parents = response.xpath("//nav[@class='ts-breadcrumb']/div//text()").getall()
+            if len(all_parents) > 1:
+                parent = '-'.join([x for x in all_parents[:-1] if x.lower() not in ('其他', '-', '其它', 'others')])
         d = {
             "brand": self.name,
             "cat_no": cat_no,
@@ -87,14 +100,13 @@ class TsbiochemSpider(BaseSpider):
             'shipping_info': shipping_info,
             'attrs': json.dumps(attrs, ensure_ascii=False)
         }
-        if not d['parent']:
-            print(response.url)
         yield RawData(**d)
         ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
         yield RawData(**d)
         yield SupplierProduct(**ddd)
 
-        table_heads: list = response.xpath("//div[@class='product-standard']//table/thead/tr/th/text()").getall()
+        table_heads: list = response.xpath(
+            "//div[contains(@class,'product-info__center-standard')]//table/thead/tr/th/text()").getall()
         if not table_heads:
             return
 
@@ -102,7 +114,7 @@ class TsbiochemSpider(BaseSpider):
         stock_index = table_heads.index("库存")
         price_index = table_heads.index("价格")
 
-        package_rows = response.xpath("//div[@class='product-standard']//table/tbody/tr")
+        package_rows = response.xpath("//div[contains(@class,'product-info__center-standard')]//table/tbody/tr")
         for row in package_rows:
             if not (tds := row.xpath('./td')) or len(tds) <= max(stock_index, price_index, package_index):
                 self.logger.warning(f"规格信息异常 prd_url:{response.url}")
@@ -131,7 +143,7 @@ class TsbiochemSpider(BaseSpider):
         hrefs = response.xpath("//div[@class='pro_lbylist']//a/@href").getall()
         parent = response.xpath("//div[@class='pro_secondary_intro']/h1/text()").get()
         for href in hrefs:
-            yield scrapy.Request(url=urljoin(self.base_url, href), callback=self.parse_library_detail,
+            yield scrapy.Request(url=urljoin(response.url, href), callback=self.parse_library_detail,
                                  meta={'parent': parent})
 
     # 化合物库产品详情
@@ -198,42 +210,20 @@ class TsbiochemSpider(BaseSpider):
         if 'text/html' not in str(response.headers['Content-Type']):
             self.logger.warning(f'response type is not html, url:{response.url}')
             return
-        catalog_xpaths = ["//div[@class='content-list']/ul//a/@href",
-                          "//div[@class='content-list']/div[@class='row']//a/@href",
-                          "//div[@class='block-targets']/a/@href"]
+        catalog_xpaths = ["//a[@class='results-content-name-card']/@href",
+                          "//a[@class='rhombus']/@href", ]
 
         # 产品目录的url
         catalog_urls = [*response.xpath("|".join(catalog_xpaths)).getall()]
         if len(catalog_urls) > 0:
             for catalog_href in catalog_urls:
-                yield scrapy.Request(urljoin(self.base_url, catalog_href), callback=self.parse_list)
+                yield scrapy.Request(urljoin(response.url, catalog_href), callback=self.parse_list)
             return
 
-        detail_xpaths = [
-            "//div[@class='pro_reagents']//td/a/@href",
-            "//div[@class='results-product-card']/a/@href",
-            "//div[@class='table-responsive']//table//td/a/@href",
-        ]
-        has_pagination = response.xpath("//button[@aria-label='下一页']").get()
-        if not has_pagination:
-            # 针对这些情况
-            # https://www.tsbiochem.com/proteins/co-stimulatory_immune_checkpoint_proteins
-            detail_urls = [*response.xpath("|".join(detail_xpaths)).getall()]
-            for rel_url in detail_urls:
-                yield scrapy.Request(
-                    url=urljoin(self.product_base_url, rel_url),
-                    callback=self.parse_detail
-                )
-            next_url = response.xpath(
-                "//nav[@aria-label='Page navigation']/ul/li[@class='active']/following-sibling::li[1]/a/@href").get()
-            if next_url:
-                next_url = urljoin(response.url, next_url)
-                yield scrapy.Request(next_url, callback=self.parse_list)
+        if not (total_pages := response.xpath("//input[@aria-label='输入页码']/@max").get()):
             return
-        if not (total_pages := response.xpath("//div[@class='pagination-right']/text()").get()):
-            return
+        total_pages = int(total_pages)
         parent = response.xpath("//div[contains(@class,'content-background')]/h1//text()").get()
-        total_pages: int = int(total_pages.translate(str.maketrans('', '', '页/ ')))
         # product list paginator
         if raw_json := response.xpath('//script[@id="__NUXT_DATA__"]/text()').get():
             if match := re.search(r'(([0-9A-Z]+-){4}[0-9A-Z]+)', raw_json):
@@ -249,7 +239,8 @@ class TsbiochemSpider(BaseSpider):
                     meta = {
                         'parent': parent
                     }
-                    yield FormRequest(url=kind_req_url, method='POST', headers={'Content-Type': 'application/json'},
+                    yield FormRequest(url=kind_req_url, method='POST',
+                                      headers={'Content-Type': 'application/json', 'accept': 'application/json'},
                                       body=json.dumps(params), callback=self.parse_api_detail, meta=meta)
             else:
                 self.logger.warning(f'kind id not found, url:{response.url}')
