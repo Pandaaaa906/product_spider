@@ -63,8 +63,10 @@ class TsbiochemSpider(BaseSpider):
             return
 
         introduction = response.xpath("//*[contains(@class,'product-description')]/text()").get()
-        purity = response.xpath("//div[contains(text(),'纯度')]/span//text()").get()
-        cas = response.xpath("//div[@class='catalog-no product-Web']//span[contains(text(),'Cas')]/b/text()").get()
+        purity = response.xpath(
+            "//div[contains(@class,'product-info__center-catalogNo')]//span[contains(text(),'密度')]/b/text()").get()
+        cas = response.xpath(
+            "//div[contains(@class,'product-info__center-catalogNo')]//span[contains(text(),'Cas号')]/b/text()").get()
 
         img_url: str = response.xpath("//div[@class='product-info__left-image']/img/@src").get()
         if img_url and not img_url.startswith('http'):
