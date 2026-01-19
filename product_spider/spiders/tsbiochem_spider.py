@@ -20,6 +20,8 @@ class TsbiochemSpider(BaseSpider):
 
     def parse(self, response, **kwargs):
         hrefs = response.xpath("//div[text()='生命科学产品']/following-sibling::div/a/@href").getall()
+        if not hrefs:
+            self.logger.warning("No first level category url!")
         hrefs.extend(['https://www.targetmol.cn/all-antibodies',
                       'https://www.targetmol.cn/all-molecular_and_cellular_research_reagents',
                       'https://www.targetmol.cn/all-disease-modeling',
