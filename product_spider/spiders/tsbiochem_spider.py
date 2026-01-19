@@ -1,9 +1,11 @@
-
+import json
+import re
 from urllib.parse import urljoin
 
 import scrapy
+from scrapy import FormRequest
+
 from product_spider.items import ProductPackage, RawData, SupplierProduct, RawSupplierQuotation
-from product_spider.utils.cost import parse_cost
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
 from product_spider.utils.spider_mixin import BaseSpider
 
@@ -13,94 +15,241 @@ class TsbiochemSpider(BaseSpider):
     name = "tsbiochem"
     start_urls = ["https://www.tsbiochem.com/"]
     base_url = "https://www.tsbiochem.com/"
+    img_base_url = 'https://cdn.targetmol.cn/'
+    product_base_url = "https://www.targetmol.cn/"
 
     def parse(self, response, **kwargs):
-        rows = response.xpath("//div[@class='column']/a/@href").getall()
-        for rel_url in rows:
+        hrefs = response.xpath("//div[@class='dropbox-new ay-dropdown']//a/@href").getall()
+        targets = ['product', 'protein', 'pathway', 'labware', ]
+        hrefs = set(hrefs)
+        hrefs = [s for s in hrefs if any(element in s for element in targets)]
+        for href in hrefs:
             yield scrapy.Request(
-                url=urljoin(response.url, rel_url),
+                url=urljoin(self.base_url, href),
                 callback=self.parse_list
             )
 
-    def parse_list(self, response):
-        # catalog list
-        rows = response.xpath('//div[@class="block-targets"]/a/@href').getall()
-        for rel_url in rows:
+        # 化合物库产品分类
+        library_catalog_hrefs = [s for s in hrefs if 'library' in s]
+        for href in library_catalog_hrefs:
             yield scrapy.Request(
-                url=urljoin(response.url, rel_url),
-                callback=self.parse_list
+                url=urljoin(self.base_url, href),
+                callback=self.parse_library_list
             )
 
-        # product list
-        nodes = response.xpath("//table[@class='table-cpd-list']//tbody/tr")
-        for node in nodes:
-            rel_url = node.xpath("./td[position()=1]/a/@href").get()
-            cat_no = node.xpath("./td[position()=1]/a/text()").get()
-            yield scrapy.Request(
-                url=urljoin(response.url, rel_url),
-                callback=self.parse_detail_v2,
-                meta={
-                    "cat_no": cat_no,
-                }
-            )
-        # product list paginator
-        next_url = response.xpath("//div[@class='block-pager']/a[last()]/@href").get()
-        if next_url:
-            yield scrapy.Request(
-                url=next_url,
-                callback=self.parse_list
-            )
+    custom_settings = {
+        'RETRY_HTTP_CODES': [503, 504, 502],
+        'RETRY_TIMES': 10,
+    }
 
-    def parse_detail_v2(self, response):
-        cat_no = response.meta.get("cat_no")
-        parent = response.xpath('//div[contains(@class, "block-breadcrumb")]/ol[last()]//a/text()').get()
-        en_name = response.xpath('//div[contains(@class, "product-name-title")]/h1/text()').get()
-        purity = response.xpath(
-            "//table[@class='table-cpd-info']//td[contains(text(), '纯度')]/following-sibling::td/span/text()"
-        ).get()
-        mw = response.xpath(
-            "//table[@class='table-cpd-info']//td[contains(text(), '分子量')]/following-sibling::td/text()"
-        ).get()
-        if mw:
-            mw = mw.strip()
-        mf = response.xpath(
-            "//table[@class='table-cpd-info']//td[contains(text(), '分子式')]/following-sibling::td/text()"
-        ).get()
-        cas = response.xpath(
-            "//table[@class='table-cpd-info']//td[contains(text(), 'CAS No.')]/following-sibling::td/text()"
-        ).get()
-        img_url = urljoin(self.base_url, response.xpath("//div[@class='img-box']/img/@src").get()) \
-                  or response.xpath("//div[@class='img-box']/div/text()").get()
-        if parent == '首页':
-            parent = None
+    def parse_detail(self, response):
+        en_name = response.xpath(
+            "//div[@class='product-details']//div[@class='product-details-content row']/div/h1//text()").get()
+        chs_name = response.xpath(
+            "//div[@class='product-details-content row']//span[@class='catalog-no-alias text-cut']/b/text()").get()
+        cat_no = response.xpath(
+            "//div[@class='catalog-no product-Web']//span[contains(text(),'产品编号')]/b/text()").get()
+        if not cat_no:
+            self.logger.warning(f"Cat_no not found, url:{response.url}")
+            return
+
+        introduction = response.xpath("//*[contains(@class,'product-description')]/text()").get()
+        purity = response.xpath("//div[contains(text(),'纯度')]/span//text()").get()
+        cas = response.xpath("//div[@class='catalog-no product-Web']//span[contains(text(),'Cas')]/b/text()").get()
+
+        img_url: str = response.xpath("//div[@class='image-content']/img/@src").get()
+        if img_url and not img_url.startswith('http'):
+            img_url = urljoin(self.product_base_url, img_url)
+        mw = response.xpath("//td[contains(text(), '分子量')]/following-sibling::td//text()").get()
+        smiles = response.xpath("//td[contains(text(), 'Smiles')]/following-sibling::td//text()").get()
+        stock_info = response.xpath("//td[contains(text(), '存储')]/following-sibling::td//text()").get()
+        shipping_info = response.xpath("//td[contains(text(), '运输方式')]/following-sibling::td//text()").get()
+        mf = ''.join(response.xpath("//td[contains(text(), '分子式')]/following-sibling::td//text()").getall())
+        attrs = {
+            'product_info': introduction
+        }
+        parent = response.meta.get('parent', response.xpath("//nav[@class='router-links']/a[last()]/text()").get())
+
         d = {
             "brand": self.name,
             "cat_no": cat_no,
             "parent": parent,
             "en_name": en_name,
+            'chs_name': chs_name,
             "purity": purity,
             "mw": mw,
             "mf": mf,
             "cas": cas,
+            'smiles': smiles,
             "prd_url": response.url,
             "img_url": img_url,
+            'stock_info': stock_info,
+            'shipping_info': shipping_info,
+            'attrs': json.dumps(attrs, ensure_ascii=False)
         }
+        if not d['parent']:
+            print(response.url)
+        yield RawData(**d)
+        ddd = rawdata_to_supplier_product(d, platform=self.name, vendor=self.name)
+        yield RawData(**d)
+        yield SupplierProduct(**ddd)
 
+        table_heads: list = response.xpath("//div[@class='product-standard']//table/thead/tr/th/text()").getall()
+        if not table_heads:
+            return
+
+        package_index = table_heads.index("规格")
+        stock_index = table_heads.index("库存")
+        price_index = table_heads.index("价格")
+
+        package_rows = response.xpath("//div[@class='product-standard']//table/tbody/tr")
+        for row in package_rows:
+            if not (tds := row.xpath('./td')) or len(tds) <= max(stock_index, price_index, package_index):
+                self.logger.warning(f"规格信息异常 prd_url:{response.url}")
+                continue
+            stock_num = tds[stock_index].xpath(".//text()").get()
+            package = tds[package_index].xpath(".//text()").get()
+            price = None
+            if _ := tds[price_index].xpath(".//text()").get():
+                price = _.strip("¥").replace(",", "")
+            if package:
+                package = package.replace(" ", "")
+            dd = {
+                'brand': self.name,
+                'cat_no': cat_no,
+                'package': package,
+                'cost': price,
+                'price': price,
+                'currency': 'RMB',
+                'stock_num': stock_num,
+            }
+            dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
+            yield ProductPackage(**dd)
+            yield RawSupplierQuotation(**dddd)
+
+    def parse_library_list(self, response):
+        hrefs = response.xpath("//div[@class='pro_lbylist']//a/@href").getall()
+        parent = response.xpath("//div[@class='pro_secondary_intro']/h1/text()").get()
+        for href in hrefs:
+            yield scrapy.Request(url=urljoin(self.base_url, href), callback=self.parse_library_detail,
+                                 meta={'parent': parent})
+
+    # 化合物库产品详情
+    def parse_library_detail(self, response):
+        cat_no = response.xpath("//div[@class='product-details']//span[contains(text(),产品编号)]/b/text()"
+                                "|//em[@id='productno_em']/text()").get()
+        if not cat_no:
+            self.logger.warning(f"Cat_no not found, url:{response.url}")
+
+        chs_name = response.xpath(
+            "//div[@class='product-details']//div/h1/strong/text()|//span[@id='productname_span']/text()").get()
+        en_name = response.xpath(
+            "//div[@class='product-details']//p[@style='font-size: smaller;']/text()"
+            "|//div[@class='pro_des_container']//div[@class='catalog']/text()").get()
+        introduction = ''.join(response.xpath("//div[@class='pro_detailed_description']//ul/li/text()").getall())
+        compounds = response.xpath("//div[@class='chart-target-lby']/div/div[@class='text']//text()").getall()
+        img_url = response.xpath("//div[@class='pro_base_box']//div[@class='pro_image pro_image_lib']/img/@src").get()
+        attrs = {
+            'compounds': compounds,
+            'product_info': introduction,
+        }
+        d = {
+            "brand": self.name,
+            "cat_no": cat_no,
+            'chs_name': chs_name,
+            "parent": response.meta.get("parent"),
+            "en_name": en_name,
+            "prd_url": response.url,
+            "img_url": img_url,
+            'attrs': json.dumps(attrs, ensure_ascii=False)
+        }
         yield RawData(**d)
         yield SupplierProduct(**rawdata_to_supplier_product(d, platform=self.name, vendor=self.name))
-        nodes = response.xpath("//tr[@class='line-item']")
-        for node in nodes:
-            package = node.xpath("./td[position()=1]/text()").get()
-            delivery_time = node.xpath("./td[position()=3]/text()").get()
-            price = parse_cost(node.xpath("./td[position()=2]/text()").get())
-            dd = {
-                "brand": self.name,
-                "cat_no": cat_no,
-                "package": package,
-                "delivery_time": delivery_time,
-                "cost": price,
-                "currency": "RMB",
-            }
-            yield ProductPackage(**dd)
-            if dd.get("cost") and dd.get("cost") != "待询":
+
+        package_script = response.xpath("//div[@class='pro_introduce pro_introduce_libarybox']/script").get()
+        if (_ := re.findall(r'(?<==)\s*(.+)(?=;)', package_script)) and len(_) == 1:
+            package_json = json.loads(_[0])
+            pakages = package_json.get('list', [])
+            for _p in pakages:
+                price = _p.get('finalprice')
+                packaging = _p.get('packagingtext', '').replace(' ', '')
+                dd = {
+                    "brand": self.name,
+                    "cat_no": cat_no,
+                    "package": packaging,
+                    "cost": price,
+                    "price": price,
+                    "currency": "RMB",
+                }
+                yield ProductPackage(**dd)
                 yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
+
+    def parse_api_detail(self, response):
+        if _data := response.json():
+            _data = _data.get('data', {}).get('pros')
+        if not _data:
+            return
+        for pro in _data:
+            if (route := pro.get('route')) and (jumpurl := pro.get('jumpurl')):
+                prd_url = urljoin(self.product_base_url, route + '/' + jumpurl)
+                yield scrapy.Request(url=prd_url, callback=self.parse_detail, meta=response.meta)
+
+    def parse_list(self, response):
+        if 'text/html' not in str(response.headers['Content-Type']):
+            self.logger.warning(f'response type is not html, url:{response.url}')
+            return
+        catalog_xpaths = ["//div[@class='content-list']/ul//a/@href",
+                          "//div[@class='content-list']/div[@class='row']//a/@href",
+                          "//div[@class='block-targets']/a/@href"]
+
+        # 产品目录的url
+        catalog_urls = [*response.xpath("|".join(catalog_xpaths)).getall()]
+        if len(catalog_urls) > 0:
+            for catalog_href in catalog_urls:
+                yield scrapy.Request(urljoin(self.base_url, catalog_href), callback=self.parse_list)
+            return
+
+        detail_xpaths = [
+            "//div[@class='pro_reagents']//td/a/@href",
+            "//div[@class='results-product-card']/a/@href",
+            "//div[@class='table-responsive']//table//td/a/@href",
+        ]
+        has_pagination = response.xpath("//button[@aria-label='下一页']").get()
+        if not has_pagination:
+            # 针对这些情况
+            # https://www.tsbiochem.com/proteins/co-stimulatory_immune_checkpoint_proteins
+            detail_urls = [*response.xpath("|".join(detail_xpaths)).getall()]
+            for rel_url in detail_urls:
+                yield scrapy.Request(
+                    url=urljoin(self.product_base_url, rel_url),
+                    callback=self.parse_detail
+                )
+            next_url = response.xpath(
+                "//nav[@aria-label='Page navigation']/ul/li[@class='active']/following-sibling::li[1]/a/@href").get()
+            if next_url:
+                next_url = urljoin(response.url, next_url)
+                yield scrapy.Request(next_url, callback=self.parse_list)
+            return
+        if not (total_pages := response.xpath("//div[@class='pagination-right']/text()").get()):
+            return
+        parent = response.xpath("//div[contains(@class,'content-background')]/h1//text()").get()
+        total_pages: int = int(total_pages.translate(str.maketrans('', '', '页/ ')))
+        # product list paginator
+        if raw_json := response.xpath('//script[@id="__NUXT_DATA__"]/text()').get():
+            if match := re.search(r'(([0-9A-Z]+-){4}[0-9A-Z]+)', raw_json):
+                if not (kind_id := match.group(1)):
+                    self.logger.warning(f'kind id not found, url:{response.url}')
+                    return
+                kind_req_url = 'https://www.targetmol.cn/api/website2/web/search/kind'
+                for i in range(1, total_pages + 1):
+                    params = {
+                        'page': i,
+                        'kindId': kind_id
+                    }
+                    meta = {
+                        'parent': parent
+                    }
+                    yield FormRequest(url=kind_req_url, method='POST', headers={'Content-Type': 'application/json'},
+                                      body=json.dumps(params), callback=self.parse_api_detail, meta=meta)
+            else:
+                self.logger.warning(f'kind id not found, url:{response.url}')
