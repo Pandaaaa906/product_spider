@@ -41,8 +41,6 @@ RUN --mount=type=cache,target=/tmp/.uv/ uv venv \
 # 激活虚拟环境
 ENV PATH="/app/.venv/bin:/app/.venv/Scripts:$PATH"
 
-RUN playwright install-deps
-
 # 运行阶段
 FROM builder AS runner
 
