@@ -17,7 +17,7 @@ class USPSpider(BaseSpider):
 
     LIMIT = 250
 
-    def start_requests(self):
+    def _start_requests(self):
         d = {
             'totalResults': True,
             'totalExpandedResults': True,
@@ -43,7 +43,6 @@ class USPSpider(BaseSpider):
                 prd_attrs["oem_brand"] = oem_brand
             if usp_country_of_origin := product.get('usp_country_of_origin'):
                 prd_attrs["country_of_origin"] = usp_country_of_origin
-            prd_attrs = json.dumps(prd_attrs, ensure_ascii=False)
             d = {
                 'brand': self.brand,
                 'cat_no': (cat_no := product.get('repositoryId')),
@@ -53,7 +52,7 @@ class USPSpider(BaseSpider):
                 'mf': product.get('usp_molecular_formula'),
                 'stock_info': product.get('usp_in_stock'),
                 'prd_url': (p := product.get('route')) and urljoin(self.base_url, p),
-                'attrs': prd_attrs,
+                'attrs': json.dumps(prd_attrs, ensure_ascii=False),
             }
             yield RawData(**d)
             yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))

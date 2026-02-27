@@ -15,7 +15,7 @@ class DRESpider(BaseSpider):
     start_urls = ["https://www.lgcstandards.com/US/en/search/?text=dre"]
     base_url = "https://www.lgcstandards.com/US/en"
 
-    def start_requests(self):
+    def _start_requests(self):
         yield scrapy.Request(
             url='https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=dre%3A:itemtype:LGCProduct:itemtype:ATCCProduct&country=US&lang=en&defaultB2BUnit=',
             callback=self.parse,

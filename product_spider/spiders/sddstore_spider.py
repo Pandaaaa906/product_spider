@@ -41,7 +41,7 @@ class SddStoreSpider(BaseSpider):
             'queryType': 'web',
         }
 
-    def start_requests(self):
+    def _start_requests(self):
         page = 1
         d = self.make_form(page)
         yield FormRequest(self.prd_url, formdata=d, callback=self.parse)

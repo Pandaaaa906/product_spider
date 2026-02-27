@@ -51,7 +51,7 @@ class LGCSpider(JsonSpider):
         'COOKIES_DEBUG': True,
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         # perform login
         yield Request(self.base_url, callback=self.login)
 

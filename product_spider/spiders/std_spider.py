@@ -19,7 +19,7 @@ class STDSpider(BaseSpider):
         'RETRY_TIMES': 10,
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         form_data = {
             "id": '',
             "keyword": '',

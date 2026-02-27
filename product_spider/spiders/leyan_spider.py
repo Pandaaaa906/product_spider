@@ -63,7 +63,7 @@ class LeyanSpider(BaseSpider):
         self.strategy = strategy
         super().__init__(**kwargs)
 
-    def start_requests(self):
+    def _start_requests(self):
         if self.strategy == LeyanStrategy.WALKTHROUGH:
             yield from super().start_requests()
         elif self.strategy == LeyanStrategy.TRC_CAT_NO:

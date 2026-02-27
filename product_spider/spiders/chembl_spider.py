@@ -16,7 +16,7 @@ class CheEMBLSpider(BaseSpider):
         "URLLENGTH_LIMIT": 90000
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         es_query = {
             "_source": ["molecule_chembl_id", "pref_name", "molecule_synonyms", "molecule_type", "max_phase",
                         "molecule_properties.full_mwt", "_metadata.related_targets.count",

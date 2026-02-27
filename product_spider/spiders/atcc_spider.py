@@ -16,7 +16,7 @@ class ATCCSpider(BaseSpider):
     ]
     base_url = "https://www.atcc.org/"
 
-    def start_requests(self):
+    def _start_requests(self):
         yield scrapy.Request(
             url="https://www.atcc.org/",
             callback=self.parse_catalog

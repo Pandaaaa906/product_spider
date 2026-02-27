@@ -48,7 +48,7 @@ class SamrSpider(BaseSpider):
             callback=self.parse,
         )
 
-    def start_requests(self):
+    def _start_requests(self):
         yield self._make_reqeust()
 
     def parse(self, response, **kwargs):

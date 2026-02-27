@@ -85,7 +85,7 @@ class MacklinSpider(BaseSpider):
             **kwargs
         )
 
-    def start_requests(self):
+    def _start_requests(self):
         yield self._make_catalogs_request()
 
     def _iter_category_id(self, category_tree):

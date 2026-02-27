@@ -18,7 +18,7 @@ class ShunQiWebsiteSpider(BaseSpider):
 
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         """当前只获取关键字为ROHS"""
         yield scrapy.Request(
             url="https://b2b.11467.com/search/7044.htm",

@@ -38,7 +38,7 @@ class EChemPortalSpider(BaseSpider):
             meta={"keyword": keyword, "page": page, "per_page": per_page}
         )
 
-    def start_requests(self):
+    def _start_requests(self):
         keywords = (f"{''.join(l)}-{k}{j}-{i}" for i, j, k, *l in product(digits, repeat=5))
         page = 1
         per_page = 50

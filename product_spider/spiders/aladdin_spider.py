@@ -52,7 +52,7 @@ class AladdinSpider(BaseSpider):
                 self.logger.warning(f"{e!r}")
         return is_detected
 
-    def start_requests(self):
+    def _start_requests(self):
         yield Request(url=self.home_url, callback=self.set_cookies)
 
     def set_cookies(self, response, req=None):

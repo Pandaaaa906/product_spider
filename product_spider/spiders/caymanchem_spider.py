@@ -14,7 +14,7 @@ class CaymanchemPrdSpider(BaseSpider):
     base_url = "https://www.caymanchem.com/"
     start_urls = ["https://www.caymanchem.com/products/categories", ]
 
-    def start_requests(self):
+    def _start_requests(self):
         yield scrapy.Request(
             url="https://www.caymanchem.com/solr/cchRAPTA/select?q=*:*&rows=99999&wt=json",
             callback=self.parse,

@@ -27,7 +27,7 @@ class GuanMatSpider(BaseSpider):
             meta={"cur_page": page}
         )
 
-    def start_requests(self):
+    def _start_requests(self):
         yield self._make_list_request(1)
 
     def parse(self, response, **kwargs):

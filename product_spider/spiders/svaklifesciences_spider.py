@@ -13,7 +13,7 @@ class SVAKLifeSciencesSpider(BaseSpider):
     start_urls = ["https://www.svaklifesciences.com/products.aspx"]
     base_url = "https://www.svaklifesciences.com/"
 
-    def start_requests(self):
+    def _start_requests(self):
         for char in ascii_lowercase:
             yield JsonRequest(
                 url="https://www.svaklifesciences.com/bind.aspx/alphasearch",

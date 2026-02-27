@@ -47,7 +47,7 @@ class InterchimSpider(BaseSpider):
             "cParam_fine": c_param_fine,
         }
 
-    def start_requests(self):
+    def _start_requests(self):
         params = {
             "cSearch_fine": "",
             "cCAS_fine": "",

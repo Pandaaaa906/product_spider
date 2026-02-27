@@ -31,7 +31,7 @@ class ArcSpider(BaseSpider):
         _ = s.post(self.base_url, data=d)
         self.cookies = dict(s.cookies)
 
-    def start_requests(self):
+    def _start_requests(self):
         username = getenv('ARC_USERNAME')
         password = getenv('ARC_PASSWORD')
         if username and password:

@@ -2,14 +2,14 @@ import json
 from urllib.parse import urljoin
 
 import scrapy
-from scrapy.spiders import CrawlSpider
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.cost import parse_cost
 from product_spider.utils.functions import strip
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
+from product_spider.utils.spider_mixin import BaseSpider
 
 
-class AaronchemSpider(CrawlSpider):
+class AaronchemSpider(BaseSpider):
     name = "aaronchem"
     allow_domain = ["aaronchem.com"]
     start_urls = ["https://www.aaronchem.com/product.html?page=1", ]
@@ -19,7 +19,7 @@ class AaronchemSpider(CrawlSpider):
         'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         yield scrapy.Request(
             url='https://www.aaronchem.com/product.html?page=1',
             callback=self.parse

@@ -17,7 +17,7 @@ class AobchemSpider(BaseSpider):
     start_urls = ["https://www.aobchem.com.cn/pages/437.html"]
     login_url = 'https://www.aobchem.com.cn/index.aspx?a=ajaxuserlogin'
 
-    def start_requests(self):
+    def _start_requests(self):
         # 发送登录请求
         yield FormRequest(
             url=self.login_url,

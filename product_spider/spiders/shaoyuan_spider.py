@@ -15,7 +15,7 @@ class ShaoyuanSpider(BaseSpider):
     base_url = "http://www.shao-yuan.com/"
     brand = '韶远'
 
-    def start_requests(self):
+    def _start_requests(self):
         _id = 1
         while _id < 600000:
             yield Request(
