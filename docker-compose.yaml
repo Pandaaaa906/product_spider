@@ -52,21 +52,6 @@ services:
       - /www/prd_spider/logs:/app/logs
     env_file:
       - .env
-  portia:
-    image: scrapinghub/portia
-    hostname: portia
-    restart: unless-stopped
-    environment:
-      - SCRAPYD_URL=http://scrapyd:6800/
-    ports:
-      - "9001:9001"
-      - "9002:9002"
-    volumes:
-      - /www/prd_spider/data/projects:/app/data/projects:rw
-    links:
-      - "scrapyd"
-    env_file:
-      - .env
   redis:
     image: bitnami/redis:latest
     hostname: redis

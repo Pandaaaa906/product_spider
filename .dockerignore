@@ -71,7 +71,7 @@ htmlcov/
 
 # Other
 .env
-test.env
+*.env
 *.tmp
 *.temp
 *.bat

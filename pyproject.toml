@@ -3,7 +3,7 @@ name = "product_spider"
 version = "0.1.0"
 description = "Chemical product data scraping system"
 readme = "README.md"
-requires-python = "~=3.11.0"
+requires-python = "~=3.12.0"
 license = {text = "MIT"}
 authors = [
     {name = "Pandaaaa906"},
@@ -21,18 +21,15 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "scrapely~=0.12.0",
     "scrapy~=2.5.0",
-    "scrapyd~=1.2.1",
+    "scrapyd~=1.5.0",
     "lxml[html_clean]~=5.2.2",
-    "slybot",
-    "logparser~=0.8.2",
+    "logparser~=0.8.4",
     "pyopenssl==22.0.0",
     "cryptography==38.0.4",
     "more_itertools",
     "pycryptodome~=3.14.1",
     "psycopg2-binary",
-    "six",
     "tzlocal~=1.5.1",
     "itemadapter",
     "requests_html",
@@ -52,7 +49,7 @@ dependencies = [
     "Twisted==22.10.0",
     "scrapydweb",
     "scrapyautodb",
-    "setuptools==81.0",
+    "setuptools~=81.0",
 ]
 
 [project.optional-dependencies]
@@ -65,10 +62,6 @@ Homepage = "https://github.com/Pandaaaa906/product_spider"
 Repository = "https://github.com/Pandaaaa906/product_spider.git"
 Documentation = "https://github.com/Pandaaaa906/product_spider#readme"
 "Bug Tracker" = "https://github.com/Pandaaaa906/product_spider/issues"
-
-[project.scripts]
-scrapyd = "scrapyd.app.application:main"
-logparser = "logparser.cli:main"
 
 [dependency-groups]
 dev = [
