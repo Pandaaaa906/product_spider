@@ -3,7 +3,6 @@ version: "3"
 services:
   scrapyd:
     build: .
-    entrypoint: "scrapyd --pidfile= "
     hostname: "scrapyd"
     restart: unless-stopped
     volumes:
@@ -32,7 +31,7 @@ services:
       - /www/prd_spider/logs:/app/logs
       - /www/prd_spider/data:/app/data
     ports:
-      - 6799:5000
+      - "6799:5000"
     env_file:
       - test.env
     depends_on:
@@ -48,20 +47,5 @@ services:
     restart: unless-stopped
     volumes:
       - /www/prd_spider/logs:/app/logs
-    env_file:
-      - test.env
-  portia:
-    image: scrapinghub/portia
-    hostname: portia
-    restart: unless-stopped
-    environment:
-      - SCRAPYD_URL=http://scrapyd:6800/
-    ports:
-      - 9001:9001
-      - 9002:9002
-    volumes:
-      - /www/prd_spider/data/projects:/app/data/projects:rw
-    links:
-      - "scrapyd"
     env_file:
       - test.env
