@@ -1,0 +1,81 @@
+[project]
+name = "product_spider"
+version = "0.1.0"
+description = "Chemical product data scraping system"
+readme = "README.md"
+requires-python = "~=3.11.0"
+license = {text = "MIT"}
+authors = [
+    {name = "Pandaaaa906"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "scrapely~=0.12.0",
+    "scrapy~=2.5.0",
+    "scrapyd~=1.2.1",
+    "lxml[html_clean]~=5.2.2",
+    "slybot",
+    "logparser~=0.8.2",
+    "pyopenssl==22.0.0",
+    "cryptography==38.0.4",
+    "more_itertools",
+    "pycryptodome~=3.14.1",
+    "psycopg2-binary",
+    "six",
+    "tzlocal~=1.5.1",
+    "itemadapter",
+    "requests_html",
+    "fake-useragent==1.5.1",
+    "pyexecjs",
+    "demjson3",
+    "sqlalchemy~=1.3.24",
+    "playwright~=1.42.0",
+    "scrapy-playwright~=0.0.8",
+    "playwright_stealth~=1.0.5",
+    "jsonpath~=0.82",
+    "flask-sqlalchemy~=2.4.0",
+    "flask~=2.0.0",
+    "scrapy_redis~=0.7.3",
+    "fonttools~=4.43.0",
+    "jsonpath-ng~=1.5.3",
+    "Twisted==22.10.0",
+    "scrapydweb",
+    "scrapyautodb",
+    "setuptools==81.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "uv",
+]
+
+[project.urls]
+Homepage = "https://github.com/Pandaaaa906/product_spider"
+Repository = "https://github.com/Pandaaaa906/product_spider.git"
+Documentation = "https://github.com/Pandaaaa906/product_spider#readme"
+"Bug Tracker" = "https://github.com/Pandaaaa906/product_spider/issues"
+
+[project.scripts]
+scrapyd = "scrapyd.app.application:main"
+logparser = "logparser.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.uv.sources]
+scrapydweb = { git = "https://github.com/Pandaaaa906/scrapydweb.git", branch = "dev" }
+scrapyautodb = { git = "https://github.com/Pandaaaa906/ScrapyAutoDb.git" }
