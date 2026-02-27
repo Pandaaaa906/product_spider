@@ -6,7 +6,7 @@ VOLUME /ms-playwright
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    UV_CACHE_DIR=/tmp/.uv \
+    UV_CACHE_DIR=/tmp/.uv/ \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PLAYWRIGHT_SKIP_BROWSER_GC=1
 
@@ -35,7 +35,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* ./
 
 # 创建虚拟环境并安装Python依赖
-RUN uv venv \
+RUN --mount=type=cache,target=/tmp/.uv/ uv venv \
     && . .venv/bin/activate \
     && uv pip install . \
     && playwright install chrome \
