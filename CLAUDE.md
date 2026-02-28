@@ -146,7 +146,7 @@ The keyword search feature allows spiders to be triggered via Scrapyd API with a
 ### Usage
 ```bash
 # Schedule keyword search via Scrapyd API
-curl -X POST http://localhost:6800/schedule.json \
+curl -X POST http://127.0.0.1:6800/schedule.json \
   -d project=product_spider \
   -d spider=allmpus \
   -d cmd_keyword_search=True \
