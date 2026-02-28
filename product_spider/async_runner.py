@@ -1,3 +1,10 @@
+import sys
+import asyncio
+
+# Windows 需要设置 SelectorEventLoop 策略
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from scrapy.utils.reactor import install_reactor, is_asyncio_reactor_installed
 
 install_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
