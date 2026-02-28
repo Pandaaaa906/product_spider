@@ -177,9 +177,39 @@ uv run --env-file ./test.local.env scrapy crawl allmpus \
 
 ### Testing
 
-#### Automated Testing (Click Group Test Runner)
+#### Automated Testing
 
-Test runner uses Click groups for organized test commands:
+#### Pytest (Recommended)
+
+Tests are now organized using pytest with shared fixtures in `conftest.py`:
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_redis_connection.py -v
+pytest tests/test_keyword_search.py -v
+pytest tests/test_scrapyd_keyword_search.py -v
+
+# Run by markers
+pytest tests/ -m redis -v              # Only Redis tests
+pytest tests/ -m spider -v             # Only spider tests
+pytest tests/ -m "not slow" -v         # Exclude slow tests
+pytest tests/ -m integration -v        # Only integration tests
+
+# Run with custom parameters
+pytest tests/test_keyword_search.py -v --spider=allmpus --keyword=ethanol
+
+# Direct execution (backward compatible)
+python tests/test_redis_connection.py
+python tests/test_keyword_search.py allmpus biosynth
+python tests/test_scrapyd_keyword_search.py --spider=allmpus
+```
+
+#### Click Group Test Runner
+
+Alternative test runner using Click groups:
 
 ```bash
 # Test Redis connection only
