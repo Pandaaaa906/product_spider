@@ -10,7 +10,7 @@
 
 **Windows (Git Bash/WSL):**
 ```bash
-set -a && source test.local.env && set +a
+source test.local.env
 ```
 
 **Windows (PowerShell):**
@@ -43,7 +43,7 @@ python tests/test_scrapyd_keyword_search.py --spider allmpus --keyword acetone
 
 ```bash
 # 先加载环境变量
-set -a && source test.local.env && set +a
+source test.local.env
 
 # 运行爬虫
 scrapy crawl allmpus \
@@ -56,7 +56,7 @@ scrapy crawl allmpus \
 
 ```bash
 # 加载环境变量后启动
-set -a && source test.local.env && set +a
+source test.local.env
 
 python api_service/main.py
 ```
