@@ -18,8 +18,8 @@ import os
 
 # 配置
 REDIS_URL = os.getenv("REDIS_URL", "redis://192.168.4.246:6380/2")
-DEFAULT_KEYWORD = "acetone"
-DEFAULT_WAIT = 60  # 等待爬虫完成的最大秒数
+DEFAULT_KEYWORD = os.getenv("KEYWORD_SEARCH_KEYWORD", "acetone")
+DEFAULT_WAIT = 120  # 等待爬虫完成的最大秒数
 
 
 def get_redis_client():

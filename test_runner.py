@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 """
-测试运行器 Agent - 自动运行测试并分析错误
-使用 .venv 虚拟环境，自动管理 scrapyd 服务
+测试运行器 - 使用 Click Group 重构
+支持多个测试命令：redis, keyword, scrapyd, all
 """
 
 import subprocess
 import sys
 import os
-import time
-import signal
-import argparse
 from pathlib import Path
 import json
 from datetime import datetime
-from contextlib import contextmanager
+from typing import List, Optional
 
-# 设置 Windows 控制台编码
-if sys.platform == "win32":
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+import click
 
 # 配置
 PROJECT_ROOT = Path(__file__).parent
@@ -29,35 +22,55 @@ ENV_FILE = PROJECT_ROOT / "test.local.env"
 VENV_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
 VENV_UV = PROJECT_ROOT / ".venv" / "Scripts" / "uv.exe"
 
-# 如果虚拟环境不存在，尝试使用系统 uv/python
 if not VENV_UV.exists():
     VENV_UV = "uv"
 if not VENV_PYTHON.exists():
     VENV_PYTHON = sys.executable
 
-
-def clear_logs():
-    """清空所有爬虫日志文件"""
-    logs_dir = PROJECT_ROOT / "logs"
-    if not logs_dir.exists():
-        return
-
-    print("[INFO] 清空日志文件...")
-    count = 0
-    for log_file in logs_dir.rglob("*.log"):
-        try:
-            log_file.unlink()
-            count += 1
-        except Exception:
-            pass
-    print(f"[INFO] 已清空 {count} 个日志文件")
+# 全局选项
+pass_config = click.make_pass_decorator(dict, ensure=True)
 
 
-def load_env_file():
+@click.group()
+@click.option('--env-file', type=click.Path(exists=True), default=str(ENV_FILE),
+              help='环境变量文件路径')
+@click.option('--output-dir', type=click.Path(), default=str(OUTPUT_DIR),
+              help='输出目录')
+@click.option('--output-json', is_flag=True, help='输出JSON格式结果')
+@click.option('--skip-log-clear', is_flag=True, help='跳过清空日志文件')
+@click.pass_context
+def cli(ctx, env_file, output_dir, output_json, skip_log_clear):
+    """
+    测试运行器 - 运行各种单元测试
+
+    示例:
+        python test_runner.py redis              # 测试Redis连接
+        python test_runner.py keyword            # 测试关键词搜索
+        python test_runner.py keyword --spiders allmpus  # 指定爬虫
+        python test_runner.py scrapyd            # 测试Scrapyd
+        python test_runner.py all                # 运行所有测试
+    """
+    ctx.ensure_object(dict)
+    ctx.obj['env_file'] = env_file
+    ctx.obj['output_dir'] = Path(output_dir)
+    ctx.obj['output_json'] = output_json
+    ctx.obj['skip_log_clear'] = skip_log_clear
+
+    # 加载环境变量
+    _load_env_file(env_file)
+
+    # 清空日志
+    if not skip_log_clear:
+        _clear_logs()
+
+
+def _load_env_file(env_file: str):
     """加载环境变量文件"""
-    if ENV_FILE.exists():
-        print(f"[INFO] 加载环境变量: {ENV_FILE}")
-        with open(ENV_FILE, 'r', encoding='utf-8') as f:
+    env_path = Path(env_file)
+    if env_path.exists():
+        if not click.get_current_context().obj.get('output_json'):
+            click.echo(f"[INFO] 加载环境变量: {env_path}")
+        with open(env_path, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith('#'):
@@ -65,251 +78,46 @@ def load_env_file():
                 if '=' in line:
                     key, value = line.split('=', 1)
                     os.environ[key] = value
-    else:
-        print(f"[WARNING] 环境变量文件不存在: {ENV_FILE}")
 
 
-@contextmanager
-def scrapyd_service():
-    """启动 scrapyd 服务的上下文管理器"""
-    scrapyd_process = None
-    try:
-        print("[INFO] 启动 scrapyd 服务...")
-        print(f"[INFO] 使用命令: {VENV_UV} run scrapyd")
+def _clear_logs():
+    """清空所有爬虫日志文件"""
+    logs_dir = PROJECT_ROOT / "logs"
+    if not logs_dir.exists():
+        return
 
-        # 启动 scrapyd，使用 --env-file 指定环境变量文件
-        scrapyd_process = subprocess.Popen(
-            [str(VENV_UV), "run", "--env-file", "./test.local.env", "scrapyd"],
-            cwd=str(PROJECT_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
-        )
-
-        # 等待服务启动
-        max_wait = 10
-        for i in range(max_wait):
-            time.sleep(1)
-            print(f"  等待 scrapyd 启动... ({i+1}/{max_wait})")
-            # 检查进程是否还在运行
-            if scrapyd_process.poll() is not None:
-                stdout, stderr = scrapyd_process.communicate()
-                print(f"[ERROR] scrapyd 启动失败")
-                if stdout:
-                    print(f"stdout: {stdout.decode()[:500]}")
-                if stderr:
-                    print(f"stderr: {stderr.decode()[:500]}")
-                raise RuntimeError("scrapyd 启动失败")
-
-            # 尝试连接检查服务是否就绪
-            try:
-                import requests
-                resp = requests.get("http://127.0.0.1:6800/daemonstatus.json", timeout=2)
-                if resp.json().get("status") == "ok":
-                    print("[OK] scrapyd 服务已启动")
-                    break
-            except Exception:
-                pass
-        else:
-            print("[WARNING] scrapyd 启动超时，继续尝试测试...")
-
-        # 等待服务完全就绪
-        time.sleep(2)
-
-        yield scrapyd_process
-
-    finally:
-        if scrapyd_process:
-            print("[INFO] 停止 scrapyd 服务...")
-            try:
-                if sys.platform == "win32":
-                    scrapyd_process.send_signal(signal.CTRL_BREAK_EVENT)
-                else:
-                    scrapyd_process.terminate()
-                scrapyd_process.wait(timeout=30)
-                print("[OK] scrapyd 已停止")
-            except Exception as e:
-                print(f"[WARNING] 停止 scrapyd 时出错: {e}")
-                try:
-                    scrapyd_process.kill()
-                except Exception:
-                    pass
-
-
-def run_test(test_file: str) -> dict:
-    """运行单个测试文件
-
-    Args:
-        test_file: 测试文件名
-    """
-    test_path = TESTS_DIR / test_file
-    if not test_path.exists():
-        return {
-            "status": "error",
-            "file": test_file,
-            "error": f"测试文件不存在: {test_path}"
-        }
-
-    print(f"\n{'='*60}")
-    print(f"运行测试: {test_file}")
-    print('='*60)
-
-    def execute_test():
-        """执行测试的实际逻辑"""
+    count = 0
+    for log_file in logs_dir.rglob("*.log"):
         try:
-            # 使用 --wait 30 和 --redis-wait 30 等待爬虫完成和结果写入
-            result = subprocess.run(
-                [str(VENV_PYTHON), str(test_path), "--wait", "30", "--redis-wait", "30"],
-                capture_output=True,
-                text=True,
-                cwd=str(PROJECT_ROOT),
-                timeout=180  # 3分钟超时
-            )
+            log_file.unlink()
+            count += 1
+        except Exception:
+            pass
 
-            output = {
-                "status": "success" if result.returncode == 0 else "failed",
-                "file": test_file,
-                "returncode": result.returncode,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "timestamp": datetime.now().isoformat()
-            }
-
-            if result.returncode == 0:
-                print(f"[OK] {test_file} 测试通过")
-            else:
-                print(f"[ERROR] {test_file} 测试失败")
-                print(f"返回码: {result.returncode}")
-                if result.stderr:
-                    print(f"错误输出:\n{result.stderr[:500]}")
-
-            return output
-
-        except subprocess.TimeoutExpired:
-            return {
-                "status": "timeout",
-                "file": test_file,
-                "error": "测试超时 (3分钟)"
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "file": test_file,
-                "error": str(e)
-            }
-
-    return execute_test()
+    ctx = click.get_current_context()
+    if not ctx.obj.get('output_json'):
+        click.echo(f"[INFO] 已清空 {count} 个日志文件")
 
 
-def analyze_error(result: dict) -> str:
-    """分析错误原因并提出建议"""
-    if result["status"] == "success":
-        return ""
-
-    stderr = result.get("stderr", "")
-    stdout = result.get("stdout", "")
-    error_msg = result.get("error", "")
-    combined = stderr + stdout + error_msg
-
-    analysis = []
-
-    # 分析常见错误
-    if "Connection refused" in combined or "ConnectionError" in combined or \
-       "MaxRetryError" in combined or "无法连接" in combined or \
-       "WinError 10061" in combined:
-        analysis.append("【错误原因】无法连接到 Scrapyd 服务")
-        analysis.append("【建议】1. 确保 scrapyd 已正确启动")
-        analysis.append("         2. 检查端口 6800 是否被占用")
-        analysis.append("         3. 手动启动: uv run scrapyd")
-
-    elif "REDIS_URL not configured" in combined:
-        analysis.append("【错误原因】REDIS_URL 环境变量未配置")
-        analysis.append("【建议】1. 创建 test.local.env 文件并配置 REDIS_URL")
-        analysis.append("         2. 检查 settings.py 中的 REDIS_URL 配置")
-
-    elif "ModuleNotFoundError" in combined or "No module named" in combined:
-        module = "未知"
-        if "No module named '" in combined:
-            try:
-                module = combined.split("No module named '")[1].split("'")[0]
-            except IndexError:
-                pass
-        analysis.append(f"【错误原因】缺少 Python 模块: {module}")
-        analysis.append(f"【建议】1. 激活虚拟环境: .venv\\Scripts\\activate")
-        analysis.append(f"         2. 安装依赖: uv sync")
-
-    elif "ValueError: task_id is required" in combined:
-        analysis.append("【错误原因】cmd_keyword_search=True 但没有提供 task_id")
-        analysis.append("【建议】在测试代码中添加 task_id 参数")
-
-    elif "项目" in combined and "不存在" in combined:
-        analysis.append("【错误原因】Scrapyd 中未部署项目 'product_spider'")
-        analysis.append("【建议】1. 部署项目: uv run scrapyd-deploy testing -p product_spider")
-        analysis.append("         2. 或检查 SCRAPYD_PROJECT 环境变量配置")
-
-    elif "Spider not found" in combined or "spider not found" in combined.lower():
-        analysis.append("【错误原因】爬虫名称错误或爬虫未部署到 Scrapyd")
-        analysis.append("【建议】1. 检查爬虫名称拼写")
-        analysis.append("         2. 部署项目: uv run scrapyd-deploy testing -p product_spider")
-
-    elif "timeout" in result["status"].lower():
-        analysis.append("【错误原因】测试执行超时")
-        analysis.append("【建议】1. 检查网络连接")
-        analysis.append("         2. 检查目标网站是否可访问")
-
-    elif "scrapyd 启动失败" in combined or "项目部署失败" in combined:
-        analysis.append("【错误原因】scrapyd 服务启动或部署失败")
-        analysis.append("【建议】1. 检查是否有其他 scrapyd 实例在运行")
-        analysis.append("         2. 检查端口 6800 是否被占用")
-        analysis.append("         3. 检查 scrapyd-deploy 配置是否正确")
-        analysis.append("         4. 手动运行 'uv run scrapyd' 和 'uv run scrapyd-deploy testing -p product_spider' 查看详细错误")
-
-    else:
-        analysis.append("【错误原因】未知错误")
-        analysis.append(f"【详细信息】{stderr[:300] if stderr else error_msg[:300]}")
-
-    return "\n".join(analysis)
-
-
-def save_results(results: list):
-    """保存测试结果到文件"""
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = OUTPUT_DIR / f"test_result_{timestamp}.json"
-
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-
-    print(f"\n[INFO] 测试结果已保存: {output_file}")
-    return output_file
-
-
-def discover_spiders_with_keyword_search():
-    """
-    动态发现所有实现了 keyword_search 方法的爬虫
-
-    Returns:
-        list: 实现了 keyword_search 的 spider 名称列表
-    """
+def _discover_spiders() -> List[str]:
+    """动态发现所有实现了 keyword_search 方法的爬虫"""
     spiders_dir = PROJECT_ROOT / "product_spider" / "spiders"
     spiders_with_keyword_search = []
 
-    print("[INFO] 正在检测实现了 keyword_search 方法的爬虫...")
+    ctx = click.get_current_context()
+    if not ctx.obj.get('output_json'):
+        click.echo("[INFO] 正在检测实现了 keyword_search 方法的爬虫...")
 
-    # 遍历所有 spider 文件
     for spider_file in spiders_dir.glob("*_spider.py"):
         spider_name = spider_file.stem.replace("_spider", "")
 
         try:
-            # 动态导入 spider 模块
             import importlib.util
             spec = importlib.util.spec_from_file_location(
                 f"product_spider.spiders.{spider_file.stem}",
                 spider_file
             )
             module = importlib.util.module_from_spec(spec)
-
-            # 添加必要的路径
             sys.path.insert(0, str(PROJECT_ROOT))
 
             try:
@@ -317,140 +125,255 @@ def discover_spiders_with_keyword_search():
             finally:
                 sys.path.pop(0)
 
-            # 查找 Spider 类
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 if (isinstance(attr, type) and
                     hasattr(attr, 'name') and
                     hasattr(attr, 'keyword_search')):
 
-                    # 检查 keyword_search 是否是基类的方法
-                    import inspect
                     keyword_search_method = getattr(attr, 'keyword_search', None)
                     if keyword_search_method:
-                        # 检查方法是否在当前类中定义（不是继承的）
                         method_defined_in = getattr(keyword_search_method, '__qualname__', '').split('.')[0]
                         if method_defined_in == attr_name:
-                            spiders_with_keyword_search.append(attr.name)
+                            if attr.name:
+                                spiders_with_keyword_search.append(attr.name)
                             break
 
         except Exception as e:
-            print(f"  [WARNING] 检测 {spider_name} 失败: {e}")
-            continue
+            pass
 
-    # 过滤掉 name 为 None 的
-    spiders_with_keyword_search = [s for s in spiders_with_keyword_search if s is not None]
+    spiders_with_keyword_search = [s for s in spiders_with_keyword_search if s]
 
-    print(f"[INFO] 发现 {len(spiders_with_keyword_search)} 个实现了 keyword_search 的爬虫")
-    for name in sorted(spiders_with_keyword_search):
-        print(f"  - {name}")
+    if not ctx.obj.get('output_json'):
+        click.echo(f"[INFO] 发现 {len(spiders_with_keyword_search)} 个实现了 keyword_search 的爬虫")
+        for name in sorted(spiders_with_keyword_search):
+            click.echo(f"  - {name}")
 
     return sorted(spiders_with_keyword_search)
 
 
-def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(
-        description="测试运行器 - 自动运行测试并分析错误",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
-  python test_runner.py                          # 运行所有测试（自动检测spiders）
-  python test_runner.py --spiders allmpus        # 只测试 allmpus
-  python test_runner.py --spiders allmpus,biosynth  # 测试多个 spider
-        """
-    )
-    parser.add_argument(
-        "--spiders",
-        type=str,
-        default=None,
-        help="要测试的 spider 列表，用逗号分隔（如：allmpus,biosynth）。不指定则自动检测所有实现了 keyword_search 的爬虫"
-    )
-    parser.add_argument(
-        "--skip-redis-test",
-        action="store_true",
-        help="跳过 Redis 连接测试"
-    )
+def _run_test_file(test_file: str, timeout: int = 300) -> dict:
+    """运行单个测试文件"""
+    test_path = TESTS_DIR / test_file
+    if not test_path.exists():
+        return {"status": "error", "file": test_file, "error": f"测试文件不存在: {test_path}"}
 
-    args = parser.parse_args()
+    try:
+        result = subprocess.run(
+            [str(VENV_PYTHON), str(test_path)],
+            capture_output=True,
+            text=True,
+            cwd=str(PROJECT_ROOT),
+            timeout=timeout
+        )
 
-    print("="*60)
-    print("测试运行器 Agent")
-    print(f"Python: {VENV_PYTHON}")
-    print(f"UV: {VENV_UV}")
-    print("="*60)
+        return {
+            "status": "success" if result.returncode == 0 else "failed",
+            "file": test_file,
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
 
-    # 加载环境变量
-    load_env_file()
+    except subprocess.TimeoutExpired:
+        return {"status": "timeout", "file": test_file, "error": f"测试超时 ({timeout}秒)"}
+    except Exception as e:
+        return {"status": "error", "file": test_file, "error": str(e)}
 
-    # 清空日志文件
-    clear_logs()
 
-    # 检查虚拟环境
-    if not Path(VENV_PYTHON).exists():
-        print(f"[WARNING] 虚拟环境未找到: {VENV_PYTHON}")
-        print("[WARNING] 将使用系统 Python")
+def _save_results(results: list, output_dir: Path) -> Path:
+    """保存测试结果"""
+    output_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = output_dir / f"test_result_{timestamp}.json"
 
-    # 确定要测试的 spiders
-    if args.spiders:
-        spiders_to_test = [s.strip() for s in args.spiders.split(",") if s.strip()]
-        print(f"\n[INFO] 指定测试 {len(spiders_to_test)} 个爬虫: {', '.join(spiders_to_test)}")
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+
+    return output_file
+
+
+def _print_result(result: dict):
+    """打印测试结果"""
+    ctx = click.get_current_context()
+    if ctx.obj.get('output_json'):
+        return
+
+    if result["status"] == "success":
+        click.secho(f"[OK] {result['file']} 测试通过", fg="green")
     else:
-        spiders_to_test = discover_spiders_with_keyword_search()
-        if not spiders_to_test:
-            print("\n[ERROR] 未检测到实现了 keyword_search 方法的爬虫")
-            sys.exit(1)
-        print(f"\n[INFO] 自动检测到 {len(spiders_to_test)} 个实现了 keyword_search 的爬虫")
+        click.secho(f"[ERROR] {result['file']} 测试失败", fg="red")
+        if result.get("error"):
+            click.echo(f"  {result['error']}")
 
-    # 设置环境变量供 test_keyword_search.py 使用
-    os.environ["KEYWORD_SEARCH_SPIDERS"] = ",".join(spiders_to_test)
 
-    # 要运行的测试文件
-    test_configs = []
-    if not args.skip_redis_test:
-        test_configs.append({"file": "test_redis_connection.py"})
-    test_configs.append({"file": "test_keyword_search.py"})  # 使用简化版关键词搜索测试
-
-    # 运行测试
-    results = []
-    for config in test_configs:
-        test_file = config["file"]
-
-        result = run_test(test_file)
-        results.append(result)
-
-        # 分析错误
-        if result["status"] != "success":
-            analysis = analyze_error(result)
-            print(f"\n[分析] {test_file}")
-            print(analysis)
-            result["analysis"] = analysis
-
-    # 保存结果
-    output_file = save_results(results)
-
-    # 汇总
-    print("\n" + "="*60)
-    print("测试汇总")
-    print("="*60)
-
+def _print_summary(results: list):
+    """打印测试汇总"""
+    ctx = click.get_current_context()
     passed = sum(1 for r in results if r["status"] == "success")
     failed = len(results) - passed
 
-    print(f"总计: {len(results)} 个测试")
-    print(f"通过: {passed}")
-    print(f"失败: {failed}")
-
-    if failed > 0:
-        print("\n失败的测试:")
-        for r in results:
-            if r["status"] != "success":
-                print(f"  - {r['file']}: {r['status']}")
-        sys.exit(1)
+    if ctx.obj.get('output_json'):
+        summary = {
+            "total": len(results),
+            "passed": passed,
+            "failed": failed,
+            "results": results
+        }
+        click.echo(json.dumps(summary, ensure_ascii=False, indent=2))
     else:
-        print("\n[OK] 所有测试通过!")
-        sys.exit(0)
+        click.echo("\n" + "="*60)
+        click.echo("测试汇总")
+        click.echo("="*60)
+        click.echo(f"总计: {len(results)} 个测试")
+        click.secho(f"通过: {passed}", fg="green" if failed == 0 else None)
+        if failed > 0:
+            click.secho(f"失败: {failed}", fg="red")
+
+    return failed == 0
+
+
+# ============ 子命令 ============
+
+@cli.command()
+@pass_config
+def redis(config):
+    """测试 Redis 连接"""
+    if not config.get('output_json'):
+        click.echo("\n" + "="*60)
+        click.echo("测试: Redis 连接")
+        click.echo("="*60)
+
+    result = _run_test_file("test_redis_connection.py")
+    _print_result(result)
+
+    # 保存结果
+    output_file = _save_results([result], config['output_dir'])
+    if not config.get('output_json'):
+        click.echo(f"\n[INFO] 测试结果已保存: {output_file}")
+
+    # 汇总
+    success = _print_summary([result])
+    sys.exit(0 if success else 1)
+
+
+@cli.command()
+@click.option('--spiders', help='要测试的爬虫列表，逗号分隔。不指定则自动检测')
+@click.option('--keyword', default='acetone', help='搜索关键词')
+@pass_config
+def keyword(config, spiders, keyword):
+    """测试关键词搜索功能"""
+    if not config.get('output_json'):
+        click.echo("\n" + "="*60)
+        click.echo("测试: 关键词搜索")
+        click.echo("="*60)
+
+    # 确定要测试的spiders
+    if spiders:
+        spiders_to_test = [s.strip() for s in spiders.split(",") if s.strip()]
+        if not config.get('output_json'):
+            click.echo(f"[INFO] 指定测试 {len(spiders_to_test)} 个爬虫: {', '.join(spiders_to_test)}")
+    else:
+        spiders_to_test = _discover_spiders()
+        if not spiders_to_test:
+            click.echo("[ERROR] 未检测到实现了 keyword_search 方法的爬虫", err=True)
+            sys.exit(1)
+
+    # 设置环境变量
+    os.environ["KEYWORD_SEARCH_SPIDERS"] = ",".join(spiders_to_test)
+    os.environ["KEYWORD_SEARCH_KEYWORD"] = keyword
+
+    # 运行测试
+    result = _run_test_file("test_keyword_search.py", timeout=180)
+    _print_result(result)
+
+    # 保存结果
+    output_file = _save_results([result], config['output_dir'])
+    if not config.get('output_json'):
+        click.echo(f"\n[INFO] 测试结果已保存: {output_file}")
+
+    # 汇总
+    success = _print_summary([result])
+    sys.exit(0 if success else 1)
+
+
+@cli.command()
+@pass_config
+def scrapyd(config):
+    """测试 Scrapyd 关键词搜索"""
+    if not config.get('output_json'):
+        click.echo("\n" + "="*60)
+        click.echo("测试: Scrapyd 关键词搜索")
+        click.echo("="*60)
+
+    result = _run_test_file("test_scrapyd_keyword_search.py", timeout=300)
+    _print_result(result)
+
+    # 保存结果
+    output_file = _save_results([result], config['output_dir'])
+    if not config.get('output_json'):
+        click.echo(f"\n[INFO] 测试结果已保存: {output_file}")
+
+    # 汇总
+    success = _print_summary([result])
+    sys.exit(0 if success else 1)
+
+
+@cli.command()
+@click.option('--spiders', help='要测试的爬虫列表（用于keyword测试），逗号分隔')
+@click.option('--keyword', default='acetone', help='搜索关键词')
+@click.option('--skip-scrapyd', is_flag=True, help='跳过Scrapyd测试')
+@pass_config
+def all(config, spiders, keyword, skip_scrapyd):
+    """运行所有测试"""
+    if not config.get('output_json'):
+        click.echo("\n" + "="*60)
+        click.echo("测试: 全部测试")
+        click.echo("="*60)
+
+    results = []
+
+    # 1. Redis 连接测试
+    if not config.get('output_json'):
+        click.echo("\n--- Redis 连接测试 ---")
+    result = _run_test_file("test_redis_connection.py")
+    results.append(result)
+    _print_result(result)
+
+    # 2. 关键词搜索测试
+    if not config.get('output_json'):
+        click.echo("\n--- 关键词搜索测试 ---")
+
+    if spiders:
+        spiders_to_test = [s.strip() for s in spiders.split(",") if s.strip()]
+    else:
+        spiders_to_test = _discover_spiders()
+
+    if spiders_to_test:
+        os.environ["KEYWORD_SEARCH_SPIDERS"] = ",".join(spiders_to_test)
+        os.environ["KEYWORD_SEARCH_KEYWORD"] = keyword
+
+        result = _run_test_file("test_keyword_search.py", timeout=180)
+        results.append(result)
+        _print_result(result)
+
+    # 3. Scrapyd 测试
+    if not skip_scrapyd:
+        if not config.get('output_json'):
+            click.echo("\n--- Scrapyd 测试 ---")
+        result = _run_test_file("test_scrapyd_keyword_search.py", timeout=300)
+        results.append(result)
+        _print_result(result)
+
+    # 保存结果
+    output_file = _save_results(results, config['output_dir'])
+    if not config.get('output_json'):
+        click.echo(f"\n[INFO] 测试结果已保存: {output_file}")
+
+    # 汇总
+    success = _print_summary(results)
+    sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":
-    main()
+    cli()

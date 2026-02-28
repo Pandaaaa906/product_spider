@@ -177,17 +177,36 @@ uv run --env-file ./test.local.env scrapy crawl allmpus \
 
 ### Testing
 
-#### Automated Testing
+#### Automated Testing (Click Group Test Runner)
+
+Test runner uses Click groups for organized test commands:
+
 ```bash
-# Run all tests (auto-detect spiders with keyword_search)
-python test_runner.py
+# Test Redis connection only
+python test_runner.py redis
 
-# Test specific spiders
-python test_runner.py --spiders allmpus
-python test_runner.py --spiders allmpus,biosynth
+# Test keyword search (auto-detect spiders)
+python test_runner.py keyword
 
-# Skip Redis connection test
-python test_runner.py --skip-redis-test
+# Test keyword search with specific spiders
+python test_runner.py keyword --spiders allmpus
+python test_runner.py keyword --spiders allmpus,biosynth
+
+# Test with custom keyword
+python test_runner.py keyword --keyword ethanol
+
+# Test Scrapyd integration
+python test_runner.py scrapyd
+
+# Run all tests
+python test_runner.py all
+
+# Run all tests except Scrapyd
+python test_runner.py all --skip-scrapyd
+
+# Global options
+python test_runner.py --output-json redis     # JSON output
+python test_runner.py --skip-log-clear all    # Skip log cleanup
 ```
 
 #### Manual Testing
