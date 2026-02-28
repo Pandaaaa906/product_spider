@@ -29,7 +29,7 @@ class BaseSpider(scrapy.Spider):
         :param task_id: 任务ID
         :param kwargs:
         """
-        self.cmd_keyword_search = cmd_keyword_search
+        self.cmd_keyword_search = True if cmd_keyword_search in {True, 'True', 'true', '1'} else False
         self.keyword = keyword
         self.search_params = search_params
         self.task_id = task_id
@@ -46,6 +46,7 @@ class BaseSpider(scrapy.Spider):
             raise ValueError("keyword or search_params not specified")
         if not self.task_id:
             raise ValueError("task_id is required when cmd_keyword_search is True")
+        self.log(f"调用keyword_search, {self.keyword=}, {self.search_params=}")
         yield from self.keyword_search(self.keyword, self.search_params)
 
     def keyword_search(self, keyword: str, search_params: dict = None) -> Generator:
