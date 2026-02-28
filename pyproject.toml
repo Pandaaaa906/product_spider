@@ -53,6 +53,7 @@ dependencies = [
     "setuptools~=81.0",
     "fastapi>=0.68.2",
     "pydantic>=1.10.26",
+    "pluggy>=1.0",
 ]
 
 [project.optional-dependencies]

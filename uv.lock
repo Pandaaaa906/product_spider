@@ -700,11 +700,11 @@ wheels = [
 
 [[package]]
 name = "pluggy"
-version = "0.13.1"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/04/7a8542bed4b16a65c2714bf76cf5a0b026157da7f75e87cc88774aa10b14/pluggy-0.13.1.tar.gz", hash = "sha256:15b2acde666561e1298d71b523007ed7364de07029219b604cf808bfa1c765b0", size = 57962, upload-time = "2019-11-21T20:42:37.118Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/28/85c7aa31b80d150b772fbe4a229487bc6644da9ccb7e427dd8cc60cb8a62/pluggy-0.13.1-py2.py3-none-any.whl", hash = "sha256:966c145cd83c96502c3c3868f50408687b38434af77734af1e9ca461a4081d2d", size = 18077, upload-time = "2019-11-21T20:42:34.957Z" },
+    { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
 ]
 
 [[package]]
@@ -745,6 +745,7 @@ dependencies = [
     { name = "more-itertools" },
     { name = "playwright" },
     { name = "playwright-stealth" },
+    { name = "pluggy" },
     { name = "psycopg2-binary" },
     { name = "pycryptodome" },
     { name = "pydantic" },
@@ -792,6 +793,7 @@ requires-dist = [
     { name = "more-itertools" },
     { name = "playwright", specifier = "~=1.42.0" },
     { name = "playwright-stealth", specifier = "~=1.0.5" },
+    { name = "pluggy", specifier = ">=1.0" },
     { name = "psycopg2-binary" },
     { name = "pycryptodome", specifier = "~=3.14.1" },
     { name = "pydantic", specifier = ">=1.10.26" },
@@ -1337,31 +1339,14 @@ wheels = [
 ]
 
 [[package]]
-name = "toml"
-version = "0.10.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
-]
-
-[[package]]
 name = "tox"
-version = "3.14.1"
+version = "1.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock" },
-    { name = "packaging" },
-    { name = "pluggy" },
     { name = "py" },
-    { name = "six" },
-    { name = "toml" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/de/a0cd7de91f362a59ec689808ed2993b0578642247418840ae240cfdc4c66/tox-3.14.1.tar.gz", hash = "sha256:bcfa3e40abc1e9b70607b56adfd976fe7dc8286ad56aab44e3151daca7d2d0d0", size = 297276, upload-time = "2019-11-13T17:15:58.654Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/e1/e985796a601ad17876958a84c66209ace8e4db804e37f5cb01b6b154b62e/tox-3.14.1-py2.py3-none-any.whl", hash = "sha256:1d1368ac86e8332f79e2bcef9fefe2b077469f08449eadf0183759b34f3b2070", size = 80836, upload-time = "2019-11-13T17:15:56.84Z" },
-]
+sdist = { url = "https://files.pythonhosted.org/packages/39/4b/eac6e23df2d2987a66b29942a6b641048c2bd484dc7251612262ea2fabc0/tox-1.9.2.tar.gz", hash = "sha256:3125a15da7381f59f835a25bd259a84acb7a69858c81e386c50027bd842bb91b", size = 93029, upload-time = "2015-03-23T21:02:15.119Z" }
 
 [[package]]
 name = "tqdm"
