@@ -5,6 +5,7 @@ from scrapy import Request
 from scrapy.http import Response
 
 from product_spider.items import RawData
+from product_spider.utils.functions import strip
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -51,7 +52,7 @@ class AllmpusSpider(BaseSpider):
             rel_url = product.xpath('./a[h5]/@href').get()
             if not rel_url:
                 continue
-            cat_no = product.xpath('//div[a[h5]]//p[b="CAT No:"]/text()').get().strip()
+            cat_no = strip(''.join(product.xpath('.//p[b="CAT No:"]/text()').getall()))
             product_url = urljoin(self.base_url, rel_url)
             # 保留原有 meta（包含 task_id, keyword, search_params）
             meta = response.meta.copy()
@@ -66,8 +67,8 @@ class AllmpusSpider(BaseSpider):
     def parse_detail(self, response):
         """解析产品详情页"""
         # 优先从页面提取 CAT No，如果页面缺失则使用 meta 中传递的 CAT No
-        img_rel_url = response.xpath('//div[@class="panel-body"]//div/img/@src').get()
-        img_url = img_rel_url and urljoin(self.base_url, img_rel_url)
+        img_rel_url = response.xpath('//div[@class="card-body p-4"]//div/img/@src').get()
+        img_url = img_rel_url and urljoin(response.url, img_rel_url)
         cat_no = get_value(response, "CAT No : ")
         parent = response.xpath('//p[strong="Category:"]/text()').get()
         d = {
@@ -75,14 +76,14 @@ class AllmpusSpider(BaseSpider):
             'parent': parent or response.meta.get('parent', None),
             'cat_no': cat_no or response.meta.get('cat_no', None),
             'en_name': response.xpath('//h1/text()').get(),
-            'cas': get_value(response, "CAS Number : "),
-            'mf': get_value(response, "Molecular Formula : "),
-            'mw': get_value(response, "Molecular Weight : "),
-            'stock_info': get_value(response, "Inventory Status :"),
-            'purity': get_value(response, "Purity by HPLC :"),
+            'cas': get_value(response, "CAS Number:"),
+            'mf': get_value(response, "Molecular Formula:"),
+            'mw': get_value(response, "Molecular Weight:"),
+            'stock_info': get_value(response, "Inventory Status:"),
+            'purity': get_value(response, "Purity by HPLC:"),
             'img_url': img_url,
-            'info1': get_value(response, "Chemical Name :"),
-            'info2': get_value(response, "Storage :"),
+            'info1': get_value(response, "Chemical Name:"),
+            'info2': get_value(response, "Storage:"),
             'prd_url': response.url,
         }
         yield RawData(**d)
