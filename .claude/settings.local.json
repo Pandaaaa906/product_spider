@@ -14,7 +14,10 @@
       "Bash(pip show:*)",
       "Bash(chcp 65001:*)",
       "Bash(uv sync:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(git add:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

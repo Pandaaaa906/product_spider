@@ -117,8 +117,15 @@ uv run scrapy crawl spider_name
 
 - `product_spider/spiders/`: Individual spider implementations (177 files)
 - `product_spider/items/`: Product data structures
+- `product_spider/pipelines/redis_pipeline.py`: Redis result storage pipeline
+- `product_spider/utils/spider_mixin.py`: BaseSpider with keyword search support
 - `data/`: Storage for scraped data
 - `dbs/`: Database schema and migration files
+- `tests/`: Test scripts
+  - `test_keyword_search.py`: Keyword search functionality tests
+  - `test_redis_connection.py`: Redis connectivity tests
+- `test_runner.py`: Main test runner with spider discovery
+- `test.local.env`: Local testing environment variables
 - `scrapy.cfg`: Scrapy deployment configuration
 - `docker-compose*.yaml`: Production and test configurations
 - `pyproject.toml`: Project configuration and dependencies (managed by uv)
@@ -135,15 +142,17 @@ uv run scrapy crawl spider_name
 ## Keyword Search Feature
 
 ### Overview
-The keyword search feature allows spiders to be triggered via Scrapyd API with a search query, storing results in Redis for quick retrieval.
+The keyword search feature allows spiders to be triggered via Scrapyd API or CLI with a search query, storing results in Redis for quick retrieval.
 
 ### Architecture
 - **BaseSpider** (`product_spider/utils/spider_mixin.py`): Validates `task_id` when `cmd_keyword_search=True`
 - **Spider Implementation**: Each spider implements `keyword_search()` method for site-specific search logic
 - **Redis Pipeline** (`product_spider/pipelines/redis_pipeline.py`): Stores results with configurable TTL (default: 24 hours)
-- **Test Runner** (`test_runner.py`): Automated testing with scrapyd lifecycle management
+- **Test Runner** (`test_runner.py`): Automated testing with dynamic spider discovery
 
 ### Usage
+
+#### Via Scrapyd API
 ```bash
 # Schedule keyword search via Scrapyd API
 curl -X POST http://127.0.0.1:6800/schedule.json \
@@ -157,9 +166,85 @@ curl -X POST http://127.0.0.1:6800/schedule.json \
 redis-cli -h 192.168.4.246 -p 6380 -n 2 zrange 'task:unique-task-id:results' 0 -1
 ```
 
+#### Via Scrapy CLI (with env-file)
+```bash
+# Run keyword search with environment file
+uv run --env-file ./test.local.env scrapy crawl allmpus \
+  -a cmd_keyword_search=true \
+  -a keyword=acetone \
+  -a task_id=unique-task-id
+```
+
+### Testing
+
+#### Automated Testing
+```bash
+# Run all tests (auto-detect spiders with keyword_search)
+python test_runner.py
+
+# Test specific spiders
+python test_runner.py --spiders allmpus
+python test_runner.py --spiders allmpus,biosynth
+
+# Skip Redis connection test
+python test_runner.py --skip-redis-test
+```
+
+#### Manual Testing
+```bash
+# Run single spider keyword search test
+python tests/test_keyword_search.py allmpus
+
+# Test multiple spiders
+python tests/test_keyword_search.py --spiders allmpus,biosynth
+```
+
 ### Configuration
 - `REDIS_URL`: Redis connection string (e.g., `redis://192.168.4.246:6380/2`)
 - `REDIS_CACHE_TTL`: Result expiration time in seconds (default: 86400 = 24 hours)
+- `KEYWORD_SEARCH_SPIDERS`: Environment variable to specify spiders for testing (comma-separated)
+
+### Environment Variable Passing
+
+When running spiders via `uv run`, use `--env-file` to pass environment variables:
+
+```bash
+# Recommended approach - use env file
+uv run --env-file ./test.local.env scrapy crawl spider_name
+
+# The env file should contain:
+# REDIS_URL=redis://192.168.4.246:6380/2
+# DATABASE_NAME=dev
+# etc.
+```
+
+**Note**: Direct environment variable passing to subprocess may not work reliably with `uv run` due to process isolation. Always use `--env-file` for consistent behavior.
+
+### Test Environment Setup
+
+Create `test.local.env` for local testing:
+
+```bash
+# Redis Configuration
+REDIS_URL=redis://192.168.4.246:6380/2
+REDIS_HOST=192.168.4.246
+REDIS_PORT=6380
+REDIS_DB=2
+
+# Database Configuration
+DATABASE_ENGINE=postgresql
+DATABASE_NAME=dev
+DATABASE_USER=postgres
+DATABASE_PWD=your_password
+DATABASE_HOST=192.168.5.247
+DATABASE_PORT=5432
+
+# Proxy Pool (optional)
+PROXY_POOL_URL=http://192.168.5.246:5555/random
+
+# Playwright
+PLAYWRIGHT_SKIP_BROWSER_GC=1
+```
 
 ### Known Issues & Lessons Learned
 
@@ -167,10 +252,12 @@ redis-cli -h 192.168.4.246 -p 6380 -n 2 zrange 'task:unique-task-id:results' 0 -
 
 2. **CAT No Extraction**: Products may have CAT No in list view but not in detail view. Store CAT No in `meta` during list parsing and fallback to it in `parse_detail`.
 
-3. **Windows Event Loop**: `async_runner.py` must set `asyncio.WindowsSelectorEventLoopPolicy()` on Windows before installing the reactor to avoid `ProactorEventLoop` incompatibility.
+3. **Windows Event Loop**: `async_runner.py` must set `asyncio.WindowsSelectorEventLoopPolicy()` on Windows before installing the reactor to avoid `ProtractorEventLoop` incompatibility.
 
 4. **Scrapyd Deploy URL**: `scrapy.cfg` deploy URL should use `0.0.0.0:6800` for deployment, but tests should connect via `127.0.0.1:6800`.
 
-5. **Log Cleanup**: Always clear logs before testing to avoid confusion from previous runs. Test runner now includes `clear_logs()` function.
+5. **Log Cleanup**: Always clear logs before testing to avoid confusion from previous runs. Test runner includes `clear_logs()` function.
 
 6. **Redis Pipeline TTL**: Cache expiration should be configurable via environment variable. Default changed from 30 days to 24 hours to prevent storage bloat.
+
+7. **Dynamic Spider Discovery**: Test runner now automatically detects spiders that implement `keyword_search` method, eliminating the need to manually maintain spider lists.
