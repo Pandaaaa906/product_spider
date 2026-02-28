@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xargs grep:*)",
+      "Bash(sed:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(set:*)"
+    ]
+  }
+}
