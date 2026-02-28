@@ -121,10 +121,12 @@ uv run scrapy crawl spider_name
 - `product_spider/utils/spider_mixin.py`: BaseSpider with keyword search support
 - `data/`: Storage for scraped data
 - `dbs/`: Database schema and migration files
-- `tests/`: Test scripts
+- `tests/`: Test scripts with pytest
+  - `conftest.py`: Shared pytest fixtures
   - `test_keyword_search.py`: Keyword search functionality tests
   - `test_redis_connection.py`: Redis connectivity tests
-- `test_runner.py`: Main test runner with spider discovery
+  - `test_scrapyd_keyword_search.py`: Scrapyd integration tests
+  - `test_allmpus_keyword.py`: Allmpus spider keyword search tests
 - `test.local.env`: Local testing environment variables
 - `scrapy.cfg`: Scrapy deployment configuration
 - `docker-compose*.yaml`: Production and test configurations
@@ -148,7 +150,7 @@ The keyword search feature allows spiders to be triggered via Scrapyd API or CLI
 - **BaseSpider** (`product_spider/utils/spider_mixin.py`): Validates `task_id` when `cmd_keyword_search=True`
 - **Spider Implementation**: Each spider implements `keyword_search()` method for site-specific search logic
 - **Redis Pipeline** (`product_spider/pipelines/redis_pipeline.py`): Stores results with configurable TTL (default: 24 hours)
-- **Test Runner** (`test_runner.py`): Automated testing with dynamic spider discovery
+- **Test Suite** (`tests/`): Pytest-based tests with shared fixtures in `conftest.py`
 
 ### Usage
 
@@ -205,47 +207,6 @@ pytest tests/test_keyword_search.py -v --spider=allmpus --keyword=ethanol
 python tests/test_redis_connection.py
 python tests/test_keyword_search.py allmpus biosynth
 python tests/test_scrapyd_keyword_search.py --spider=allmpus
-```
-
-#### Click Group Test Runner
-
-Alternative test runner using Click groups:
-
-```bash
-# Test Redis connection only
-python test_runner.py redis
-
-# Test keyword search (auto-detect spiders)
-python test_runner.py keyword
-
-# Test keyword search with specific spiders
-python test_runner.py keyword --spiders allmpus
-python test_runner.py keyword --spiders allmpus,biosynth
-
-# Test with custom keyword
-python test_runner.py keyword --keyword ethanol
-
-# Test Scrapyd integration
-python test_runner.py scrapyd
-
-# Run all tests
-python test_runner.py all
-
-# Run all tests except Scrapyd
-python test_runner.py all --skip-scrapyd
-
-# Global options
-python test_runner.py --output-json redis     # JSON output
-python test_runner.py --skip-log-clear all    # Skip log cleanup
-```
-
-#### Manual Testing
-```bash
-# Run single spider keyword search test
-python tests/test_keyword_search.py allmpus
-
-# Test multiple spiders
-python tests/test_keyword_search.py --spiders allmpus,biosynth
 ```
 
 ### Configuration
@@ -305,8 +266,8 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1
 
 4. **Scrapyd Deploy URL**: `scrapy.cfg` deploy URL should use `0.0.0.0:6800` for deployment, but tests should connect via `127.0.0.1:6800`.
 
-5. **Log Cleanup**: Always clear logs before testing to avoid confusion from previous runs. Test runner includes `clear_logs()` function.
+5. **Log Cleanup**: Always clear logs before testing to avoid confusion from previous runs. Use `rm -rf logs/product_spider/**/*.log` to clean up.
 
 6. **Redis Pipeline TTL**: Cache expiration should be configurable via environment variable. Default changed from 30 days to 24 hours to prevent storage bloat.
 
-7. **Dynamic Spider Discovery**: Test runner now automatically detects spiders that implement `keyword_search` method, eliminating the need to manually maintain spider lists.
+7. **Dynamic Spider Discovery**: Test scripts automatically detect spiders that implement `keyword_search` method, eliminating the need to manually maintain spider lists.
