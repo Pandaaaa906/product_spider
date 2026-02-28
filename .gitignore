@@ -83,7 +83,7 @@ celerybeat-schedule
 *.env
 
 # Claude outputs
-claud_outputs/
+claude_outputs/
 
 # virtualenv
 .venv

@@ -11,7 +11,10 @@
       "Bash(python:*)",
       "Bash(set:*)",
       "Bash(uv run:*)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(chcp 65001:*)",
+      "Bash(uv sync:*)",
+      "Bash(cat:*)"
     ]
   }
 }

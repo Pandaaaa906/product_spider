@@ -83,7 +83,7 @@ def keyword_search(self, keyword: str, search_params: dict = None):
     # 返回请求，将 task_id 添加到 meta
     yield Request(
         url=f"{search_url}?{urlencode(params)}",
-        callback=self.parse_search_results,
+        callback=self.parse_search_results,  # 或者使用原有的某个方法
         meta={
             'keyword': keyword,
             'search_params': search_params,
