@@ -131,3 +131,46 @@ uv run scrapy crawl spider_name
 - Virtual environment created at `.venv/`
 - Dependencies defined in `pyproject.toml` with proper project metadata
 - Git-based dependencies (ScrapyAutoDb, scrapydweb) properly configured in uv sources
+
+## Keyword Search Feature
+
+### Overview
+The keyword search feature allows spiders to be triggered via Scrapyd API with a search query, storing results in Redis for quick retrieval.
+
+### Architecture
+- **BaseSpider** (`product_spider/utils/spider_mixin.py`): Validates `task_id` when `cmd_keyword_search=True`
+- **Spider Implementation**: Each spider implements `keyword_search()` method for site-specific search logic
+- **Redis Pipeline** (`product_spider/pipelines/redis_pipeline.py`): Stores results with configurable TTL (default: 24 hours)
+- **Test Runner** (`test_runner.py`): Automated testing with scrapyd lifecycle management
+
+### Usage
+```bash
+# Schedule keyword search via Scrapyd API
+curl -X POST http://localhost:6800/schedule.json \
+  -d project=product_spider \
+  -d spider=allmpus \
+  -d cmd_keyword_search=True \
+  -d keyword=acetone \
+  -d task_id=unique-task-id
+
+# Check results in Redis
+redis-cli -h 192.168.4.246 -p 6380 -n 2 zrange 'task:unique-task-id:results' 0 -1
+```
+
+### Configuration
+- `REDIS_URL`: Redis connection string (e.g., `redis://192.168.4.246:6380/2`)
+- `REDIS_CACHE_TTL`: Result expiration time in seconds (default: 86400 = 24 hours)
+
+### Known Issues & Lessons Learned
+
+1. **Spider XPath Consistency**: When implementing `keyword_search`, ensure the search results page structure matches existing parsers. The `parse_prd_list` method was reused for both category browsing and search results, requiring careful XPath design.
+
+2. **CAT No Extraction**: Products may have CAT No in list view but not in detail view. Store CAT No in `meta` during list parsing and fallback to it in `parse_detail`.
+
+3. **Windows Event Loop**: `async_runner.py` must set `asyncio.WindowsSelectorEventLoopPolicy()` on Windows before installing the reactor to avoid `ProactorEventLoop` incompatibility.
+
+4. **Scrapyd Deploy URL**: `scrapy.cfg` deploy URL should use `0.0.0.0:6800` for deployment, but tests should connect via `127.0.0.1:6800`.
+
+5. **Log Cleanup**: Always clear logs before testing to avoid confusion from previous runs. Test runner now includes `clear_logs()` function.
+
+6. **Redis Pipeline TTL**: Cache expiration should be configurable via environment variable. Default changed from 30 days to 24 hours to prevent storage bloat.
