@@ -83,6 +83,19 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=30,
         help="Wait time for job completion in seconds",
     )
+    # Scrapyd service management options
+    parser.addoption(
+        "--skip-scrapyd-start",
+        action="store_true",
+        default=False,
+        help="Skip Scrapyd tests entirely",
+    )
+    parser.addoption(
+        "--scrapyd-already-running",
+        action="store_true",
+        default=False,
+        help="Assume Scrapyd is already running (don't auto-start)",
+    )
 
 
 # =============================================================================
@@ -183,10 +196,13 @@ def scrapyd_url(request: pytest.FixtureRequest) -> str:
 def scrapyd_project() -> str:
     """Get Scrapyd project name from environment variable.
 
+    Note: Scrapyd uses 'default' as the default project name when deploying
+    locally. The project name in scrapy.cfg is for reference only.
+
     Returns:
         Project name string
     """
-    return get_env_var("SCRAPYD_PROJECT", "product_spider") or "product_spider"
+    return get_env_var("SCRAPYD_PROJECT", "default") or "default"
 
 
 @pytest.fixture(scope="function")

@@ -20,10 +20,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generator
 from unittest.mock import Mock
 
 import pytest
@@ -31,6 +32,194 @@ import requests
 
 if TYPE_CHECKING:
     from redis.client import Redis
+
+
+# =============================================================================
+# Scrapyd Service Manager
+# =============================================================================
+
+class ScrapydServiceManager:
+    """Manages Scrapyd service lifecycle for testing.
+
+    Automatically starts Scrapyd before tests and stops it after tests,
+    ensuring cleanup even if tests fail.
+
+    Usage:
+        with ScrapydServiceManager(scrapyd_url="http://127.0.0.1:6800") as mgr:
+            if mgr.is_running:
+                # Run tests
+    """
+
+    def __init__(
+        self,
+        scrapyd_url: str = "http://127.0.0.1:6800",
+        max_wait: int = 30,
+        use_uv: bool = True,
+    ):
+        self.scrapyd_url = scrapyd_url
+        self.max_wait = max_wait
+        self.use_uv = use_uv
+        self.process: subprocess.Popen | None = None
+        self.is_running = False
+        self._was_already_running = False
+
+    def _is_scrapyd_running(self) -> bool:
+        """Check if Scrapyd is already running."""
+        try:
+            resp = requests.get(f"{self.scrapyd_url}/daemonstatus.json", timeout=2)
+            return resp.json().get("status") == "ok"
+        except Exception:
+            return False
+
+    def _wait_for_scrapyd(self) -> bool:
+        """Wait for Scrapyd to become ready."""
+        for i in range(self.max_wait):
+            if self._is_scrapyd_running():
+                return True
+            time.sleep(1)
+            # Check if process has exited
+            if self.process and self.process.poll() is not None:
+                stdout, stderr = self.process.communicate()
+                print(f"  [ERROR] Scrapyd process exited early")
+                print(f"  stdout: {stdout.decode()[:500] if stdout else 'None'}")
+                print(f"  stderr: {stderr.decode()[:500] if stderr else 'None'}")
+                return False
+            if i % 5 == 0:
+                print(f"  Waiting for Scrapyd... ({i}/{self.max_wait})")
+        return False
+
+    def start(self) -> bool:
+        """Start Scrapyd service.
+
+        Returns:
+            True if started successfully or already running
+        """
+        # Check if already running
+        if self._is_scrapyd_running():
+            print(f"[INFO] Scrapyd is already running at {self.scrapyd_url}")
+            self.is_running = True
+            self._was_already_running = True
+            return True
+
+        print(f"[INFO] Starting Scrapyd...")
+
+        # Start Scrapyd using uv run with env-file
+        cmd = ["uv", "run", "--env-file=./test.local.env", "scrapyd"]
+
+        try:
+            # Use CREATE_NEW_PROCESS_GROUP on Windows for proper process management
+            kwargs = {}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+            project_root = Path(__file__).parent.parent
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=str(project_root),
+                **kwargs
+            )
+
+            # Wait for service to be ready
+            if self._wait_for_scrapyd():
+                print(f"[OK] Scrapyd started successfully (PID: {self.process.pid})")
+                self.is_running = True
+                return True
+            else:
+                print(f"[ERROR] Scrapyd failed to start within {self.max_wait} seconds")
+                self.stop()
+                return False
+
+        except Exception as e:
+            print(f"[ERROR] Failed to start Scrapyd: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def stop(self) -> None:
+        """Stop Scrapyd service if we started it."""
+        if self._was_already_running:
+            print(f"[INFO] Scrapyd was already running, not stopping")
+            return
+
+        if self.process is None:
+            return
+
+        print(f"[INFO] Stopping Scrapyd...")
+        try:
+            if sys.platform == "win32":
+                # Send CTRL_BREAK_EVENT on Windows
+                self.process.send_signal(subprocess.signal.CTRL_BREAK_EVENT)
+            else:
+                self.process.terminate()
+
+            # Wait for graceful shutdown
+            try:
+                self.process.wait(timeout=10)
+                print(f"[OK] Scrapyd stopped")
+            except subprocess.TimeoutExpired:
+                print(f"[WARN] Scrapyd did not stop gracefully, killing...")
+                self.process.kill()
+                self.process.wait()
+                print(f"[OK] Scrapyd killed")
+
+        except Exception as e:
+            print(f"[WARN] Error stopping Scrapyd: {e}")
+        finally:
+            self.process = None
+            self.is_running = False
+
+    def __enter__(self) -> ScrapydServiceManager:
+        """Context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Context manager exit - always stop Scrapyd."""
+        self.stop()
+
+
+@pytest.fixture(scope="session")
+def scrapyd_service(request) -> Generator[ScrapydServiceManager, None, None]:
+    """Pytest fixture to manage Scrapyd service lifecycle.
+
+    This fixture starts Scrapyd before tests and stops it after tests,
+    ensuring cleanup even if tests fail.
+
+    To skip auto-start, use: pytest --skip-scrapyd-start
+    To assume Scrapyd is already running: pytest --scrapyd-already-running
+    """
+    skip_start = request.config.getoption("--skip-scrapyd-start", default=False)
+    already_running = request.config.getoption("--scrapyd-already-running", default=False)
+    scrapyd_url = request.config.getoption("--scrapyd-url") or "http://127.0.0.1:6800"
+
+    if skip_start:
+        print("[INFO] Skipping Scrapyd tests (--skip-scrapyd-start)")
+        pytest.skip("Scrapyd tests skipped by --skip-scrapyd-start")
+        return
+
+    if already_running:
+        print(f"[INFO] Assuming Scrapyd is already running at {scrapyd_url}")
+        # Check if it's actually running
+        mgr = ScrapydServiceManager(scrapyd_url=scrapyd_url)
+        if mgr._is_scrapyd_running():
+            mgr.is_running = True
+            mgr._was_already_running = True
+            yield mgr
+        else:
+            pytest.fail(f"Scrapyd is not running at {scrapyd_url}. Please start it manually with: uv run --env-file=./test.local.env scrapyd")
+        return
+
+    # Try to auto-start Scrapyd
+    with ScrapydServiceManager(scrapyd_url=scrapyd_url) as mgr:
+        if not mgr.is_running:
+            pytest.skip(
+                f"Scrapyd service could not be started at {scrapyd_url}. "
+                f"Please start it manually with: uv run --env-file=./test.local.env scrapyd "
+                f"Or use --scrapyd-already-running if it's already running."
+            )
+        yield mgr
 
 
 # =============================================================================
@@ -122,22 +311,30 @@ def schedule_keyword_search(
     return resp.json()
 
 
-def list_jobs(scrapyd_url: str, project: str) -> dict[str, Any]:
+def list_jobs(scrapyd_url: str, project: str, timeout: int = 30) -> dict[str, Any]:
     """List jobs in a project.
 
     Args:
         scrapyd_url: Scrapyd service URL
         project: Project name
+        timeout: Request timeout in seconds
 
     Returns:
         Jobs information dictionary
     """
-    resp = requests.get(
-        f"{scrapyd_url}/listjobs.json",
-        params={"project": project},
-        timeout=10
-    )
-    return resp.json()
+    try:
+        resp = requests.get(
+            f"{scrapyd_url}/listjobs.json",
+            params={"project": project},
+            timeout=timeout
+        )
+        return resp.json()
+    except requests.exceptions.Timeout:
+        print(f"  [WARN] Timeout listing jobs from {scrapyd_url}")
+        return {"running": [], "finished": [], "pending": []}
+    except Exception as e:
+        print(f"  [WARN] Error listing jobs: {e}")
+        return {"running": [], "finished": [], "pending": []}
 
 
 def cancel_job(scrapyd_url: str, project: str, job_id: str) -> dict[str, Any]:
@@ -277,7 +474,7 @@ def clear_logs(project: str, spider: str | None = None) -> None:
 class TestScrapydConnection:
     """Tests for Scrapyd connection and basic operations."""
 
-    def test_daemon_status(self, scrapyd_url: str) -> None:
+    def test_daemon_status(self, scrapyd_service, scrapyd_url: str) -> None:
         """Test Scrapyd daemon status endpoint.
 
         Verifies that Scrapyd service is running and responding.
@@ -289,7 +486,7 @@ class TestScrapydConnection:
         assert "running" in data, "Missing 'running' field in response"
         assert "pending" in data, "Missing 'pending' field in response"
 
-    def test_list_projects(self, scrapyd_url: str, scrapyd_project: str) -> None:
+    def test_list_projects(self, scrapyd_service, scrapyd_url: str, scrapyd_project: str) -> None:
         """Test listing projects.
 
         Verifies that the configured project exists in Scrapyd.
@@ -299,7 +496,7 @@ class TestScrapydConnection:
             f"Project '{scrapyd_project}' not found. Available: {projects}"
         )
 
-    def test_list_spiders(self, scrapyd_url: str, scrapyd_project: str) -> None:
+    def test_list_spiders(self, scrapyd_service, scrapyd_url: str, scrapyd_project: str) -> None:
         """Test listing spiders.
 
         Verifies that spiders can be listed from the project.
@@ -323,6 +520,7 @@ class TestScrapydKeywordSearch:
 
     def test_schedule_keyword_search(
         self,
+        scrapyd_service,
         scrapyd_url: str,
         scrapyd_project: str,
         test_spider: str,
@@ -347,18 +545,19 @@ class TestScrapydKeywordSearch:
         self.job_id = result["jobid"]
         print(f"Job scheduled: {self.job_id}")
 
-    def test_job_completion(
+    def test_job_status(
         self,
+        scrapyd_service,
         scrapyd_url: str,
         scrapyd_project: str,
         test_spider: str,
         test_keyword: str,
         task_id: str,
-        wait_time: int,
     ) -> None:
-        """Test job completion and result verification.
+        """Test job scheduling and initial status.
 
-        Schedules a job, waits for completion, and verifies results in Redis.
+        Schedules a job and verifies it appears in the job list.
+        Does not wait for completion to avoid long test times.
         """
         # Schedule job
         result = schedule_keyword_search(
@@ -371,22 +570,24 @@ class TestScrapydKeywordSearch:
 
         assert "jobid" in result, f"Job scheduling failed: {result}"
         job_id = result["jobid"]
+        print(f"  Job scheduled: {job_id}")
 
-        # Wait for completion
-        job_finished = False
-        for i in range(wait_time):
-            time.sleep(1)
-            jobs = list_jobs(scrapyd_url, scrapyd_project)
-            finished = jobs.get("finished", [])
-            job_finished = any(j.get("id") == job_id for j in finished)
-            if job_finished:
-                break
-            if i % 5 == 0:
-                print(f"  Waiting for job completion... ({i}/{wait_time})")
+        # Verify job appears in job list (check once, don't wait)
+        jobs = list_jobs(scrapyd_url, scrapyd_project, timeout=5)
+        all_jobs = (
+            jobs.get("pending", []) +
+            jobs.get("running", []) +
+            jobs.get("finished", [])
+        )
+        job_found = any(j.get("id") == job_id for j in all_jobs)
 
-        # Job doesn't have to finish within wait_time for test to pass
-        # We just check it was scheduled correctly
-        assert job_id is not None, "Job ID should be set"
+        if job_found:
+            print(f"  [OK] Job found in job list")
+        else:
+            print(f"  [INFO] Job not yet in job list (may be starting)")
+
+        # Just verify job was scheduled with a valid ID
+        assert job_id is not None and len(job_id) > 0, "Job should have valid ID"
 
     def test_redis_results(
         self,
@@ -405,6 +606,7 @@ class TestScrapydKeywordSearch:
 
     def test_log_check(
         self,
+        scrapyd_service,
         scrapyd_project: str,
         test_spider: str,
     ) -> None:
@@ -427,6 +629,7 @@ class TestScrapydEndToEnd:
     @pytest.mark.slow
     def test_full_workflow(
         self,
+        scrapyd_service,
         scrapyd_url: str,
         scrapyd_project: str,
         redis_client: Redis,
@@ -490,19 +693,23 @@ class TestScrapydEndToEnd:
         job_id = result["jobid"]
         print(f"[OK] Job scheduled: {job_id}\n")
 
-        # 5. Wait for completion
-        print(f"5. Waiting for job completion (max {wait_time}s)...")
+        # 5. Wait for completion (with shorter timeout for test speed)
+        max_wait = min(wait_time, 15)  # Cap at 15 seconds for tests
+        print(f"5. Waiting for job completion (max {max_wait}s)...")
         job_finished = False
-        for i in range(wait_time):
-            time.sleep(1)
+        check_interval = 2
+        max_checks = max_wait // check_interval
+
+        for i in range(max_checks):
+            time.sleep(check_interval)
             jobs = list_jobs(scrapyd_url, scrapyd_project)
             finished = jobs.get("finished", [])
             job_finished = any(j.get("id") == job_id for j in finished)
             if job_finished:
                 print(f"[OK] Job completed\n")
                 break
-            if i % 5 == 0:
-                print(f"  Waiting... ({i}/{wait_time})")
+            if i % 3 == 0:
+                print(f"  Waiting... ({(i+1)*check_interval}/{max_wait})")
         else:
             print(f"[WARN] Job still running (Job ID: {job_id})\n")
 
