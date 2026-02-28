@@ -19,10 +19,20 @@ class BaseSpider(scrapy.Spider):
 
     _start_requests: Generator = None
 
-    def __init__(self, cmd_keyword_search: bool = False, keyword: str = None, search_params: dict = None, **kwargs):
+    def __init__(self, cmd_keyword_search: bool = False, keyword: str = None, search_params: dict = None,
+                 task_id: str = None, **kwargs):
+        """
+
+        :param cmd_keyword_search: 是否调用关键字搜索功能，keyword_search
+        :param keyword: 关键字
+        :param search_params: 高级搜索配置
+        :param task_id: 任务ID
+        :param kwargs:
+        """
         self.cmd_keyword_search = cmd_keyword_search
         self.keyword = keyword
         self.search_params = search_params
+        self.task_id = task_id
         super().__init__(**kwargs)
 
     def start_requests(self):
@@ -34,9 +44,17 @@ class BaseSpider(scrapy.Spider):
             return
         if not self.keyword and not self.search_params:
             raise ValueError("keyword or search_params not specified")
+        if not self.task_id:
+            raise ValueError("task_id is required when cmd_keyword_search is True")
         yield from self.keyword_search(self.keyword, self.search_params)
 
-    def keyword_search(self, keyword: str, search_params: dict) -> Generator:
+    def keyword_search(self, keyword: str, search_params: dict = None) -> Generator:
+        """
+        各个爬虫分别根据具体网站，实现关键词搜索功能，最终应该调用原本的parse_detail(detail_parse) 去yield Item(...)
+        :param keyword: 搜索关键词
+        :param search_params: 高级搜索参数，仅部分网站支持高级搜索时使用
+        :return:
+        """
         raise NotImplementedError
 
 class JsonSpider(scrapy.Spider):
