@@ -17,7 +17,8 @@
       "Bash(cat:*)",
       "Bash(.venv/Scripts/python.exe:*)",
       "Bash(git add:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

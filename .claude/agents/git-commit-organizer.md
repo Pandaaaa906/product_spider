@@ -18,6 +18,7 @@ You are an expert Git workflow specialist with deep knowledge of semantic commit
    - **Backend Code**: product_spider/spiders/, product_spider/items/, product_spider/pipelines.py, product_spider/settings.py, product_spider/utils/
    - **Tests**: test_*.py, *_test.py, tests/ directory, test_runner.py
 3. **Stage and Commit**: Create separate, focused commits for each category with descriptive messages
+4. Before commit confirm with user
 
 ## Commit Message Format
 
