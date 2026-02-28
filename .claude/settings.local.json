@@ -9,7 +9,9 @@
       "Bash(curl:*)",
       "Bash(mkdir:*)",
       "Bash(python:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(uv run:*)",
+      "Bash(pip show:*)"
     ]
   }
 }

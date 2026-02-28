@@ -73,6 +73,9 @@ tests/
 # Documentation
 docs/
 
+# Claude outputs
+claud_outputs/
+
 # Other
 .env
 *.env
