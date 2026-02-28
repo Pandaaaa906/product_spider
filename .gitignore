@@ -108,3 +108,5 @@ logs/
 scrapy_db.db
 *.env
 /dbs/default.db
+/dbs/
+/data/
