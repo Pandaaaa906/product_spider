@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "scrapy~=2.5.0",
     "scrapyd~=1.5.0",
+    "scrapyd-client~=1.2.3",
     "lxml[html_clean]~=5.2.2",
     "logparser~=0.8.4",
     "pyopenssl==22.0.0",
@@ -50,6 +51,8 @@ dependencies = [
     "scrapydweb",
     "scrapyautodb",
     "setuptools~=81.0",
+    "fastapi>=0.68.2",
+    "pydantic>=1.10.26",
 ]
 
 [project.optional-dependencies]

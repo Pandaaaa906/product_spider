@@ -248,6 +248,19 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.68.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/00/6e/4a1dd8aeb5f673f9b772b64a35e7d11e94057306caf3108d52fd47eac7cf/fastapi-0.68.2.tar.gz", hash = "sha256:38526fc46bda73f7ec92033952677323c16061e70a91d15c95f18b11895da494", size = 6124966, upload-time = "2021-10-05T13:49:19.314Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/a8/10d8a171afa66e6e8a5cfe82771d11c4c84a2a874c19c0b55c7099001fac/fastapi-0.68.2-py3-none-any.whl", hash = "sha256:36bcdd3dbea87c586061005e4a40b9bd0145afd766655b4e0ec1d8870b32555c", size = 52420, upload-time = "2021-10-05T13:49:16.522Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.24.3"
 source = { registry = "https://pypi.org/simple" }
@@ -720,6 +733,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "demjson3" },
     { name = "fake-useragent" },
+    { name = "fastapi" },
     { name = "flask" },
     { name = "flask-sqlalchemy" },
     { name = "fonttools" },
@@ -733,6 +747,7 @@ dependencies = [
     { name = "playwright-stealth" },
     { name = "psycopg2-binary" },
     { name = "pycryptodome" },
+    { name = "pydantic" },
     { name = "pyexecjs" },
     { name = "pyopenssl" },
     { name = "requests-html" },
@@ -741,6 +756,7 @@ dependencies = [
     { name = "scrapy-redis" },
     { name = "scrapyautodb" },
     { name = "scrapyd" },
+    { name = "scrapyd-client" },
     { name = "scrapydweb" },
     { name = "setuptools" },
     { name = "sqlalchemy" },
@@ -764,6 +780,7 @@ requires-dist = [
     { name = "cryptography", specifier = "==38.0.4" },
     { name = "demjson3" },
     { name = "fake-useragent", specifier = "==1.5.1" },
+    { name = "fastapi", specifier = ">=0.68.2" },
     { name = "flask", specifier = "~=2.0.0" },
     { name = "flask-sqlalchemy", specifier = "~=2.4.0" },
     { name = "fonttools", specifier = "~=4.43.0" },
@@ -777,6 +794,7 @@ requires-dist = [
     { name = "playwright-stealth", specifier = "~=1.0.5" },
     { name = "psycopg2-binary" },
     { name = "pycryptodome", specifier = "~=3.14.1" },
+    { name = "pydantic", specifier = ">=1.10.26" },
     { name = "pyexecjs" },
     { name = "pyopenssl", specifier = "==22.0.0" },
     { name = "requests-html" },
@@ -785,6 +803,7 @@ requires-dist = [
     { name = "scrapy-redis", specifier = "~=0.7.3" },
     { name = "scrapyautodb", git = "https://github.com/Pandaaaa906/ScrapyAutoDb.git" },
     { name = "scrapyd", specifier = "~=1.5.0" },
+    { name = "scrapyd-client", specifier = "~=1.2.3" },
     { name = "scrapydweb", git = "https://github.com/Pandaaaa906/scrapydweb.git?branch=dev" },
     { name = "setuptools", specifier = "~=81.0" },
     { name = "sqlalchemy", specifier = "~=1.3.24" },
@@ -899,6 +918,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c6/ff/670f9102b40b19fe53a701c51c89e4455e72198ff0a291980a7a9a9ea55c/pycryptodome-3.14.1-cp35-abi3-manylinux2014_aarch64.whl", hash = "sha256:924b6aad5386fb54f2645f22658cb0398b1f25bc1e714a6d1522c75d527deaa5", size = 1518645, upload-time = "2022-02-04T19:06:01.261Z" },
     { url = "https://files.pythonhosted.org/packages/a6/e9/21e3c81ec8f5dd3f7453625985ea649e06280a17dba5c07ee3be7a39ea49/pycryptodome-3.14.1-cp35-abi3-win32.whl", hash = "sha256:53dedbd2a6a0b02924718b520a723e88bcf22e37076191eb9b91b79934fb2192", size = 1786661, upload-time = "2022-02-04T19:06:05.421Z" },
     { url = "https://files.pythonhosted.org/packages/19/81/45b2ea1fd90d7caa0e5aa36a373d136f7e4c07c129f3018c89e699777cf8/pycryptodome-3.14.1-cp35-abi3-win_amd64.whl", hash = "sha256:ea56a35fd0d13121417d39a83f291017551fa2c62d6daa6b04af6ece7ed30d84", size = 1836495, upload-time = "2022-02-04T19:06:09.831Z" },
+]
+
+[[package]]
+name = "pydantic"
+version = "1.10.26"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/da/fd89f987a376c807cd81ea0eff4589aade783bbb702637b4734ef2c743a2/pydantic-1.10.26.tar.gz", hash = "sha256:8c6aa39b494c5af092e690127c283d84f363ac36017106a9e66cb33a22ac412e", size = 357906, upload-time = "2025-12-18T15:47:46.557Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/6c/cd97a5a776c4515e6ee2ae81c2f2c5be51376dda6c31f965d7746ce0019f/pydantic-1.10.26-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:468d5b9cacfcaadc76ed0a4645354ab6f263ec01a63fb6d05630ea1df6ae453f", size = 2433795, upload-time = "2025-12-18T15:46:49.321Z" },
+    { url = "https://files.pythonhosted.org/packages/47/12/de20affa30dcef728fcf9cc98e13ff4438c7a630de8d2f90eb38eba0891c/pydantic-1.10.26-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2c1b0b914be31671000ca25cf7ea17fcaaa68cfeadf6924529c5c5aa24b7ab1f", size = 2227387, upload-time = "2025-12-18T15:46:50.877Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/1d/9d65dcc5b8c17ba590f1f9f486e9306346831902318b7ee93f63516f4003/pydantic-1.10.26-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:15b13b9f8ba8867095769e1156e0d7fbafa1f65b898dd40fd1c02e34430973cb", size = 2629594, upload-time = "2025-12-18T15:46:53.42Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/76/acb41409356789e23e1a7ef58f93821410c96409183ce314ddb58d97f23e/pydantic-1.10.26-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ad7025ca324ae263d4313998e25078dcaec5f9ed0392c06dedb57e053cc8086b", size = 2745305, upload-time = "2025-12-18T15:46:55.987Z" },
+    { url = "https://files.pythonhosted.org/packages/22/72/a98c0c5e527a66057d969fedd61675223c7975ade61acebbca9f1abd6dc0/pydantic-1.10.26-cp312-cp312-win_amd64.whl", hash = "sha256:4482b299874dabb88a6c3759e3d85c6557c407c3b586891f7d808d8a38b66b9c", size = 1937647, upload-time = "2025-12-18T15:46:57.905Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/98/556e82f00b98486def0b8af85da95e69d2be7e367cf2431408e108bc3095/pydantic-1.10.26-py3-none-any.whl", hash = "sha256:c43ad70dc3ce7787543d563792426a16fd7895e14be4b194b5665e36459dd917", size = 166975, upload-time = "2025-12-18T15:47:44.927Z" },
 ]
 
 [[package]]
@@ -1200,6 +1236,22 @@ wheels = [
 ]
 
 [[package]]
+name = "scrapyd-client"
+version = "1.2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "scrapy" },
+    { name = "uberegg" },
+    { name = "urllib3" },
+    { name = "w3lib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a2/d8/2ab34e608eb6f921ef2747d7b70b4bf556136746c99640ce5c4964fdc4d1/scrapyd-client-1.2.3.tar.gz", hash = "sha256:fef27cc0d8bf54cbd03467250fb0705635733de81a577b0ba00c739c2d96c894", size = 20886, upload-time = "2023-01-30T15:02:10.052Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/2a/341614d6387d6607f526d91f7823692ef0e1c46406b3df421f0a822d18cb/scrapyd_client-1.2.3-py3-none-any.whl", hash = "sha256:beeab9310f1ff942978ca472e4ccdc88648cfde3c33734a11337a93514a43859", size = 15300, upload-time = "2023-01-30T15:02:08.236Z" },
+]
+
+[[package]]
 name = "scrapydweb"
 version = "1.6.0"
 source = { git = "https://github.com/Pandaaaa906/scrapydweb.git?branch=dev#d1924cef933a9b97bb42e7473b69680301ceac7f" }
@@ -1274,6 +1326,15 @@ name = "sqlalchemy"
 version = "1.3.24"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c5/ab/81bef2f960abf3cdaf32fbf1994f0c6f5e6a5f1667b5713ed6ebf162b6a2/SQLAlchemy-1.3.24.tar.gz", hash = "sha256:ebbb777cbf9312359b897bf81ba00dae0f5cb69fba2a18265dcc18a6f5ef7519", size = 6353598, upload-time = "2021-03-30T23:04:30.273Z" }
+
+[[package]]
+name = "starlette"
+version = "0.14.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/06/ded663a1ddea8b11a2027d88ff0e757f9cdb812310f18bee33ef7270112f/starlette-0.14.2.tar.gz", hash = "sha256:7d49f4a27f8742262ef1470608c59ddbc66baf37c148e938c7038e6bc7a998aa", size = 50123, upload-time = "2021-02-02T20:13:17.133Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/34/db1890f442a1cd3a2c761f4109a0eb4e63503218d70a8c8e97faa09a5500/starlette-0.14.2-py3-none-any.whl", hash = "sha256:3c8e48e52736b3161e34c9f0e8153b4f32ec5d8995a3ee1d59410d92f75162ed", size = 60648, upload-time = "2021-02-02T20:13:15.543Z" },
+]
 
 [[package]]
 name = "toml"
@@ -1366,6 +1427,15 @@ dependencies = [
     { name = "pytz" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/89/e3687d3ed99bc882793f82634e9824e62499fdfdc4b1ae39e211c5b05017/tzlocal-1.5.1.tar.gz", hash = "sha256:4ebeb848845ac898da6519b9b31879cf13b6626f7184c496037b818e238f2c4e", size = 16809, upload-time = "2017-12-01T09:37:55.137Z" }
+
+[[package]]
+name = "uberegg"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/5a/b371f3d5867f9e86a67fda40e4cb561ecb34554d715df450b2c6c0d33953/uberegg-0.1.1.tar.gz", hash = "sha256:30052db3346e75afac1724a5953b9d7fa35fc6c37f861f980cb2a2faed26f5e5", size = 2483, upload-time = "2021-11-08T20:24:18.688Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/f9/11d1c551c1957fdeef301653ddd8e8197a8088487185b815aa8a45ad3d97/uberegg-0.1.1-py3-none-any.whl", hash = "sha256:d1372b906cdbf897333b8eec9611939b907e18c1eaef2687c69c39fccf9aeef5", size = 3012, upload-time = "2021-11-08T20:24:17.206Z" },
+]
 
 [[package]]
 name = "urllib3"
