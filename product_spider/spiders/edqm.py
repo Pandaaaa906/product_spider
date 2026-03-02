@@ -1,6 +1,7 @@
 import scrapy
 from lxml.etree import XML
 from more_itertools import first
+from urllib.parse import urljoin, urlencode
 import json
 from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
 from product_spider.utils.functions import strip
@@ -102,3 +103,77 @@ class EDQMSpider(BaseSpider):
         dddd = product_package_to_raw_supplier_quotation(d, dd, platform=self.name, vendor=self.name)
         yield SupplierProduct(**ddd)
         yield RawSupplierQuotation(**dddd)
+
+    def keyword_search(self, keyword: str, search_params: dict = None):
+        """关键词搜索方法
+
+        通过 EDQM 搜索接口查询产品，使用 Substance Name 字段进行关键词搜索。
+        """
+        # 构建搜索URL
+        search_url = f"{self.base_url}db/4DCGI/search"
+
+        # 搜索参数
+        params = {
+            'vSelectName': '1',  # 搜索 Substance Name
+            'vContains': '1',    # 包含模式
+            'vtUserName': keyword,
+            'OK': 'Search',
+            'vTypeCRS': '',
+        }
+
+        # 如果有额外的搜索参数，添加到URL中
+        if search_params:
+            params.update(search_params)
+
+        # 返回搜索请求
+        yield scrapy.Request(
+            url=f"{search_url}?{urlencode(params)}",
+            callback=self.parse_search_results,
+            meta={
+                'keyword': keyword,
+                'search_params': search_params,
+                'task_id': self.task_id,
+            }
+        )
+
+    def parse_search_results(self, response):
+        """解析搜索结果页面"""
+        # 提取搜索结果表格中的所有产品行（跳过表头行）
+        rows = response.xpath('//table//table//tr[position()>1]')
+
+        for row in rows:
+            # 提取 Cat. No. 和详情页链接
+            cat_no = row.xpath('./td[2]//text()').get('').strip()
+            detail_link = row.xpath('./td[2]//a/@href').get()
+
+            if not cat_no or not detail_link:
+                continue
+
+            # 构建完整的产品详情URL
+            prd_url = urljoin(self.base_url, detail_link)
+
+            # 从搜索结果中提取基本信息
+            d = {
+                "brand": self.brand,
+                "cat_no": cat_no,
+                "en_name": row.xpath('./td[3]//text()').get('').strip() or None,
+                "info3": row.xpath('./td[5]//text()').get('').strip() or None,  # Unit Quantity
+                "info4": row.xpath('./td[6]//text()').get('').strip() or None,  # Price
+                "prd_url": prd_url,
+            }
+
+            # 提取 batch_num
+            batch_num = row.xpath('./td[4]//text()').get('').strip() or None
+
+            # 请求产品详情页获取更多信息
+            yield scrapy.Request(
+                url=prd_url,
+                callback=self.parse_detail,
+                meta={
+                    "product": d,
+                    "batch_num": batch_num,
+                    "keyword": response.meta.get('keyword'),
+                    "search_params": response.meta.get('search_params'),
+                    "task_id": response.meta.get('task_id'),
+                }
+            )

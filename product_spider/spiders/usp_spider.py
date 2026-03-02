@@ -83,3 +83,37 @@ class USPSpider(BaseSpider):
         data = response.meta.get('data', {})
         data['offset'] = offset
         yield Request(url=f'{self.store_url}?{urlencode(data)}', meta={'data': data}, callback=self.parse)
+
+    def keyword_search(self, keyword: str, search_params: dict = None):
+        """关键词搜索方法
+
+        通过 USP API 搜索产品，使用 searchText 参数进行关键词搜索。
+        """
+        # 构建搜索参数，keyword_search 时减少 limit 以加速
+        d = {
+            'totalResults': True,
+            'totalExpandedResults': True,
+            'catalogId': 'cloudCatalog',
+            'limit': 50,  # keyword_search 时使用较小的 limit 加速
+            'offset': 0,
+            'sort': 'ID:[object Object]',
+            'includeChildren': 'true',
+            'storePriceListGroupId': 'defaultPriceGroup',
+            'searchText': keyword,  # 搜索关键词
+        }
+
+        # 如果有额外的搜索参数，添加到请求中
+        if search_params:
+            d.update(search_params)
+
+        # 返回搜索请求
+        yield Request(
+            url=f'{self.store_url}?{urlencode(d)}',
+            meta={
+                'data': d,
+                'keyword': keyword,
+                'search_params': search_params,
+                'task_id': self.task_id,
+            },
+            callback=self.parse
+        )

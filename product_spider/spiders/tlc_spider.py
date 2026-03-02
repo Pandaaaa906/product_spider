@@ -53,3 +53,51 @@ class TLCSpider(BaseSpider):
             'stock_info': response.xpath('//span[@class="status"]/text()').extract_first("").strip().title() or None,
         }
         yield RawData(**d)
+
+    def keyword_search(self, keyword: str, search_params: dict = None):
+        """关键词搜索方法
+
+        通过搜索接口查询产品，搜索结果页面与产品列表页面结构相同。
+        """
+        # 构建搜索URL
+        search_url = f"{self.base_url}ProductsSearchList.aspx"
+
+        # 搜索参数
+        params = {'key': keyword}
+
+        # 如果有额外的搜索参数，添加到URL中
+        if search_params:
+            params.update(search_params)
+
+        # 返回搜索请求，使用parse方法解析搜索结果列表
+        yield Request(
+            url=f"{search_url}?{urlencode(params)}",
+            callback=self.parse_search_results,
+            meta={
+                'keyword': keyword,
+                'search_params': search_params,
+                'task_id': self.task_id,
+            }
+        )
+
+    def parse_search_results(self, response):
+        """解析搜索结果页面"""
+        # 搜索结果页面中，每个产品在一个 item--product-detail 元素中
+        products = response.xpath('//div[@class="item item--product-detail"]')
+
+        for product in products:
+            # 提取产品详情页链接
+            rel_url = product.xpath('.//a[contains(@href, "ProdDetail.aspx")]/@href').extract_first()
+            if not rel_url:
+                continue
+
+            product_url = urljoin(self.base_url, rel_url)
+            yield Request(
+                url=product_url,
+                callback=self.detail_parse,
+                meta={
+                    'keyword': response.meta.get('keyword'),
+                    'search_params': response.meta.get('search_params'),
+                    'task_id': response.meta.get('task_id'),
+                }
+            )
