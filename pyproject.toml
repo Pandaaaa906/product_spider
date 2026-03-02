@@ -54,6 +54,7 @@ dependencies = [
     "fastapi>=0.68.2",
     "pydantic>=1.10.26",
     "pluggy>=1.0",
+    "orjson>=3.11.7",
 ]
 
 [project.optional-dependencies]

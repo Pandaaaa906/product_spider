@@ -110,7 +110,7 @@ ITEM_PIPELINES = {
     'product_spider.pipelines.FilterNAValue': 200,
     'product_spider.pipelines.ParseCostPipeline': 245,
     'product_spider.pipelines.ParseRawSupplierQuotationPipeline': 250,
-    'product_spider.pipelines.redis_pipeline.RedisPipeline': 290,  # 在AutoDBPipeline之前执行
+    'product_spider.pipelines.redis_pipeline.KeywordSearchRedisPipeline': 290,  # 在AutoDBPipeline之前执行
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 
