@@ -18,7 +18,9 @@
       "Bash(.venv/Scripts/python.exe:*)",
       "Bash(git add:*)",
       "Bash(git reset:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:scrapyd.readthedocs.io)",
+      "mcp__playwright-remote__browser_navigate"
     ]
   }
 }
