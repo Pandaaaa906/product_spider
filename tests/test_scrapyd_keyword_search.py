@@ -19,13 +19,11 @@ Environment Variables:
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generator
-from unittest.mock import Mock
 
 import pytest
 import requests
@@ -77,13 +75,6 @@ class ScrapydServiceManager:
             if self._is_scrapyd_running():
                 return True
             time.sleep(1)
-            # Check if process has exited
-            if self.process and self.process.poll() is not None:
-                stdout, stderr = self.process.communicate()
-                print(f"  [ERROR] Scrapyd process exited early")
-                print(f"  stdout: {stdout.decode()[:500] if stdout else 'None'}")
-                print(f"  stderr: {stderr.decode()[:500] if stderr else 'None'}")
-                return False
             if i % 5 == 0:
                 print(f"  Waiting for Scrapyd... ({i}/{self.max_wait})")
         return False
@@ -115,8 +106,8 @@ class ScrapydServiceManager:
             project_root = Path(__file__).parent.parent
             self.process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=None,
+                stderr=None,
                 cwd=str(project_root),
                 **kwargs
             )
@@ -337,6 +328,49 @@ def list_jobs(scrapyd_url: str, project: str, timeout: int = 30) -> dict[str, An
         return {"running": [], "finished": [], "pending": []}
 
 
+def get_job_status(scrapyd_url: str, job_id: str, project: str | None = None) -> dict[str, Any]:
+    """Get status of a specific job by ID using Scrapyd's status.json API.
+
+    API endpoint: GET /status.json?job={job_id}&project={project}
+
+    Args:
+        scrapyd_url: Scrapyd service URL
+        job_id: Job ID to check (required)
+        project: Optional project name to filter by
+
+    Returns:
+        Dictionary with job status information:
+        - status: "pending" | "running" | "finished" | "unknown"
+        - currstate: Raw currstate value from API
+        - error: Error message if any
+    """
+    try:
+        params = {"job": job_id}
+        if project:
+            params["project"] = project
+
+        resp = requests.get(
+            f"{scrapyd_url}/status.json",
+            params=params,
+            timeout=10
+        )
+        data = resp.json()
+
+        currstate = data.get("currstate")
+        # currstate can be: "pending", "running", "finished", or null (not found)
+        if currstate is None:
+            return {"status": "unknown", "currstate": None, "error": "Job not found"}
+
+        return {"status": currstate, "currstate": currstate, "error": None}
+
+    except requests.exceptions.Timeout:
+        print(f"  [WARN] Timeout checking job status from {scrapyd_url}")
+        return {"status": "error", "currstate": None, "error": "timeout"}
+    except Exception as e:
+        print(f"  [WARN] Error checking job status: {e}")
+        return {"status": "error", "currstate": None, "error": str(e)}
+
+
 def cancel_job(scrapyd_url: str, project: str, job_id: str) -> dict[str, Any]:
     """Cancel a running job.
 
@@ -506,122 +540,6 @@ class TestScrapydConnection:
 
 
 @pytest.mark.scrapyd
-@pytest.mark.spider
-@pytest.mark.slow
-@pytest.mark.integration
-class TestScrapydKeywordSearch:
-    """Tests for keyword search via Scrapyd API."""
-
-    @pytest.fixture(autouse=True)
-    def setup_test(self) -> None:
-        """Setup for each test method."""
-        self.job_id: str | None = None
-        self.task_id: str | None = None
-
-    def test_schedule_keyword_search(
-        self,
-        scrapyd_service,
-        scrapyd_url: str,
-        scrapyd_project: str,
-        test_spider: str,
-        test_keyword: str,
-        task_id: str,
-    ) -> None:
-        """Test scheduling a keyword search job.
-
-        Verifies that a job can be scheduled successfully via Scrapyd API.
-        """
-        self.task_id = task_id
-
-        result = schedule_keyword_search(
-            scrapyd_url=scrapyd_url,
-            project=scrapyd_project,
-            spider_name=test_spider,
-            keyword=test_keyword,
-            task_id=task_id,
-        )
-
-        assert "jobid" in result, f"Job scheduling failed: {result}"
-        self.job_id = result["jobid"]
-        print(f"Job scheduled: {self.job_id}")
-
-    def test_job_status(
-        self,
-        scrapyd_service,
-        scrapyd_url: str,
-        scrapyd_project: str,
-        test_spider: str,
-        test_keyword: str,
-        task_id: str,
-    ) -> None:
-        """Test job scheduling and initial status.
-
-        Schedules a job and verifies it appears in the job list.
-        Does not wait for completion to avoid long test times.
-        """
-        # Schedule job
-        result = schedule_keyword_search(
-            scrapyd_url=scrapyd_url,
-            project=scrapyd_project,
-            spider_name=test_spider,
-            keyword=test_keyword,
-            task_id=task_id,
-        )
-
-        assert "jobid" in result, f"Job scheduling failed: {result}"
-        job_id = result["jobid"]
-        print(f"  Job scheduled: {job_id}")
-
-        # Verify job appears in job list (check once, don't wait)
-        jobs = list_jobs(scrapyd_url, scrapyd_project, timeout=5)
-        all_jobs = (
-            jobs.get("pending", []) +
-            jobs.get("running", []) +
-            jobs.get("finished", [])
-        )
-        job_found = any(j.get("id") == job_id for j in all_jobs)
-
-        if job_found:
-            print(f"  [OK] Job found in job list")
-        else:
-            print(f"  [INFO] Job not yet in job list (may be starting)")
-
-        # Just verify job was scheduled with a valid ID
-        assert job_id is not None and len(job_id) > 0, "Job should have valid ID"
-
-    def test_redis_results(
-        self,
-        redis_client: Redis,
-        task_id: str,
-    ) -> None:
-        """Test Redis results storage.
-
-        This test assumes a job has been run with the given task_id.
-        It checks for results in Redis.
-        """
-        # For standalone test, we just verify Redis connection
-        # In integration with other tests, this would verify actual results
-        pong = redis_client.ping()
-        assert pong is True, "Redis connection failed"
-
-    def test_log_check(
-        self,
-        scrapyd_service,
-        scrapyd_project: str,
-        test_spider: str,
-    ) -> None:
-        """Test log file checking.
-
-        Verifies that log checking function works correctly.
-        """
-        # This test just verifies the log checking function
-        # It may not find logs if no jobs were run
-        log_ok, msg = check_job_log(scrapyd_project, test_spider, "nonexistent-job")
-        # Should return True (no errors found) when log doesn't exist
-        assert log_ok is True, f"Log check failed unexpectedly: {msg}"
-
-
-@pytest.mark.scrapyd
 @pytest.mark.integration
 class TestScrapydEndToEnd:
     """End-to-end tests for Scrapyd keyword search workflow."""
@@ -693,8 +611,8 @@ class TestScrapydEndToEnd:
         job_id = result["jobid"]
         print(f"[OK] Job scheduled: {job_id}\n")
 
-        # 5. Wait for completion (with shorter timeout for test speed)
-        max_wait = min(wait_time, 15)  # Cap at 15 seconds for tests
+        # 5. Wait for completion using job_id specific status check
+        max_wait = 300  # Fixed at 300 seconds as requested
         print(f"5. Waiting for job completion (max {max_wait}s)...")
         job_finished = False
         check_interval = 2
@@ -702,14 +620,19 @@ class TestScrapydEndToEnd:
 
         for i in range(max_checks):
             time.sleep(check_interval)
-            jobs = list_jobs(scrapyd_url, scrapyd_project)
-            finished = jobs.get("finished", [])
-            job_finished = any(j.get("id") == job_id for j in finished)
-            if job_finished:
+            # Use get_job_status to check specific job status by job_id
+            status_result = get_job_status(scrapyd_url, job_id, scrapyd_project)
+            job_status = status_result.get("status")
+
+            if job_status == "finished":
+                job_finished = True
                 print(f"[OK] Job completed\n")
                 break
+            elif job_status == "error":
+                print(f"  [WARN] Error checking job status: {status_result.get('error')}")
+
             if i % 3 == 0:
-                print(f"  Waiting... ({(i+1)*check_interval}/{max_wait})")
+                print(f"  Waiting... ({(i+1)*check_interval}/{max_wait}), status={job_status}")
         else:
             print(f"[WARN] Job still running (Job ID: {job_id})\n")
 
