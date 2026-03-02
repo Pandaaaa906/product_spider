@@ -107,11 +107,12 @@ uv run scrapy crawl spider_name
 
 ## Important Notes
 
-1. **No Unit Tests**: Project relies on integration testing through deployment
-2. **GitLab CI/CD**: Automated deployment pipeline (dev branch → dev environment, master → prod)
-3. **Playwright Required**: Must install browsers via `playwright install`
-4. **Chinese Dependencies**: Uses PyPI mirror (Tsinghua) for faster downloads
-5. **ROBOTS.TXT**: Disabled (`ROBOTSTXT_OBEY = False`) as this is an authorized scraping system
+1. **NEVER Auto-Commit**: Before committing code changes, always summarize the changes and wait for explicit user approval (e.g., "ok, commit", "commit it"). Never run `git commit` without user confirmation.
+2. **No Unit Tests**: Project relies on integration testing through deployment
+3. **GitLab CI/CD**: Automated deployment pipeline (dev branch → dev environment, master → prod)
+4. **Playwright Required**: Must install browsers via `playwright install`
+5. **Chinese Dependencies**: Uses PyPI mirror (Tsinghua) for faster downloads
+6. **ROBOTS.TXT**: Disabled (`ROBOTSTXT_OBEY = False`) as this is an authorized scraping system
 
 ## File Structure Highlights
 
@@ -149,7 +150,9 @@ The keyword search feature allows spiders to be triggered via Scrapyd API or CLI
 ### Architecture
 - **BaseSpider** (`product_spider/utils/spider_mixin.py`): Validates `task_id` when `cmd_keyword_search=True`
 - **Spider Implementation**: Each spider implements `keyword_search()` method for site-specific search logic
-- **Redis Pipeline** (`product_spider/pipelines/redis_pipeline.py`): Stores results with configurable TTL (default: 24 hours)
+- **Redis Pipeline** (`product_spider/pipelines/redis_pipeline.py`): Stores keyword search results with task-based organization
+  - Keys: `CMD_KEYWORD_SEARCH:{task_id}:results:product`, `CMD_KEYWORD_SEARCH:{task_id}:results:package`
+  - TTL configurable via `REDIS_CACHE_TTL` (default: 24 hours)
 - **Test Suite** (`tests/`): Pytest-based tests with shared fixtures in `conftest.py`
 
 ### Usage
