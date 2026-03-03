@@ -61,12 +61,10 @@ services:
       - "6798:8000"
     environment:
       - SCRAPYD_URLS=http://scrapyd:6800
-      - REDIS_URL=redis://redis:6379/0
     env_file:
-      - .env
+      - test.env
     depends_on:
       - "scrapyd"
-      - "redis"
     logging:
       driver: "json-file"
       options:
