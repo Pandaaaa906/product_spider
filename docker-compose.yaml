@@ -70,7 +70,7 @@ services:
     hostname: "api_service"
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "6798:8000"
     environment:
       - SCRAPYD_URLS=http://scrapyd:6800
       - REDIS_URL=redis://redis:6379/0
