@@ -30,7 +30,9 @@
       "WebFetch(domain:store.usp.org)",
       "Bash(echo === Test 1: searchText with quotes ===:*)",
       "Bash(echo === Test: category filter ===:*)",
-      "Bash(.venv/Scripts/playwright install:*)"
+      "Bash(.venv/Scripts/playwright install:*)",
+      "Bash(pytest:*)",
+      "Bash(uv add:*)"
     ]
   }
 }

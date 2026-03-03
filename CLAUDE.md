@@ -102,6 +102,7 @@ uv run scrapy crawl spider_name
 ### Deployment Architecture
 - **Scrapyd**: Service for running spiders (port 6800)
 - **ScrapydWeb**: Web UI for spider management (port 6799)
+- **API Service**: FastAPI service for spider management via HTTP API (port 8000)
 - **Log Parser**: Automated log processing service
 - **Dockerized**: Full containerized deployment with volume mounting
 
@@ -120,6 +121,7 @@ uv run scrapy crawl spider_name
 - `product_spider/items/`: Product data structures
 - `product_spider/pipelines/redis_pipeline.py`: Redis result storage pipeline
 - `product_spider/utils/spider_mixin.py`: BaseSpider with keyword search support
+- `api_service/main.py`: FastAPI service for spider management
 - `data/`: Storage for scraped data
 - `dbs/`: Database schema and migration files
 - `tests/`: Test scripts with pytest
@@ -128,6 +130,9 @@ uv run scrapy crawl spider_name
   - `test_redis_connection.py`: Redis connectivity tests
   - `test_scrapyd_keyword_search.py`: Scrapyd integration tests
   - `test_allmpus_keyword.py`: Allmpus spider keyword search tests
+  - `test_api_service.py`: API Service deployment tests
+  - `service_manager.py`: Service management utilities for tests
+  - `test_api_service_integration.py`: API Service integration tests
 - `test.local.env`: Local testing environment variables
 - `scrapy.cfg`: Scrapy deployment configuration
 - `docker-compose*.yaml`: Production and test configurations
@@ -196,20 +201,51 @@ pytest tests/
 pytest tests/test_redis_connection.py -v
 pytest tests/test_keyword_search.py -v
 pytest tests/test_scrapyd_keyword_search.py -v
+pytest tests/test_api_service.py -v    # API Service tests with auto-start
 
 # Run by markers
 pytest tests/ -m redis -v              # Only Redis tests
 pytest tests/ -m spider -v             # Only spider tests
+pytest tests/ -m api_service -v        # Only API Service tests
 pytest tests/ -m "not slow" -v         # Exclude slow tests
 pytest tests/ -m integration -v        # Only integration tests
 
 # Run with custom parameters
 pytest tests/test_keyword_search.py -v --spider=allmpus --keyword=ethanol
 
+# Skip auto-starting services (if already running)
+pytest tests/test_api_service.py -v --skip-service-start
+
 # Direct execution (backward compatible)
 python tests/test_redis_connection.py
 python tests/test_keyword_search.py allmpus biosynth
 python tests/test_scrapyd_keyword_search.py --spider=allmpus
+python tests/test_api_service.py
+```
+
+#### Service Manager
+
+The `tests/service_manager.py` module provides utilities for managing test services:
+
+```python
+from tests.service_manager import ScrapydServiceManager, ApiServiceManager, ServiceManager
+
+# Manage single service
+with ScrapydServiceManager() as scrapyd:
+    if scrapyd.is_running:
+        # Run tests
+        pass
+
+with ApiServiceManager() as api:
+    if api.is_running:
+        # Run tests
+        pass
+
+# Manage multiple services
+with ServiceManager() as services:
+    if services.all_running:
+        # Both api_service and scrapyd are ready
+        pass
 ```
 
 ### Configuration
@@ -274,3 +310,31 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1
 6. **Redis Pipeline TTL**: Cache expiration should be configurable via environment variable. Default changed from 30 days to 24 hours to prevent storage bloat.
 
 7. **Dynamic Spider Discovery**: Test scripts automatically detect spiders that implement `keyword_search` method, eliminating the need to manually maintain spider lists.
+
+## API Service
+
+### Overview
+FastAPI-based service providing HTTP API for spider management. Runs alongside Scrapyd to enable external systems to schedule and monitor spider tasks.
+
+### Endpoints
+- `POST /api/spiders/run` - Start a spider task
+- `GET /api/spiders/status/{task_id}` - Get task status
+- `GET /api/spiders/result/{task_id}` - Get task results from Redis
+- `GET /api/spiders/list` - List available spiders
+
+### Configuration
+Environment variables:
+- `SCRAPYD_URLS`: Comma-separated Scrapyd URLs (default: `http://localhost:6800`)
+- `REDIS_URL`: Redis connection URL for results
+
+### Testing
+```bash
+# Deploy services
+docker-compose up -d api_service scrapyd redis
+
+# Run tests
+python tests/test_api_service.py
+
+# Or use pytest
+pytest tests/test_api_service_integration.py -v
+```

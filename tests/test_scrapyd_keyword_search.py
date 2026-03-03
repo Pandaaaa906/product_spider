@@ -19,7 +19,6 @@ Environment Variables:
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -28,147 +27,23 @@ from typing import TYPE_CHECKING, Any, Generator
 import pytest
 import requests
 
+# Add project root to path for importing service_manager
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from tests.service_manager import ScrapydServiceManager
+
 if TYPE_CHECKING:
     from redis.client import Redis
 
 
 # =============================================================================
-# Scrapyd Service Manager
+# Backward Compatibility: ScrapydServiceManager is now imported from service_manager
 # =============================================================================
 
-class ScrapydServiceManager:
-    """Manages Scrapyd service lifecycle for testing.
-
-    Automatically starts Scrapyd before tests and stops it after tests,
-    ensuring cleanup even if tests fail.
-
-    Usage:
-        with ScrapydServiceManager(scrapyd_url="http://127.0.0.1:6800") as mgr:
-            if mgr.is_running:
-                # Run tests
-    """
-
-    def __init__(
-        self,
-        scrapyd_url: str = "http://127.0.0.1:6800",
-        max_wait: int = 30,
-        use_uv: bool = True,
-    ):
-        self.scrapyd_url = scrapyd_url
-        self.max_wait = max_wait
-        self.use_uv = use_uv
-        self.process: subprocess.Popen | None = None
-        self.is_running = False
-        self._was_already_running = False
-
-    def _is_scrapyd_running(self) -> bool:
-        """Check if Scrapyd is already running."""
-        try:
-            resp = requests.get(f"{self.scrapyd_url}/daemonstatus.json", timeout=2)
-            return resp.json().get("status") == "ok"
-        except Exception:
-            return False
-
-    def _wait_for_scrapyd(self) -> bool:
-        """Wait for Scrapyd to become ready."""
-        for i in range(self.max_wait):
-            if self._is_scrapyd_running():
-                return True
-            time.sleep(1)
-            if i % 5 == 0:
-                print(f"  Waiting for Scrapyd... ({i}/{self.max_wait})")
-        return False
-
-    def start(self) -> bool:
-        """Start Scrapyd service.
-
-        Returns:
-            True if started successfully or already running
-        """
-        # Check if already running
-        if self._is_scrapyd_running():
-            print(f"[INFO] Scrapyd is already running at {self.scrapyd_url}")
-            self.is_running = True
-            self._was_already_running = True
-            return True
-
-        print(f"[INFO] Starting Scrapyd...")
-
-        # Start Scrapyd using uv run with env-file
-        cmd = ["uv", "run", "--env-file=./test.local.env", "scrapyd"]
-
-        try:
-            # Use CREATE_NEW_PROCESS_GROUP on Windows for proper process management
-            kwargs = {}
-            if sys.platform == "win32":
-                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-
-            project_root = Path(__file__).parent.parent
-            self.process = subprocess.Popen(
-                cmd,
-                stdout=None,
-                stderr=None,
-                cwd=str(project_root),
-                **kwargs
-            )
-
-            # Wait for service to be ready
-            if self._wait_for_scrapyd():
-                print(f"[OK] Scrapyd started successfully (PID: {self.process.pid})")
-                self.is_running = True
-                return True
-            else:
-                print(f"[ERROR] Scrapyd failed to start within {self.max_wait} seconds")
-                self.stop()
-                return False
-
-        except Exception as e:
-            print(f"[ERROR] Failed to start Scrapyd: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
-
-    def stop(self) -> None:
-        """Stop Scrapyd service if we started it."""
-        if self._was_already_running:
-            print(f"[INFO] Scrapyd was already running, not stopping")
-            return
-
-        if self.process is None:
-            return
-
-        print(f"[INFO] Stopping Scrapyd...")
-        try:
-            if sys.platform == "win32":
-                # Send CTRL_BREAK_EVENT on Windows
-                self.process.send_signal(subprocess.signal.CTRL_BREAK_EVENT)
-            else:
-                self.process.terminate()
-
-            # Wait for graceful shutdown
-            try:
-                self.process.wait(timeout=10)
-                print(f"[OK] Scrapyd stopped")
-            except subprocess.TimeoutExpired:
-                print(f"[WARN] Scrapyd did not stop gracefully, killing...")
-                self.process.kill()
-                self.process.wait()
-                print(f"[OK] Scrapyd killed")
-
-        except Exception as e:
-            print(f"[WARN] Error stopping Scrapyd: {e}")
-        finally:
-            self.process = None
-            self.is_running = False
-
-    def __enter__(self) -> ScrapydServiceManager:
-        """Context manager entry."""
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Context manager exit - always stop Scrapyd."""
-        self.stop()
+# Note: ScrapydServiceManager class has been moved to tests/service_manager.py
+# for sharing between test modules. Import it from there:
+#   from tests.service_manager import ScrapydServiceManager
 
 
 @pytest.fixture(scope="session")

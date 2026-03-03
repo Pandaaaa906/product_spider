@@ -16,7 +16,7 @@ docker-compose up -d scrapyd
 
 ```bash
 # 检查 daemon 状态
-curl http://localhost:6800/daemonstatus.json
+curl http://127.0.0.1:6800/daemonstatus.json
 
 # 预期返回
 {"status": "ok", "running": "0", "pending": "0", "finished": "0", "node_name": "your-node"}
@@ -24,14 +24,11 @@ curl http://localhost:6800/daemonstatus.json
 
 ## 2. 部署项目
 
-### 使用 scrapyd-deploy 部署
+### 使用 scrapyd 部署
 
 ```bash
 # 部署到测试环境
-scrapyd-deploy testing -p product_spider
-
-# 或在 scrapy.cfg 中配置后部署
-scrapyd-deploy
+uv run --env-file {...} scrapyd
 ```
 
 ### scrapy.cfg 配置示例
@@ -41,7 +38,7 @@ scrapyd-deploy
 default = product_spider.settings
 
 [deploy:testing]
-url = http://localhost:6800/
+url = http://127.0.0.1:6800/
 project = product_spider
 ```
 
@@ -49,7 +46,7 @@ project = product_spider
 
 ```bash
 # 列出所有项目
-curl http://localhost:6800/listprojects.json
+curl http://127.0.0.1:6800/listprojects.json
 
 # 预期返回
 {"status": "ok", "projects": ["product_spider"]}
@@ -59,7 +56,7 @@ curl http://localhost:6800/listprojects.json
 
 ```bash
 # 列出项目下的所有爬虫
-curl http://localhost:6800/listspiders.json?project=product_spider
+curl http://127.0.0.1:6800/listspiders.json?project=product_spider
 
 # 预期返回
 {"status": "ok", "spiders": ["allmpus", "aladdin", "usp", ...]}
@@ -71,7 +68,7 @@ curl http://localhost:6800/listspiders.json?project=product_spider
 
 ```bash
 # 启动普通爬取
-curl http://localhost:6800/schedule.json \
+curl http://127.0.0.1:6800/schedule.json \
   -d project=product_spider \
   -d spider=allmpus
 ```
@@ -80,7 +77,7 @@ curl http://localhost:6800/schedule.json \
 
 ```bash
 # 启动 allmpus 关键词搜索
-curl http://localhost:6800/schedule.json \
+curl http://127.0.0.1:6800/schedule.json \
   -d project=product_spider \
   -d spider=allmpus \
   -d cmd_keyword_search=True \
@@ -95,7 +92,7 @@ curl http://localhost:6800/schedule.json \
 
 ```bash
 # 带 search_params 的搜索
-curl http://localhost:6800/schedule.json \
+curl http://127.0.0.1:6800/schedule.json \
   -d project=product_spider \
   -d spider=allmpus \
   -d cmd_keyword_search=True \
@@ -111,7 +108,7 @@ curl http://localhost:6800/schedule.json \
 
 ```bash
 # 查看运行中的任务
-curl http://localhost:6800/listjobs.json?project=product_spider
+curl http://127.0.0.1:6800/listjobs.json?project=product_spider
 
 # 预期返回
 {
@@ -128,14 +125,14 @@ curl http://localhost:6800/listjobs.json?project=product_spider
 
 ```bash
 # 获取任务日志
-curl http://localhost:6800/logs/product_spider/allmpus/94bd8ce041fd11e48b9e0242ac110007.log
+curl http://127.0.0.1:6800/logs/product_spider/allmpus/94bd8ce041fd11e48b9e0242ac110007.log
 ```
 
 ## 6. 取消任务
 
 ```bash
 # 取消运行中的任务
-curl http://localhost:6800/cancel.json \
+curl http://127.0.0.1:6800/cancel.json \
   -d project=product_spider \
   -d job=94bd8ce041fd11e48b9e0242ac110007
 ```
@@ -147,7 +144,7 @@ curl http://localhost:6800/cancel.json \
 ```bash
 #!/bin/bash
 
-SCRAPYD_URL="http://localhost:6800"
+SCRAPYD_URL="http://127.0.0.1:6800"
 PROJECT="product_spider"
 SPIDER="allmpus"
 KEYWORD="acetone"
@@ -204,7 +201,7 @@ import requests
 import time
 import json
 
-SCRAPYD_URL = "http://localhost:6800"
+SCRAPYD_URL = "http://127.0.0.1:6800"
 PROJECT = "product_spider"
 
 def test_daemon_status():
@@ -318,7 +315,7 @@ redis-cli -h 192.168.4.246 -p 6380 -n 2 get task:test-task-001:results:count
 ### 4. 日志正常
 ```bash
 # 查看日志中是否有 keyword_search 相关输出
-curl http://localhost:6800/logs/product_spider/allmpus/JOB_ID.log | grep -i keyword
+curl http://127.0.0.1:6800/logs/product_spider/allmpus/JOB_ID.log | grep -i keyword
 ```
 
 ## 9. 常见问题排查
@@ -332,13 +329,13 @@ scrapyd-deploy testing -p product_spider
 ### 问题 2: Spider not found
 ```bash
 # 检查爬虫名称拼写
-curl http://localhost:6800/listspiders.json?project=product_spider
+curl http://127.0.0.1:6800/listspiders.json?project=product_spider
 ```
 
 ### 问题 3: task_id 未传递
 ```bash
 # 检查参数是否正确
-curl http://localhost:6800/schedule.json \
+curl http://127.0.0.1:6800/schedule.json \
   -d project=product_spider \
   -d spider=allmpus \
   -d cmd_keyword_search=True \
@@ -385,7 +382,7 @@ docker-compose up -d scrapyd redis
 docker-compose exec scrapyd scrapyd-deploy testing -p product_spider
 
 # 运行测试
-curl http://localhost:6800/schedule.json \
+curl http://127.0.0.1:6800/schedule.json \
   -d project=product_spider \
   -d spider=allmpus \
   -d cmd_keyword_search=True \

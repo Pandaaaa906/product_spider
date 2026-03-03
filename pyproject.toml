@@ -55,6 +55,9 @@ dependencies = [
     "pydantic>=1.10.26",
     "pluggy>=1.0",
     "orjson>=3.11.7",
+    "httpx>=0.28.1",
+    "uvicorn>=0.41.0",
+    "anyio~=4.12.1",
 ]
 
 [project.optional-dependencies]

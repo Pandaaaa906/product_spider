@@ -27,7 +27,7 @@ class TaskResponse(BaseModel):
     spider_name: str
     keyword: Optional[str] = None
 
-# 模拟的Scrapyd客户端（实际项目中需要实现真正的Scrapyd客户端）
+# Scrapyd客户端
 class ScrapydClient:
     def __init__(self, urls: list):
         self.urls = urls
@@ -35,11 +35,10 @@ class ScrapydClient:
 
     async def schedule_spider(self, spider_name: str, args: dict) -> dict:
         """启动爬虫任务"""
-        # 随机选择一个Scrapyd节点
         url = self.urls[0]  # 简化处理，实际应该做负载均衡
 
         data = {
-            "project": "product_spider",
+            "project": "default",
             "spider": spider_name,
             "setting": "API_REQUEST=True",
         }

@@ -96,6 +96,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Assume Scrapyd is already running (don't auto-start)",
     )
+    parser.addoption(
+        "--skip-service-start",
+        action="store_true",
+        default=False,
+        help="Skip auto-starting services (api_service, scrapyd)",
+    )
 
 
 # =============================================================================
@@ -274,4 +280,7 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers", "spider: marks tests that run actual spiders"
+    )
+    config.addinivalue_line(
+        "markers", "api_service: marks tests that require API Service"
     )
