@@ -316,25 +316,65 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1
 ### Overview
 FastAPI-based service providing HTTP API for spider management. Runs alongside Scrapyd to enable external systems to schedule and monitor spider tasks.
 
+### Architecture
+- **AsyncScrapydClient** (`api_service/async_scrapyd_client.py`): Async HTTP client for Scrapyd API
+- **ScrapydClient** (`api_service/scrapyd_client.py`): Extends AsyncScrapydClient with async Redis operations
+- **Main API** (`api_service/main.py`): FastAPI application with endpoints
+
 ### Endpoints
-- `POST /api/spiders/run` - Start a spider task
-- `GET /api/spiders/status/{task_id}` - Get task status
-- `GET /api/spiders/result/{task_id}` - Get task results from Redis
+- `POST /api/spiders/run` - Start a spider task (async, returns task_id immediately)
+- `POST /api/spiders/run/sync` - Start a spider task (sync, waits for results)
+- `GET /api/spiders/status/{task_id}` - Get task status from Redis
+- `GET /api/spiders/result/{task_id}` - Get task results from Redis (structured Product format)
 - `GET /api/spiders/list` - List available spiders
+- `GET /api/scrapyd/status` - Get Scrapyd daemon status
+- `POST /api/spiders/cancel/{job_id}` - Cancel a running job
+
+### Response Format
+Task results are returned as structured `Product` objects with nested `packages`:
+```json
+{
+  "task_id": "...",
+  "results": [
+    {
+      "brand": "...",
+      "cat_no": "...",
+      "en_name": "...",
+      "cas": "...",
+      "packages": [
+        {
+          "package": "...",
+          "price": "...",
+          "currency": "..."
+        }
+      ]
+    }
+  ],
+  "total": 10,
+  "message": "Results retrieved successfully"
+}
+```
 
 ### Configuration
 Environment variables:
 - `SCRAPYD_URLS`: Comma-separated Scrapyd URLs (default: `http://localhost:6800`)
-- `REDIS_URL`: Redis connection URL for results
+- `REDIS_URL`: Redis connection URL for results (e.g., `redis://localhost:6379/0`)
+- `SCRAPYD_PROJECT`: Default project name (default: `default`)
 
 ### Testing
 ```bash
-# Deploy services
+# Run all API Service tests (auto-starts scrapyd and api_service)
+pytest tests/test_api_service.py -v
+
+# Run with services already running
+pytest tests/test_api_service.py -v --skip-service-start
+
+# Deploy via docker-compose
 docker-compose up -d api_service scrapyd redis
-
-# Run tests
-python tests/test_api_service.py
-
-# Or use pytest
-pytest tests/test_api_service_integration.py -v
 ```
+
+### Key Implementation Details
+- Uses `redis.asyncio.Redis` for non-blocking Redis operations
+- Results are assembled by matching `Product.brand == ProductPackage.brand` AND `Product.cat_no == ProductPackage.cat_no`
+- Task completion is determined by checking Redis status only (not Scrapyd job status)
+- No in-memory task cache; all state is stored in Redis

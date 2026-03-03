@@ -59,8 +59,7 @@ class AsyncScrapydClient:
         self,
         project: str,
         spider: str,
-        settings: dict[str, str] | None = None,
-        **kwargs: Any,
+        args: list[tuple[str, str]] | None = None,
     ) -> ScrapydScheduleResponse:
         """
         调度（启动）一个爬虫任务
@@ -68,20 +67,14 @@ class AsyncScrapydClient:
         Args:
             project: 项目名称
             spider: 爬虫名称
-            settings: 额外的 Scrapy 设置
-            **kwargs: 传递给爬虫的参数
+            args: 传递给爬虫的参数
 
         Returns:
             ScrapydScheduleResponse: 包含任务状态和新任务的 jobid
         """
-        data: dict[str, Any] = {"project": project, "spider": spider}
-
-        if settings:
-            for key, value in settings.items():
-                data[f"setting"] = f"{key}={value}"
-
-        for key, value in kwargs.items():
-            data[key] = str(value)
+        if args is None:
+            args = []
+        data = {**dict(args), "project": project, "spider": spider}
 
         logger.debug(f"Scheduling spider with data: {data}")
         response = await self.client.post(f"{self.base_url}/schedule.json", data=data)
@@ -173,6 +166,24 @@ class AsyncScrapydClient:
         response.raise_for_status()
         data = response.json()
         return ScrapydJobsResponse(**data)
+
+    async def status(self, project: str, job: str) -> dict[str, Any]:
+        """
+        获取任务状态
+
+        Args:
+            project: 项目名称
+            job: 任务 ID (jobid)
+
+        Returns:
+            包含任务状态的字典，如 {"status": "pending|running|finished"}
+        """
+        params = {"project": project, "job": job}
+        response = await self.client.get(
+            f"{self.base_url}/status.json", params=params
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def delete_version(self, project: str, version: str) -> dict[str, Any]:
         """

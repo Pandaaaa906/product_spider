@@ -9,19 +9,24 @@ API Service - Product Spider 管理接口
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+import httpx
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 
 from api_service.schemas import (
     ScrapydStatusResponse,
     SpiderListResponse,
     SpiderRequest,
+    SpiderRunSyncRequest,
+    SpiderRunSyncResponse,
     TaskResponse,
     TaskResultResponse,
 )
@@ -43,25 +48,29 @@ DEFAULT_PROJECT = os.getenv("SCRAPYD_PROJECT", "default")
 scrapyd_client: ScrapydClient | None = None
 
 
+def get_scrapyd_client() -> ScrapydClient:
+    """依赖注入：获取 ScrapydClient，未初始化时抛出 503"""
+    if scrapyd_client is None:
+        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
+    return scrapyd_client
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     global scrapyd_client
 
-    # 启动时初始化客户端
     logger.info(f"Initializing ScrapydClient with URLs: {SCRAPYD_URLS}")
     scrapyd_client = ScrapydClient(
         base_url=SCRAPYD_URLS[0],
         redis_url=REDIS_URL,
     )
 
-    # 检查 Redis 连接
     redis_health = await scrapyd_client.check_redis_health()
     logger.info(f"Redis health: {redis_health}")
 
     yield
 
-    # 关闭时清理资源
     logger.info("Shutting down API Service...")
     if scrapyd_client:
         await scrapyd_client.close()
@@ -73,32 +82,151 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# 内存任务缓存（实际应该使用 Redis 或数据库）
-task_cache: dict[str, dict[str, Any]] = {}
+
+# ==================== 辅助函数 ====================
+
+
+async def schedule_spider_task(
+    client: ScrapydClient,
+    spider_name: str,
+    keyword: str | None = None,
+    project: str | None = None,
+    task_id: str | None = None,
+    search_params: dict[str, Any] | None = None,
+) -> tuple[str, str, str]:
+    """
+    调度爬虫任务
+
+    Args:
+        client: Scrapyd 客户端
+        spider_name: 爬虫名称
+        keyword: 搜索关键词
+        project: 项目名称（默认使用 DEFAULT_PROJECT）
+        task_id: 任务 ID（可选，自动生成 UUID）
+        search_params: 额外搜索参数
+
+    Returns:
+        (actual_task_id, actual_project, job_id): 实际任务ID、项目名称、Scrapyd job ID
+
+    Raises:
+        HTTPException: 调度失败时抛出
+    """
+    # 生成任务ID和确定项目名称
+    actual_task_id = task_id or str(uuid.uuid4())
+    actual_project = project or DEFAULT_PROJECT
+
+    # 构建爬虫参数列表
+    args: list[tuple[str, str]] = [("cmd_keyword_search", "True"), ("task_id", actual_task_id)]
+    if keyword:
+        args.append(("keyword", keyword))
+    if search_params:
+        args.append(("search_params", ','.join((f"{k}={v}"for k, v in search_params))))
+
+    # 调度任务
+    try:
+        result = await client.schedule(
+            project=actual_project,
+            spider=spider_name,
+            args=args,
+        )
+
+        if result.status != "ok":
+            raise HTTPException(status_code=500, detail="Failed to schedule spider")
+
+        return actual_task_id, actual_project, result.jobid
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to schedule spider: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def check_task_completion(
+    task_id: str,
+    client: ScrapydClient,
+) -> tuple[bool, int]:
+    """
+    检查任务是否完成（仅检查 Redis 状态）
+
+    Args:
+        task_id: 任务 ID
+        client: Scrapyd 客户端
+
+    Returns:
+        (is_completed, total_count)
+    """
+    try:
+        # 检查 Redis 状态
+        redis_status = await client.get_task_status_from_redis(task_id)
+
+        if redis_status["status"] == "completed":
+            return True, redis_status.get("total_count", 0)
+
+        # 任务未完成，返回当前结果数量
+        return False, redis_status.get("total_count", 0)
+
+    except Exception as e:
+        logger.warning(f"Error checking task completion for {task_id}: {e}")
+        return False, 0
+
+
+async def fetch_task_results(
+    task_id: str,
+    client: ScrapydClient,
+) -> dict[str, Any]:
+    """获取任务结果"""
+    try:
+        result_data = await client.get_task_results_from_redis(
+            task_id=task_id,
+        )
+        return result_data
+    except Exception as e:
+        logger.error(f"Failed to get results for {task_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def call_callback(callback_url: str, task_id: str) -> None:
+    """调用回调 URL"""
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                callback_url,
+                json={
+                    "task_id": task_id,
+                    "status": "completed",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+                timeout=10.0,
+            )
+        logger.info(f"Callback successful for task {task_id}")
+    except Exception as e:
+        logger.error(f"Failed to call callback for task {task_id}: {e}")
+
+
+# ==================== API 端点 ====================
 
 
 @app.get("/health")
-async def health_check() -> dict[str, Any]:
+async def health_check(
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> dict[str, Any]:
     """健康检查接口"""
-    health = {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    health = {"status": "ok", "timestamp": datetime.now(UTC).isoformat()}
 
-    # 检查 Scrapyd 连接
     try:
-        if scrapyd_client:
-            scrapyd_status = await scrapyd_client.daemon_status()
-            health["scrapyd"] = {
-                "status": "ok",
-                "running": scrapyd_status.running,
-                "pending": scrapyd_status.pending,
-            }
+        scrapyd_status = await client.daemon_status()
+        health["scrapyd"] = {
+            "status": "ok",
+            "running": scrapyd_status.running,
+            "pending": scrapyd_status.pending,
+        }
     except Exception as e:
         health["scrapyd"] = {"status": "error", "error": str(e)}
 
-    # 检查 Redis 连接
     try:
-        if scrapyd_client:
-            redis_health = await scrapyd_client.check_redis_health()
-            health["redis"] = redis_health
+        redis_health = await client.check_redis_health()
+        health["redis"] = redis_health
     except Exception as e:
         health["redis"] = {"status": "error", "error": str(e)}
 
@@ -106,26 +234,24 @@ async def health_check() -> dict[str, Any]:
 
 
 @app.get("/api/scrapyd/status", response_model=ScrapydStatusResponse)
-async def get_scrapyd_status() -> ScrapydStatusResponse:
+async def get_scrapyd_status(
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> ScrapydStatusResponse:
     """获取 Scrapyd 服务状态"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
     try:
-        return await scrapyd_client.daemon_status()
+        return await client.daemon_status()
     except Exception as e:
         logger.error(f"Failed to get Scrapyd status: {e}")
         raise HTTPException(status_code=503, detail=f"Scrapyd unavailable: {e}")
 
 
 @app.get("/api/scrapyd/projects")
-async def list_projects() -> dict[str, Any]:
+async def list_projects(
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> dict[str, Any]:
     """列出所有已部署的项目"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
     try:
-        projects = await scrapyd_client.list_projects()
+        projects = await client.list_projects()
         return {"status": "ok", "projects": projects.projects}
     except Exception as e:
         logger.error(f"Failed to list projects: {e}")
@@ -133,13 +259,13 @@ async def list_projects() -> dict[str, Any]:
 
 
 @app.get("/api/scrapyd/spiders/{project}")
-async def list_project_spiders(project: str) -> dict[str, Any]:
+async def list_project_spiders(
+    project: str,
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> dict[str, Any]:
     """列出项目中的所有爬虫"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
     try:
-        spiders = await scrapyd_client.list_spiders(project)
+        spiders = await client.list_spiders(project)
         return {"status": "ok", "project": project, "spiders": spiders.spiders}
     except Exception as e:
         logger.error(f"Failed to list spiders for {project}: {e}")
@@ -147,17 +273,15 @@ async def list_project_spiders(project: str) -> dict[str, Any]:
 
 
 @app.get("/api/spiders/list", response_model=SpiderListResponse)
-async def list_spiders() -> SpiderListResponse:
+async def list_spiders(
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> SpiderListResponse:
     """获取所有可用的爬虫（使用默认项目）"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
     try:
-        spiders = await scrapyd_client.list_spiders(DEFAULT_PROJECT)
+        spiders = await client.list_spiders(DEFAULT_PROJECT)
         return SpiderListResponse(spiders=spiders.spiders)
     except Exception as e:
         logger.error(f"Failed to list spiders: {e}")
-        # 返回硬编码列表作为备用
         return SpiderListResponse(
             spiders=["allmpus", "aladdin", "usp", "solarbio", "tsbiochem"]
         )
@@ -165,195 +289,207 @@ async def list_spiders() -> SpiderListResponse:
 
 @app.post("/api/spiders/run", response_model=TaskResponse)
 async def run_spider(
-    request: SpiderRequest, background_tasks: BackgroundTasks
+    request: SpiderRequest,
+    background_tasks: BackgroundTasks,
+    client: ScrapydClient = Depends(get_scrapyd_client),
 ) -> TaskResponse:
-    """启动爬虫任务"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
+    """
+    异步启动爬虫任务，立即返回任务 ID
 
-    # 生成或使用提供的任务 ID
-    task_id = request.task_id or str(uuid.uuid4())
+    此接口不会等待任务完成，而是立即返回任务 ID。
+    适合长时间运行的任务或不需要即时结果的场景。
+    """
+    # 调度任务
+    task_id, project, job_id = await schedule_spider_task(
+        client=client,
+        spider_name=request.spider_name,
+        keyword=request.keyword,
+        project=request.project,
+        task_id=request.task_id,
+        search_params=request.search_params,
+    )
 
-    # 验证爬虫名称
-    if not request.spider_name:
-        raise HTTPException(status_code=400, detail="Spider name is required")
-
-    # 使用请求中的项目或默认项目
-    project = request.project or DEFAULT_PROJECT
-
-    # 构建爬虫参数
-    spider_args: dict[str, Any] = {
-        "cmd_keyword_search": "True" if request.keyword else "False",
-    }
-
-    if request.keyword:
-        spider_args["keyword"] = request.keyword
-        spider_args["task_id"] = task_id
-
-    if request.search_params:
-        spider_args.update(request.search_params)
-
-    # 保存任务信息
-    task_cache[task_id] = {
-        "spider_name": request.spider_name,
-        "keyword": request.keyword,
-        "status": "pending",
-        "created_at": datetime.utcnow().isoformat(),
-        "callback_url": request.callback_url,
-    }
-
-    try:
-        # 调度爬虫任务
-        result = await scrapyd_client.schedule(
-            project=project,
-            spider=request.spider_name,
-            **spider_args,
+    # 如果有回调URL，启动后台监控
+    if request.callback_url:
+        background_tasks.add_task(
+            monitor_task,
+            task_id,
+            job_id,
+            project,
+            request.callback_url,
+            client,
         )
 
-        # 更新任务状态
-        if result.status == "ok":
-            task_cache[task_id]["status"] = "running"
-            task_cache[task_id]["scrapyd_job_id"] = result.jobid
+    return TaskResponse(
+        task_id=task_id,
+        status="running",
+        message="Spider scheduled successfully",
+        spider_name=request.spider_name,
+        keyword=request.keyword,
+    )
 
-            # 启动后台任务监控
-            background_tasks.add_task(monitor_task, task_id, result.jobid)
 
-            return TaskResponse(
+@app.post("/api/spiders/run/sync", response_model=SpiderRunSyncResponse)
+async def run_spider_sync(
+    request: SpiderRunSyncRequest,
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> SpiderRunSyncResponse:
+    """
+    同步运行爬虫任务，等待结果返回
+
+    此接口会阻塞直到任务完成或达到超时时间。
+    适用于需要即时获取结果的场景。
+    """
+    start_time = time.time()
+
+    # 调度任务
+    task_id, project, job_id = await schedule_spider_task(
+        client=client,
+        spider_name=request.spider_name,
+        keyword=request.keyword,
+        project=request.project,
+        task_id=request.task_id,
+        search_params=request.search_params,
+    )
+
+    logger.info(
+        f"Sync task {task_id} started (job {job_id}), "
+        f"waiting up to {request.timeout}s"
+    )
+
+    # 等待结果或超时
+    elapsed = 0.0
+    poll_count = 0
+
+    while elapsed < request.timeout:
+        await asyncio.sleep(request.poll_interval)
+        elapsed = time.time() - start_time
+        poll_count += 1
+
+        # 检查任务是否完成
+        is_completed, total_count = await check_task_completion(
+            task_id,
+            client,
+        )
+
+        if is_completed:
+            # 获取结果
+            result_data = await fetch_task_results(task_id, client)
+            results = result_data["results"]
+            total_count = result_data["total"]
+            logger.info(
+                f"Sync task {task_id} completed with "
+                f"{total_count} results in {elapsed:.2f}s"
+            )
+            return SpiderRunSyncResponse(
                 task_id=task_id,
-                status="running",
-                message="Spider scheduled successfully",
+                status="completed",
+                message=f"Task completed with {total_count} results",
                 spider_name=request.spider_name,
                 keyword=request.keyword,
+                results=results,
+                total_results=total_count,
+                wait_time=elapsed,
+                timed_out=False,
             )
-        else:
-            task_cache[task_id]["status"] = "failed"
-            raise HTTPException(status_code=500, detail="Failed to schedule spider")
 
-    except HTTPException:
-        raise
+    # 超时
+    logger.info(
+        f"Sync task {task_id} timed out after {elapsed:.2f}s, "
+        f"collected partial results"
+    )
+
+    # 尝试获取已收集的部分结果
+    try:
+        result_data = await fetch_task_results(task_id, client)
+        results = result_data["results"]
+        total_count = result_data["total"]
     except Exception as e:
-        logger.error(f"Failed to schedule spider: {e}")
-        task_cache[task_id]["status"] = "failed"
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to get partial results: {e}")
+        results = []
+        total_count = 0
+
+    return SpiderRunSyncResponse(
+        task_id=task_id,
+        status="running",
+        message=f"Timeout after {request.timeout}s, collected {total_count} results so far",
+        spider_name=request.spider_name,
+        keyword=request.keyword,
+        results=results,
+        total_results=total_count,
+        wait_time=elapsed,
+        timed_out=True,
+    )
 
 
 @app.get("/api/spiders/status/{task_id}", response_model=TaskResponse)
-async def get_task_status(task_id: str) -> TaskResponse:
+async def get_task_status(
+    task_id: str,
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> TaskResponse:
     """获取任务状态（优先从 Redis 获取）"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
-    # 首先尝试从 Redis 获取状态
+    # 从 Redis 获取状态
     try:
-        redis_status = await scrapyd_client.get_task_status_from_redis(task_id)
+        redis_status = await client.get_task_status_from_redis(task_id)
         if redis_status["status"] != "error":
-            # 获取爬虫名称
-            spider_name = "unknown"
-            if task_id in task_cache:
-                spider_name = task_cache[task_id].get("spider_name", "unknown")
-
             return TaskResponse(
                 task_id=task_id,
                 status=redis_status["status"],
                 message=f"Task has {redis_status['total_count']} results",
-                spider_name=spider_name,
-                keyword=task_cache.get(task_id, {}).get("keyword"),
+                spider_name="unknown",
+                keyword=None,
             )
     except Exception as e:
         logger.warning(f"Failed to get Redis status for {task_id}: {e}")
 
-    # 回退到内存缓存
-    if task_id not in task_cache:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    task_info = task_cache[task_id]
-    return TaskResponse(
-        task_id=task_id,
-        status=task_info["status"],
-        message="Task status retrieved from cache",
-        spider_name=task_info["spider_name"],
-        keyword=task_info.get("keyword"),
-    )
+    raise HTTPException(status_code=404, detail="Task not found")
 
 
 @app.get("/api/spiders/result/{task_id}", response_model=TaskResultResponse)
 async def get_task_results(
-    task_id: str, limit: int = 100, offset: int = 0
+    task_id: str,
+    client: ScrapydClient = Depends(get_scrapyd_client),
 ) -> TaskResultResponse:
     """获取任务结果（从 Redis 查询）"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
+    result_data = await client.get_task_results_from_redis(task_id=task_id)
 
-    try:
-        # 从 Redis 获取产品结果
-        result_data = await scrapyd_client.get_task_results_from_redis(
-            task_id=task_id,
-            result_type="product",
-            limit=limit,
-            offset=offset,
-        )
-
-        # 获取任务信息
-        task_info = task_cache.get(task_id, {})
-
-        return TaskResultResponse(
-            task_id=task_id,
-            results=result_data["results"],
-            total=result_data["total"],
-            limit=limit,
-            offset=offset,
-            message=result_data.get("error", "Results retrieved successfully"),
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to get results for {task_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return TaskResultResponse(
+        task_id=task_id,
+        results=result_data["results"],
+        total=result_data["total"],
+        message=result_data.get("error", "Results retrieved successfully"),
+    )
 
 
-@app.post("/api/spiders/cancel/{task_id}")
-async def cancel_task(task_id: str) -> dict[str, Any]:
+@app.post("/api/spiders/cancel/{job_id}")
+async def cancel_task(
+    job_id: str,
+    project: str = DEFAULT_PROJECT,
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> dict[str, Any]:
     """取消运行中的任务"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
-    if task_id not in task_cache:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    task_info = task_cache[task_id]
-    job_id = task_info.get("scrapyd_job_id")
-
-    if not job_id:
-        raise HTTPException(status_code=400, detail="Task has no associated job ID")
-
-    # 使用任务缓存中的项目或默认项目
-    project = task_info.get("project", DEFAULT_PROJECT)
-
     try:
-        result = await scrapyd_client.cancel(project, job_id)
-
-        # 更新缓存状态
-        task_cache[task_id]["status"] = "cancelled"
+        result = await client.cancel(project, job_id)
 
         return {
             "status": "ok",
-            "task_id": task_id,
             "job_id": job_id,
+            "project": project,
             "previous_state": result.get("prevstate"),
         }
-
     except Exception as e:
-        logger.error(f"Failed to cancel task {task_id}: {e}")
+        logger.error(f"Failed to cancel job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/jobs/{project}")
-async def list_jobs(project: str) -> dict[str, Any]:
+async def list_jobs(
+    project: str = "default",
+    client: ScrapydClient = Depends(get_scrapyd_client),
+) -> dict[str, Any]:
     """列出项目的所有任务"""
-    if not scrapyd_client:
-        raise HTTPException(status_code=503, detail="Scrapyd client not initialized")
-
     try:
-        jobs = await scrapyd_client.list_jobs(project)
+        jobs = await client.list_jobs(project)
         return {
             "status": "ok",
             "project": project,
@@ -382,15 +518,21 @@ async def list_jobs(project: str) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 后台任务监控
-async def monitor_task(task_id: str, job_id: str) -> None:
-    """
-    后台任务监控
+# ==================== 后台任务监控 ====================
 
-    定期检查任务状态，更新缓存，调用回调 URL
-    """
-    import asyncio
 
+async def monitor_task(
+    task_id: str,
+    job_id: str,
+    project: str,
+    callback_url: str,
+    client: ScrapydClient,
+) -> None:
+    """
+    后台任务监控 - 仅在有 callback_url 时启动
+
+    定期检查任务状态，完成后调用回调 URL
+    """
     logger.info(f"Starting monitor for task {task_id} (job {job_id})")
 
     check_count = 0
@@ -400,77 +542,18 @@ async def monitor_task(task_id: str, job_id: str) -> None:
         await asyncio.sleep(5)
         check_count += 1
 
-        if task_id not in task_cache:
-            logger.warning(f"Task {task_id} not found in cache, stopping monitor")
+        # 检查任务是否完成
+        is_completed, _ = await check_task_completion(
+            task_id,
+            client,
+        )
+
+        if is_completed:
+            await call_callback(callback_url, task_id)
+            logger.info(f"Task {task_id} completed, callback triggered")
             break
-
-        task_info = task_cache[task_id]
-
-        # 如果任务已经完成或失败，停止监控
-        if task_info["status"] in ("completed", "failed", "cancelled"):
-            logger.info(f"Task {task_id} is {task_info['status']}, stopping monitor")
-            break
-
-        # 检查 Redis 中是否有结果（表示任务已完成）
-        try:
-            redis_status = await scrapyd_client.get_task_status_from_redis(task_id)
-            if redis_status["total_count"] > 0 and not redis_status["is_active"]:
-                # 任务已完成且有结果
-                task_cache[task_id]["status"] = "completed"
-                task_cache[task_id]["completed_at"] = datetime.utcnow().isoformat()
-
-                # 调用回调 URL
-                if task_info.get("callback_url"):
-                    await call_callback(task_info["callback_url"], task_id)
-
-                logger.info(f"Task {task_id} completed with results")
-                break
-        except Exception as e:
-            logger.warning(f"Error checking Redis status for {task_id}: {e}")
-
-        # 每 12 次检查（约 1 分钟）查询一次 Scrapyd 任务状态
-        if check_count % 12 == 0:
-            try:
-                project = task_info.get("project", DEFAULT_PROJECT)
-                jobs = await scrapyd_client.list_jobs(project)
-
-                # 检查任务是否在 finished 列表中
-                job_finished = any(j.id == job_id for j in jobs.finished)
-
-                if job_finished:
-                    task_cache[task_id]["status"] = "completed"
-                    task_cache[task_id]["completed_at"] = datetime.utcnow().isoformat()
-
-                    if task_info.get("callback_url"):
-                        await call_callback(task_info["callback_url"], task_id)
-
-                    logger.info(f"Task {task_id} found in finished jobs")
-                    break
-
-            except Exception as e:
-                logger.warning(f"Error checking Scrapyd jobs for {task_id}: {e}")
 
     logger.info(f"Monitor stopped for task {task_id}")
-
-
-async def call_callback(callback_url: str, task_id: str) -> None:
-    """调用回调 URL"""
-    import httpx
-
-    try:
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                callback_url,
-                json={
-                    "task_id": task_id,
-                    "status": "completed",
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-                timeout=10.0,
-            )
-        logger.info(f"Callback successful for task {task_id}")
-    except Exception as e:
-        logger.error(f"Failed to call callback for task {task_id}: {e}")
 
 
 if __name__ == "__main__":
