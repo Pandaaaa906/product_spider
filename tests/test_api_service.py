@@ -126,13 +126,19 @@ def test_task_status_and_results(services, api_client):
 
     # 查询结果
     result_response = api_client.get(
-        f"{API_SERVICE_URL}/api/spiders/result/{task_id}",
-        params={"limit": 10}
+        f"{API_SERVICE_URL}/api/spiders/result/{task_id}"
     )
     assert result_response.status_code == 200
     data = result_response.json()
     assert data["task_id"] == task_id
     assert "results" in data
+    assert "total" in data
+    # 验证 Product 结构（如果结果不为空）
+    if data["results"]:
+        product = data["results"][0]
+        assert "brand" in product
+        assert "cat_no" in product
+        assert "packages" in product
 
 
 def main():
