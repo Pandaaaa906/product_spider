@@ -75,6 +75,7 @@ Documentation = "https://github.com/Pandaaaa906/product_spider#readme"
 dev = [
     "pytest",
     "pytest-asyncio",
+    "ruff>=0.15.4",
 ]
 
 [tool.uv.sources]
