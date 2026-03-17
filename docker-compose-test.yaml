@@ -74,7 +74,7 @@ services:
     image: bitnami/redis:latest
     hostname: redis
     env_file:
-      - .env
+      - test.env
     ports:
       - "6389:6379"
     volumes:
