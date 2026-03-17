@@ -1,3 +1,4 @@
+import json
 from typing import Generator
 
 import scrapy
@@ -31,7 +32,15 @@ class BaseSpider(scrapy.Spider):
         """
         self.cmd_keyword_search = True if cmd_keyword_search in {True, 'True', 'true', '1'} else False
         self.keyword = keyword
+
+        # 处理 search_params - 如果是 JSON 字符串则解析为 dict
+        if isinstance(search_params, str):
+            try:
+                search_params = json.loads(search_params)
+            except json.JSONDecodeError:
+                search_params = None
         self.search_params = search_params
+
         self.task_id = task_id
         super().__init__(**kwargs)
 
