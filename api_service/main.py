@@ -120,7 +120,7 @@ async def schedule_spider_task(
     if keyword:
         args.append(("keyword", keyword))
     if search_params:
-        args.append(("search_params", ','.join((f"{k}={v}"for k, v in search_params))))
+        args.append(("search_params", ','.join(f"{k}={v}" for k, v in search_params.items())))
 
     # 调度任务
     try:
