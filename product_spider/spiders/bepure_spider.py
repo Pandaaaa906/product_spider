@@ -24,7 +24,7 @@ class BepureSpider(BaseSpider):
     ]
     brand = 'bepure'
 
-    def start_requests(self):
+    def _start_requests(self):
         if BEPURE_USER and BEPURE_PWD:
             pass
         else:

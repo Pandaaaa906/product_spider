@@ -63,3 +63,23 @@ services:
       - /www/redis/conf/overrides.d/:/opt/bitnami/redis/mounted-etc/
       - /www/prd_spider/redis_data:/bitnami/redis/data
     restart: unless-stopped
+
+  api_service:
+    build: .
+    entrypoint: "uvicorn api_service.main:app --host 0.0.0.0 --port 8000"
+    hostname: "api_service"
+    restart: unless-stopped
+    ports:
+      - "6798:8000"
+    environment:
+      - SCRAPYD_URLS=http://scrapyd:6800
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - "scrapyd"
+      - "redis"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"

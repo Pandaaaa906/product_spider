@@ -17,7 +17,7 @@ class AltaSpider2(BaseSpider):
     list_url = 'https://store.altascientific.com/api/gd-goods/member/alter/product/spuInfo/page/list'
     category_url = 'https://store.altascientific.com/api/gd-goods/member/alter/product/spuInfo/category/list'
 
-    def start_requests(self):
+    def _start_requests(self):
         yield Request(self.category_url, callback=self.parse)
 
     def parse(self, response, **kwargs):

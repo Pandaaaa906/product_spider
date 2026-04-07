@@ -69,7 +69,7 @@ class ChemSrcSpider(BaseSpider):
             return True
         return False
 
-    def start_requests(self):
+    def _start_requests(self):
         self.logger.info(f"current strategy is {self.strategy!r}")
         if self.strategy == ChemSrcStrategy.CATO_PROD:
             for url in self.get_urls_from_db(sql_fetch_cas):

@@ -18,7 +18,7 @@ class SooPATSpider(BaseSpider):
         super().__init__(*args, **kwargs)
         self.keyword = keyword or "Photoelectric material"
 
-    def start_requests(self):
+    def _start_requests(self):
         username = getenv("SOOPAT_USER")
         password = getenv("SOOPAT_PWD")
         yield FormRequest(

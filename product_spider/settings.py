@@ -110,6 +110,7 @@ ITEM_PIPELINES = {
     'product_spider.pipelines.FilterNAValue': 200,
     'product_spider.pipelines.ParseCostPipeline': 245,
     'product_spider.pipelines.ParseRawSupplierQuotationPipeline': 250,
+    'product_spider.pipelines.redis_pipeline.KeywordSearchRedisPipeline': 290,  # 在AutoDBPipeline之前执行
     'scrapyautodb.pipelines.AutoDBPipeline': 300,
 }
 
@@ -136,8 +137,8 @@ ITEM_PIPELINES = {
 
 REDIS_HOST = getenv("REDIS_HOST", "localhost")
 REDIS_PORT = getenv("REDIS_PORT", "6379")
-if m := getenv("REDIS_URL"):
-    REDIS_URL = m
+REDIS_DB = getenv("REDIS_DB", "0")
+REDIS_URL = getenv("REDIS_URL")
 
 REDIS_START_URLS_KEY = "%(name)s:start_urls"
 

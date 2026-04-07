@@ -10,6 +10,7 @@ from scrapy.http import JsonRequest
 from product_spider.items import RawData, SupplierProduct, ProductPackage, RawSupplierQuotation
 from product_spider.utils.functions import dumps, first
 from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
+from product_spider.utils.spider_mixin import BaseSpider
 
 jk_brands = {"jk"}
 brand_mapping = {
@@ -43,7 +44,7 @@ def parse_brand(brand: str):
     return brand_mapping[brand]
 
 
-class JkPrdSpider(scrapy.Spider):
+class JkPrdSpider(BaseSpider):
     name = "jk"
     allowed_domains = ["jkchemical.com"]
     base_url = "http://www.jkchemical.com"
@@ -65,7 +66,7 @@ class JkPrdSpider(scrapy.Spider):
         },
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         d = {
             'language': 196,
             'salesRegion': 1,

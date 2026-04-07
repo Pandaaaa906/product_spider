@@ -26,7 +26,7 @@ class BachemSpider(BaseSpider):
         'storeselect': 'US%2Fus'
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         yield Request(
             url="https://shop.bachem.com/catalog/all-products/",
             callback=self.parse,

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xargs grep:*)",
+      "Bash(sed:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(set:*)",
+      "Bash(uv run:*)",
+      "Bash(pip show:*)",
+      "Bash(chcp 65001:*)",
+      "Bash(uv sync:*)",
+      "Bash(cat:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(git add:*)",
+      "Bash(git reset:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:scrapyd.readthedocs.io)",
+      "mcp__playwright-remote__browser_navigate",
+      "mcp__playwright-remote__browser_type",
+      "mcp__playwright-remote__browser_click",
+      "mcp__playwright-remote__browser_run_code",
+      "mcp__playwright-remote__*",
+      "Bash(__NEW_LINE_17f149250de6631b__ echo:*)",
+      "Bash(echo === Test 1: 基本参数 ===:*)",
+      "WebFetch(domain:store.usp.org)",
+      "Bash(echo === Test 1: searchText with quotes ===:*)",
+      "Bash(echo === Test: category filter ===:*)",
+      "Bash(.venv/Scripts/playwright install:*)",
+      "Bash(pytest:*)",
+      "Bash(uv add:*)"
+    ]
+  }
+}

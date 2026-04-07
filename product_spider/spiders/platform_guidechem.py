@@ -31,7 +31,7 @@ class GuideChemSpider(BaseSpider):
     allowed_domains = ['guidechem.com/']
     base_url = 'https://www.guidechem.com/'
 
-    def start_requests(self):
+    def _start_requests(self):
         for cas in cas_list:
             yield Request(url_tmpl.format(cas), meta={'cas': cas})
 

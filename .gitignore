@@ -80,7 +80,10 @@ celerybeat-schedule
 *.sage.py
 
 # dotenv
-.env
+*.env
+
+# Claude outputs
+claude_outputs/
 
 # virtualenv
 .venv
@@ -105,3 +108,5 @@ logs/
 scrapy_db.db
 *.env
 /dbs/default.db
+/dbs/
+/data/

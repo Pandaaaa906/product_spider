@@ -445,7 +445,7 @@ class AnpelSpider(BaseSpider):
             }
         )
 
-    def start_requests(self):
+    def _start_requests(self):
         # yield self.make_search_request('0032', callback=self.parse)
         for item in self.brands:
             brand_id = item.get('brand_id')

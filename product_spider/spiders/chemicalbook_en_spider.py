@@ -62,7 +62,7 @@ class ChemicalBookEnSpider(BaseSpider):
         self.page_start = int(page_start)
         self.page_end = int(page_end)
 
-    def start_requests(self):
+    def _start_requests(self):
         if self.strategy == ChemicalBookStrategy.WALK_THROUGH_CAS:
             for i in range(self.page_start, self.page_end + 1):
                 url = f"https://www.chemicalbook.com/ShowAllProductByIndexID_CAS_{i}_0.htm"

@@ -59,7 +59,7 @@ class TanmoSpider(BaseSpider):
     #         'product_spider.middlewares.handle521.Cookie521Middleware': 100,
     #     }
     # }
-    def start_requests(self):
+    def _start_requests(self):
         if TANMO_USER and TANMO_PWD:
             yield FormRequest(
                 self.login_url,

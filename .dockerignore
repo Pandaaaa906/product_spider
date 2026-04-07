@@ -68,6 +68,13 @@ CLAUDE.md
 .coverage
 htmlcov/
 .tox/
+tests/
+
+# Documentation
+docs/
+
+# Claude outputs
+claude_outputs/
 
 # Other
 .env

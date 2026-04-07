@@ -44,7 +44,7 @@ class SigmaSpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_IP': 8,
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         yield FormRequest(self.category_url, callback=self.parse, headers={'referer': 'https://www.solarbio.com/'})
 
     def parse(self, response, **kwargs):

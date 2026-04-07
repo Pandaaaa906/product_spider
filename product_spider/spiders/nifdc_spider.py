@@ -30,7 +30,7 @@ class NifdcSpider(BaseSpider):
         'CONCURRENT_REQUESTS_PER_IP': 2,
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         yield Request(self.code_url, callback=self.login)
 
     def login(self, response):

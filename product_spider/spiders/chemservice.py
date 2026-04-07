@@ -27,7 +27,7 @@ class ChemServicePrdSpider(BaseSpider):
         },
     }
 
-    def start_requests(self):
+    def _start_requests(self):
         for url in self.start_urls:
             yield Request(
                 url=url, callback=self.parse, headers=self.headers,

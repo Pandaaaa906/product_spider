@@ -18,6 +18,11 @@ T_SPACES = str.maketrans('\xa0', ' ', '')
 
 
 class DropNullCatNoPipeline:
+    """
+    丢弃货号为空的记录，以免错误的数据插入数据库
+    通常由于是Spider有问题导致cat_no为空
+    遇到cat_no为空应该修复Spider脚本
+    """
 
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)

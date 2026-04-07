@@ -12,7 +12,7 @@ class VenKaTaSaiLifeSciencesSpider(BaseSpider):
     start_urls = ["https://www.venkatasailifesciences.com/category/a"]
     base_url = "https://www.venkatasailifesciences.com/"
 
-    def start_requests(self):
+    def _start_requests(self):
         for char in ascii_lowercase:
             yield scrapy.Request(
                 url=f"https://www.venkatasailifesciences.com/category/{char}",

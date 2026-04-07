@@ -111,7 +111,7 @@ class PharmBlockSpider(BaseSpider):
         *_, e = str.split(urlsplit(url).path, "/", 2)
         return md5(f"/{e}{t}p(ha#rmab^@lo!ck@2023^%%*&(".encode()).hexdigest()
 
-    def start_requests(self):
+    def _start_requests(self):
         for category_type in range(1, 6):
             t = int(time.time() * 1000)
             d = {
