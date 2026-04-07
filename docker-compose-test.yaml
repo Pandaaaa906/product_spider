@@ -69,3 +69,13 @@ services:
       driver: "json-file"
       options:
         max-size: "100m"
+
+  redis:
+    image: bitnami/redis:latest
+    hostname: redis
+    env_file:
+      - test.env
+    volumes:
+      - /www/redis/conf/overrides.d/:/opt/bitnami/redis/mounted-etc/
+      - /www/prd_spider/redis_data:/bitnami/redis/data
+    restart: unless-stopped
