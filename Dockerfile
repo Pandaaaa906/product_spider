@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/tmp/.uv/ uv venv \
     && uv sync --frozen
 
 # 激活虚拟环境
-ENV PATH="/app/.venv/bin:/app/.venv/Scripts:$PATH"
+ENV PATH="/app/.venv/bin:$PATH"
 
 # 运行阶段
 FROM builder AS runner
