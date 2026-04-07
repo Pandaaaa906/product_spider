@@ -9,7 +9,10 @@ ENV PYTHONUNBUFFERED=1 \
     UV_CACHE_DIR=/tmp/.uv/ \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PLAYWRIGHT_SKIP_BROWSER_GC=1 \
-    UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"
+    UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple" \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_NO_DEV=1
 
 
 # 安装系统依赖和uv（合并到单个RUN）
@@ -31,12 +34,13 @@ RUN sed -i "s/archive.ubuntu.com/mirrors.aliyun.com/g" /etc/apt/sources.list \
 WORKDIR /app
 
 # 复制依赖文件
-COPY pyproject.toml uv.lock ./
-
 # 创建虚拟环境并安装Python依赖
-RUN --mount=type=cache,target=/tmp/.uv/ uv venv \
+RUN --mount=type=cache,target=/tmp/.uv/ \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv venv \
     && . .venv/bin/activate \
-    && uv sync --frozen
+    && uv sync --frozen --no-install-project
 
 # 激活虚拟环境
 ENV PATH="/app/.venv/bin:$PATH"
