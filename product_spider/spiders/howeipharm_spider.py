@@ -18,6 +18,10 @@ from product_spider.utils.items_translate import (
 )
 from product_spider.utils.spider_mixin import BaseSpider
 
+EXCLUDE_BRANDS = {
+    'ncrm'
+}
+
 
 def _trim_semi(t: str | None)->str | None:
     if not isinstance(t, str):
@@ -37,7 +41,7 @@ class HoweipharmSpider(BaseSpider):
         'CONCURRENT_REQUESTS': 4,
     }
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         """解析产品分类链接"""
         self.logger.debug(f"Parsing categories from {response.url}")
 
@@ -97,6 +101,8 @@ class HoweipharmSpider(BaseSpider):
 
         # 使用默认品牌
         brand = brand_code or self.brand
+        if brand in EXCLUDE_BRANDS:
+            return
         cat_no = response.xpath('//div[./span/text()="产品编号"]/following-sibling::div/text()').get()
 
         # 产品图片
