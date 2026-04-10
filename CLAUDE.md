@@ -114,6 +114,7 @@ uv run scrapy crawl spider_name
 4. **Playwright Required**: Must install browsers via `playwright install`
 5. **Chinese Dependencies**: Uses PyPI mirror (Tsinghua) for faster downloads
 6. **ROBOTS.TXT**: Disabled (`ROBOTSTXT_OBEY = False`) as this is an authorized scraping system
+7. **Avoid Playwright When Possible**: Do NOT use Playwright unless absolutely necessary (e.g., JavaScript-heavy SPAs that cannot be scraped via API). Always try API endpoints or check if data is available in the initial HTML response first. Playwright is slower and more resource-intensive than direct HTTP requests.
 
 ## File Structure Highlights
 
