@@ -1,6 +1,6 @@
 import json
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, urlunparse
 
 from scrapy.http import Request
 
@@ -23,7 +23,7 @@ EXCLUDE_BRANDS = {
 }
 
 
-def _trim_semi(t: str | None)->str | None:
+def _trim_semi(t: str | None) -> str | None:
     if not isinstance(t, str):
         return t
     return t.strip(' :：')
@@ -70,10 +70,12 @@ class HoweipharmSpider(BaseSpider):
             )
 
         # 处理分页
-        next_page = response.xpath('//li[@class="e-page-item" and ./a[contains(@class, "active")]]/following-sibling::li[1]/a/@href').get()
+        next_page = response.xpath('//li[@class="e-page-item"]/a[contains(text(), "下页")]/@href').get()
         if next_page:
+            parsed = urlparse(response.url)
+            clean_url = urlunparse(parsed._replace(query="", fragment=""))
             yield Request(
-                urljoin(self.base_url, next_page),
+                clean_url + next_page,
                 callback=self.parse_product_list,
             )
 
@@ -111,8 +113,8 @@ class HoweipharmSpider(BaseSpider):
             img_url = response.xpath('//div[contains(@class, "e-prodetails-wrap")]//img/@src').get('')
 
         concentration = _trim_semi(''.join(response.xpath('//p[contains(./span/text(),"浓度")]/text()').getall()))
-        stock_info = strip(''.join(response.xpath('//div[./span/text()="库存状态"]/following-sibling::div//text()').getall()))
-        if stock_info == '请选择包装':
+        stock_info = response.xpath('//div[@id="stock"]/text()').get()
+        if stock_info and '请选择包装' in stock_info:
             stock_info = None
 
         extra_attrs = clean_dict(extra_attrs)
