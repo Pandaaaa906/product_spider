@@ -117,10 +117,12 @@ class HoweipharmSpider(BaseSpider):
         if stock_info and '请选择包装' in stock_info:
             stock_info = None
 
+        parent = response.xpath('//div[@id="path_full"]/a[position()=last()]/text()').get()
         extra_attrs = clean_dict(extra_attrs)
         # 创建 RawData
         raw_data = {
             "brand": brand,
+            "parent": parent,
             "cat_no": cat_no,
             "chs_name": _trim_semi(''.join(response.xpath('//p[contains(./span/text(),"产品名称")]/text()').getall())),
             "en_name": _trim_semi(''.join(response.xpath('//p[contains(./span/text(),"英文名称")]/text()').getall())),
