@@ -19,7 +19,10 @@ from product_spider.utils.items_translate import (
 from product_spider.utils.spider_mixin import BaseSpider
 
 EXCLUDE_BRANDS = {
-    'ncrm'
+    'ncrm',
+    'hongmeng',
+    'weiye',
+    'tmrm',
 }
 
 
@@ -103,8 +106,7 @@ class HoweipharmSpider(BaseSpider):
 
         # 使用默认品牌
         brand = brand_code or self.brand
-        if brand in EXCLUDE_BRANDS:
-            return
+
         cat_no = response.xpath('//div[./span/text()="产品编号"]/following-sibling::div/text()').get()
 
         # 产品图片
@@ -139,7 +141,9 @@ class HoweipharmSpider(BaseSpider):
             "attrs": json.dumps(extra_attrs, ensure_ascii=False) if extra_attrs else None,
         }
 
-        yield RawData(**raw_data)
+        if brand not in EXCLUDE_BRANDS:
+            yield RawData(**raw_data)
+
         ddd = rawdata_to_supplier_product(raw_data, platform=self.name, vendor=self.name)
         yield SupplierProduct(**ddd)
 
