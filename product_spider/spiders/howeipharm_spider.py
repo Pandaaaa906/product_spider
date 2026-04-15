@@ -41,7 +41,9 @@ class HoweipharmSpider(BaseSpider):
     custom_settings = {
         'RETRY_HTTP_CODES': [503, 504, 403, 429],
         'RETRY_TIMES': 10,
-        'CONCURRENT_REQUESTS': 4,
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'DOWNLOAD_DELAY': 1,
     }
 
     @staticmethod
