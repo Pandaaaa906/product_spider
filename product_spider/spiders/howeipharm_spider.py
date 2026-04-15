@@ -2,7 +2,7 @@ import json
 import re
 from urllib.parse import urljoin, urlparse, urlunparse
 
-from scrapy.http import Request
+from scrapy.http import FormRequest, Request
 
 from product_spider.items import (
     RawData,
@@ -44,8 +44,51 @@ class HoweipharmSpider(BaseSpider):
         'CONCURRENT_REQUESTS': 4,
     }
 
+    @staticmethod
+    def _compute_waf_answer(a: int, b: int, c: int) -> int:
+        """根据 360 磐云 WAF 的 JS 挑战逻辑动态计算 answer"""
+        e = a * b + c
+        e = 3 * e + 7
+        if e < 123:
+            e += 2345
+        if e > 2345:
+            e = e // 123
+        return e
+
+    def _handle_waf(self, response, callback, **cb_kwargs):
+        """检测并绕过 360 磐云 WAF JS 挑战"""
+        if (
+                response.status == 200
+                and b"waf_answer" in response.body
+                and b"ChallengeForm" in response.body
+                and not response.meta.get("waf_bypassed")
+        ):
+            match = re.search(r"const a=(\d+),b=(\d+),c=(\d+)", response.text)
+            if match:
+                a, b, c = map(int, match.groups())
+                answer = self._compute_waf_answer(a, b, c)
+                self.logger.info(f"WAF challenge detected, auto-bypassing with answer={answer} (a={a}, b={b}, c={c})")
+            else:
+                # 兜底：如果正则匹配失败，给一个保守的默认值并记录警告
+                self.logger.warning("WAF challenge detected but failed to parse a,b,c, fail to solve challenge")
+                return None
+            return FormRequest(
+                url=response.url,
+                formdata={"answer": str(answer)},
+                callback=callback,
+                meta={**response.meta, "waf_bypassed": True},
+                dont_filter=True,
+                cb_kwargs=cb_kwargs,
+            )
+        return None
+
     def parse(self, response, **kwargs):
         """解析产品分类链接"""
+        waf_req = self._handle_waf(response, self.parse, **kwargs)
+        if waf_req:
+            yield waf_req
+            return
+
         self.logger.debug(f"Parsing categories from {response.url}")
 
         # 提取所有产品分类链接
@@ -62,6 +105,10 @@ class HoweipharmSpider(BaseSpider):
 
     def parse_product_list(self, response):
         """解析产品列表页面"""
+        waf_req = self._handle_waf(response, self.parse_product_list)
+        if waf_req:
+            yield waf_req
+            return
 
         # 提取当前页的产品 - 在 p_list_body 下的 li 元素（排除 list_title）
         rel_urls = response.xpath('//div[contains(@class, "pname")]/a/@href').getall()
@@ -84,6 +131,10 @@ class HoweipharmSpider(BaseSpider):
 
     def parse_detail(self, response):
         """解析产品详情页"""
+        waf_req = self._handle_waf(response, self.parse_detail)
+        if waf_req:
+            yield waf_req
+            return
 
         # 从URL中提取品牌和货号
         url_match = re.search(r'/product/([^/]+)/([^/]+)', response.url)
