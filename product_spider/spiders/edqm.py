@@ -79,6 +79,17 @@ class EDQMSpider(BaseSpider):
         d["stock_info"] = stock_info
         d["attrs"] = json.dumps({
             "controlled_drug": controlled_drug,
+            "sds_product_code": strip(response.xpath(
+                "//*[contains(text(), 'SDS Product Code')]/parent::td/following-sibling::td/font/text()").get()),
+            "biological_hazard": strip(response.xpath(
+                "//*[contains(text(), 'Biological hazard')]/parent::td/following-sibling::td/font/text()").get()),
+            "chemical_hazard": strip(response.xpath(
+                "//*[contains(text(), 'Chemical hazard')]/parent::td/following-sibling::td/font/text()").get()),
+            "un_code": strip(response.xpath(
+                "//*[contains(text(), 'UN Code')]/parent::td/following-sibling::td/font/text()").get()),
+            'hs_code': strip(response.xpath(
+                "//*[contains(text(), 'Proposed Import HS code')]/parent::td/following-sibling::td/font/text()").get()),
+
         })
         yield RawData(**d)
 
