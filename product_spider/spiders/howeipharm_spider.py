@@ -32,6 +32,10 @@ def _trim_semi(t: str | None) -> str | None:
     return t.strip(' :：')
 
 
+playwright_page_goto_kwargs = {
+    'wait_until': 'domcontentloaded',
+}
+
 class HoweipharmSpider(BaseSpider):
     name = "howeipharm"
     brand = "howeipharm"
@@ -118,6 +122,7 @@ class HoweipharmSpider(BaseSpider):
         for prd_rel_url in rel_urls:
             yield Request(
                 urljoin(self.base_url, prd_rel_url),
+                meta={'playwright': True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs, },
                 callback=self.parse_detail,
             )
 
@@ -133,10 +138,10 @@ class HoweipharmSpider(BaseSpider):
 
     def parse_detail(self, response):
         """解析产品详情页"""
-        waf_req = self._handle_waf(response, self.parse_detail)
-        if waf_req:
-            yield waf_req
-            return
+        # waf_req = self._handle_waf(response, self.parse_detail)
+        # if waf_req:
+        #     yield waf_req
+        #     return
 
         # 从URL中提取品牌和货号
         url_match = re.search(r'/product/([^/]+)/([^/]+)', response.url)
@@ -161,7 +166,9 @@ class HoweipharmSpider(BaseSpider):
         brand = brand_code or self.brand
 
         cat_no = response.xpath('//div[./span/text()="产品编号"]/following-sibling::div/text()').get()
-
+        if not cat_no:
+            self.logger.warning(f"No cat_no found:{response.url}")
+            return
         # 产品图片
         img_url = response.xpath('//div[contains(@class, "pd-image") or contains(@class, "product-image")]//img/@src').get('')
         if not img_url:
