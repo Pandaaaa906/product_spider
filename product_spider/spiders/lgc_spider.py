@@ -113,7 +113,9 @@ class LGCSpider(JsonSpider):
         if brand == 'trc' and cat_no:
             cat_no = (m := re.search(r'[A-Z]\d+(-KIT)?', cat_no)) and m.group()
         api_name = ''.join(response.xpath("//*[contains(text(), 'API Family')]/following-sibling::a/text()").getall())
-        t = response.xpath('//div[@class="product__details-left"]/script/text()').get()
+        t = response.xpath('//div[@data-section-title="Product Overview"]/script/text()').get()
+        if not t:
+            self.logger.warning(f"No product script found:{response.url}")
         raw_product = (m := re.search(r'var PARENT_PRODUCT = (\{.+});', t)) and m.group(1)
         try:
             product = json.loads(raw_product)
@@ -134,6 +136,8 @@ class LGCSpider(JsonSpider):
             "inchi": strip(response.xpath(tmpl.format('InChI')).get()),
             "iupac": strip(response.xpath(tmpl.format('IUPAC')).get()),
             "coa_urls": coa_urls,
+            "ep_description": response.xpath(tmpl.format('EP Description')).get(),
+            "usp_description": response.xpath(tmpl.format('USP Description')).get(),
             "impact_product_type": product.get('impactProductTypes')
         }
         img_url = response.xpath('//zoom-image/@image-src').get()
