@@ -30,10 +30,14 @@ def parse_brand(raw_brand):
     return brand
 
 
+playwright_page_goto_kwargs = {
+    'wait_until': 'domcontentloaded',
+}
+
 class LGCSpider(JsonSpider):
     name = "lgc"
     allowed_domains = ["lgcstandards.com"]
-    start_urls = [
+    _start_urls = [
         "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=%3A%3AmanufacturerName%3ATRC%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
         "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=MM%3A%3AmanufacturerName%3AMikromol%3AmanufacturerName%3AMikromol%25E2%2584%25A2%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
         "https://www.lgcstandards.com/US/en/lgcwebservices/lgcstandards/products/search?pageSize=100&fields=FULL&sort=code-asc&currentPage=0&q=DRE%3A%3AmanufacturerName%3ADr.%2BEhrenstorfer%3Aitemtype%3ALGCProduct%3Aitemtype%3AATCCProduct&country=US&lang=en&defaultB2BUnit=",
@@ -51,7 +55,7 @@ class LGCSpider(JsonSpider):
         'COOKIES_DEBUG': True,
     }
 
-    def _start_requests(self):
+    def start_requests(self):
         # perform login
         yield Request(self.base_url, callback=self.login)
 
@@ -73,7 +77,8 @@ class LGCSpider(JsonSpider):
     def real_start_requests(self, response, post_request=None):
         # check login status
         # start default
-        yield from super().start_requests()
+        for u in self._start_urls:
+            yield Request(u, callback=self.parse)
 
     def parse(self, response, **kwargs):
         products = json.loads(response.text).get("products", [])
@@ -91,7 +96,7 @@ class LGCSpider(JsonSpider):
             yield Request(
                 url=prd_url,
                 callback=self.parse_detail,
-                meta={"product": d}
+                meta={"product": d, 'playwright': True, "playwright_page_goto_kwargs": playwright_page_goto_kwargs, }
             )
         parsed_url = parse.urlparse(response.url)
         query_d = dict(parse.parse_qsl(parsed_url.query))
