@@ -1,3 +1,4 @@
+import datetime
 import json
 import re
 from os import getenv
@@ -53,10 +54,11 @@ class NifdcSpider(BaseSpider):
             batch_name = row.xpath(tmp.format('xsBatch_no')).get()  # 批号
             usage = row.xpath(tmp.format('used')).get()  # 用途
             max_purchase_num = row.xpath(".//input[@name='zdgmshu']/parent::td/text()").get()  # 最大购买数量
-            prd_attrs = json.dumps({
+            prd_attrs = {
                 "usage": usage,
                 "max_purchase_num": strip(max_purchase_num),
-            })
+            }
+
             d = {
                 'brand': self.brand,
                 'cat_no': (cat_no := row.xpath(tmp.format('sgoods_no')).get()),
@@ -66,9 +68,7 @@ class NifdcSpider(BaseSpider):
                 'info2': row.xpath(tmp.format('save_condition')).get(),
                 'stock_info': row.xpath(tmp.format('zdgmshu')).get(),
                 'prd_url': coa and urljoin(response.url, coa),
-                "attrs": prd_attrs,
             }
-            yield RawData(**d)
             package_attrs = json.dumps({
                 "batch_name": batch_name,
             })
@@ -90,6 +90,20 @@ class NifdcSpider(BaseSpider):
             yield SupplierProduct(**ddd)
             yield RawSupplierQuotation(**dddd)
 
+            # 标签说明书附件页(viewfujian)列出了当前批及相邻批的证书下载地址，
+            # 解析后写入产品 attrs；无附件时直接产出产品数据。
+            attachment_a = row.xpath("./td/a[contains(@href,'viewfujian')]/@href").get()
+            if attachment_a:
+                yield Request(
+                    urljoin(response.url, attachment_a),
+                    callback=self.parse_coa_page,
+                    meta={'product': d, 'prd_attrs': prd_attrs},
+                    priority=1000,
+                )
+            else:
+                d["attrs"] = json.dumps(prd_attrs, ensure_ascii=False)
+                yield RawData(**d)
+
         m = re.search(r'(?:buildPageCtrlOne001\()(\d+),(\d+),(\d+)', response.text)
         if not m:
             return
@@ -101,3 +115,27 @@ class NifdcSpider(BaseSpider):
             "toPage": str(cur_page),
         }
         yield FormRequest(response.url, formdata=form_data, callback=self.parse_list)
+
+    def parse_coa_page(self, response):
+        """解析标签说明书附件页，获取所有证书批次及对应的下载 url，写入产品 attrs。"""
+        d = response.meta['product']
+        prd_attrs = response.meta['prd_attrs']
+        datetime.date.today().strftime("%Y%m%d")
+
+        # 页面由若干 class="edit" 的表格交替组成：信息表(含"批号")后紧跟标签说明书表(含下载链接)。
+        coa_files = {}
+        cur_batch = None
+        for table in response.xpath('//table[@class="edit"]'):
+            th_text = ''.join(table.xpath('.//th//text()').getall())
+            if '标签说明书' in th_text:
+                href = table.xpath('.//a[contains(@href, "uploadft")]/@href').get()
+                if cur_batch and href:
+                    coa_files.setdefault(cur_batch, urljoin(response.url, href))
+            else:
+                batch = strip(table.xpath('.//td[contains(., "批号")]/following-sibling::td[1]/text()').get())
+                if batch:
+                    cur_batch = batch
+
+        prd_attrs["coa_files"] = coa_files
+        d["attrs"] = json.dumps(prd_attrs, ensure_ascii=False)
+        yield RawData(**d)
