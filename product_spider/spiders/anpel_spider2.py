@@ -9,6 +9,8 @@ from string import digits
 from urllib.parse import urljoin, urlencode
 
 import requests
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 from fontTools.ttLib import TTFont
 from scrapy import Request
 
@@ -40,6 +42,28 @@ publicKey = (
     '/1iDwGyouSmijxKyAePg6KsLNgbjDPYZRS11bYEuZ8/RLQIDAQAB/8008D6C4DB52407FA89761C10A391F21'
 )
 cmap_char = f'.{digits}'
+
+
+def decrypt_font_name(hex_ciphertext: str, key: str = None) -> str:
+    if key is None:
+        key = "1678122asdasdasdasdasdasdasdasd345678"
+
+    # 与JS一致
+    if len(key) > 32:
+        key = key[:32]
+    elif len(key) < 32:
+        key = key.ljust(32, "@")
+
+    key_bytes = key.encode("utf-8")
+
+    # Hex.parse()
+    ciphertext = bytes.fromhex(hex_ciphertext)
+
+    cipher = AES.new(key_bytes, AES.MODE_ECB)
+    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
+
+    return plaintext.decode("utf-8")
+
 
 
 # TODO 破解图片验证码
@@ -225,6 +249,10 @@ class AnpelSpider(BaseSpider):
     def parse(self, response, **kwargs):
         j = response.json()
         font_name = jsonpath_query_nth(j, '$.data.fontPath')
+        if not font_name:
+            self.logger.warning(f"fontPath为空:{response.url}")
+        else:
+            font_name = decrypt_font_name(font_name)
         rows = jsonpath_query_all(j, '$.data.items[*]')
         for row in rows:
             img = jsonpath_query_nth(row, '@.photoPath')
