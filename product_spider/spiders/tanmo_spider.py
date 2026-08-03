@@ -149,8 +149,8 @@ class TanmoSpider(BaseSpider):
         purity = strip(response.xpath(tmp.format("标准值")).get())
         info2 = strip(response.xpath(tmp.format("储存条件")).get())
         package = strip(response.xpath(tmp.format("规格")).get(''))
-        info4 = good_obj.get('price', '咨询')
-        cost = good_obj.get('sell_price', '咨询')
+        info4 = good_obj.get('price')
+        cost = good_obj.get('sell_price')
 
         d = {
             'brand': brand,
