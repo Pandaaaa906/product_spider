@@ -172,6 +172,7 @@ class TanmoSpider(BaseSpider):
             'cat_no': cat_no,
             'package': package,
             'cost': cost or info4,
+            'price': cost or info4,
             'currency': 'RMB',
             'stock_num': good_obj.get('number'),
             'delivery_time': good_obj.get('time_name'),
