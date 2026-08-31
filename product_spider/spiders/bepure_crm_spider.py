@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 import time
 import urllib
@@ -32,6 +33,7 @@ class BepureSpider(BaseSpider):
     brand = 'bepure'
     currency = 'RMB'
     custom_settings = {
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         "DEFAULT_REQUEST_HEADERS": {
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         }
@@ -87,6 +89,9 @@ class BepureSpider(BaseSpider):
         info_xpath = "//el-form-item[@label={!r}]/span/text()"
 
         good_obj_str = (m := re.search(r'goodObj:\s?\{([^}]*)}', response.text)) and m.group()
+        if not good_obj_str:
+            self.logger.warn(f"没有产品信息: url:{response.url}")
+            return
         brand = (m := re.search(r'(?<=brand_name:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
         brand = brand.lower() if brand else None
         expiry_date = (m := re.search(r'(?<=date:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
@@ -112,6 +117,12 @@ class BepureSpider(BaseSpider):
             'stock_num': None,
             'purity': purity,
         }
+        attrs = {}
+        if components := self.parse_components(response):
+            attrs = {'组分信息': components}
+
+        if attrs:
+            d['attrs'] = json.dumps(attrs, ensure_ascii=False)
         package = (m := re.search(r'(?<=spec:)\s*"(.+?)"(?=,)', good_obj_str)) and m.group(1)
 
         yield self.make_package_request(product_id, callback=self.parse_package_info, meta={
@@ -119,6 +130,22 @@ class BepureSpider(BaseSpider):
             'package': package,
             'delivery_time': delivery_time,
         })
+
+    def parse_components(self, response):
+        """解析详情页"组分信息"表格, 返回 [{表头: 值}, ...] 列表"""
+        table = response.xpath("//el-tab-pane[@label='组分信息']//table[contains(@class, 'layui-table')]")
+        if not table:
+            return []
+        headers = [h for h in (strip(h) for h in table.xpath(".//thead//th//text()").getall()) if h]
+        components = []
+        for tr in table.xpath(".//tbody/tr"):
+            cells = [
+                strip("".join(td.xpath(".//text()").getall()), default='')
+                for td in tr.xpath("./td")
+            ]
+            if headers and any(cells):
+                components.append(dict(zip(headers, cells)))
+        return components
 
     def make_package_request(self, product_id, *, callback, meta: dict = None):
         if meta is None:
