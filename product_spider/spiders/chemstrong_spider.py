@@ -12,16 +12,23 @@ class ChemstrongSpider(BaseSpider):
     brand = "chemstrong"
     start_urls = ['https://www.qcsrm.com/index.php/Indexcn/products']
     base_url = "https://www.qcsrm.com"
+    custom_settings = {
+        'DOWNLOADER_MIDDLEWARES': {
+            'product_spider.middlewares.retry403.BackoffRetry403Middleware': 560,
+        }
+    }
+    max_403_retries = 5
+    retry_403_delay = 10  # 秒，第 n 次重试前等待 n*10s：10, 20, 30, 40, 50
 
     def parse(self, response, **kwargs):
-        option_nodes = response.xpath("//select[@id='jumpMenu']/option")
+        option_nodes = response.xpath("//form/select[@id='jumpMenu']/option")
         for option in option_nodes:
             url = urljoin(self.base_url, option.xpath('./@value').get(""))
             parent = strip(option.xpath('./text()').get())
             yield Request(url, callback=self.parse_list, meta={"parent": parent})
 
     def parse_list(self, response):
-        detail_urls = response.xpath("//div[@class='col-md-4 pfont']//img/parent::*/@href").getall()
+        detail_urls = response.xpath("//div/div/a[contains(@href,'products_show')]/@href").getall()
         for u in detail_urls:
             yield Request(url=urljoin(self.base_url, u), callback=self.parse_detail, meta=response.meta)
 
