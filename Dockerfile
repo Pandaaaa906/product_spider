@@ -1,5 +1,5 @@
 # 使用多阶段构建优化镜像大小和构建速度
-FROM python:3.12-bullseye AS builder
+FROM python:3.12-bookworm AS builder
 
 VOLUME /ms-playwright
 
