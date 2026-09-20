@@ -110,3 +110,6 @@ scrapy_db.db
 /dbs/default.db
 /dbs/
 /data/
+/*.stackdump
+nul
+.playwright-mcp/
