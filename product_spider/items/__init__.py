@@ -5,3 +5,4 @@ from .chemicalbook import *
 from .soopat import *
 from .echemportal import EChemPortalItem
 from .chemsrc_items import ChemSrcChemical
+from .ichembio_items import IchembioData
