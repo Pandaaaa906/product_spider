@@ -10,41 +10,52 @@ from Crypto.Util.Padding import unpad
 from scrapy import Request
 from scrapy.http import JsonRequest
 
-from product_spider.items import RawData, ProductPackage, RawSupplierQuotation, SupplierProduct
+from product_spider.items import (
+    RawData,
+    ProductPackage,
+    RawSupplierQuotation,
+    SupplierProduct,
+)
 from product_spider.utils.functions import dumps, clean_dict
-from product_spider.utils.items_translate import rawdata_to_supplier_product, product_package_to_raw_supplier_quotation
+from product_spider.utils.items_translate import (
+    rawdata_to_supplier_product,
+    product_package_to_raw_supplier_quotation,
+)
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 class PharmBlockSpider(BaseSpider):
     name = "pharmblock"
     base_url = "https://product.pharmablock.com/"
-    brand = '南京药石'
-    category_url = "https://product.pharmablock.com/cnApi/api/base/v1/productCategoryPath"
+    brand = "南京药石"
+    category_url = (
+        "https://product.pharmablock.com/cnApi/api/base/v1/productCategoryPath"
+    )
     product_url = "https://product.pharmablock.com/cnApi/api/base/v1/product"
     package_url = "https://product.pharmablock.com/cnApi/api/base/v1/productPrice"
     encrypt_key = b"pb!@S@#@"
 
     custom_settings = {
-        "DOWNLOADER_MIDDLEWARES": {
-            'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
-        },
-        'RETRY_HTTP_CODES': [503, 403, 504],
-        'RETRY_TIMES': 10,
-
-        'CONCURRENT_REQUESTS': 8,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
-        'CONCURRENT_REQUESTS_PER_IP': 8,
+        # "DOWNLOADER_MIDDLEWARES": {
+        #     'product_spider.middlewares.proxy_middlewares.RandomProxyMiddleWare': 543,
+        # },
+        "RETRY_HTTP_CODES": [503, 403, 504],
+        "RETRY_TIMES": 10,
+        "CONCURRENT_REQUESTS": 2,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 2,
+        "CONCURRENT_REQUESTS_PER_IP": 2,
     }
 
     def is_proxy_invalid(self, request, response):
-        proxy = request.meta.get('proxy')
+        proxy = request.meta.get("proxy")
         if response.status in {503, 403, 504}:
-            self.logger.warning(f'status code:{response.status}, {request.url}, using proxy {proxy}')
+            self.logger.warning(
+                f"status code:{response.status}, {request.url}, using proxy {proxy}"
+            )
             return True
         return False
 
-    def make_products_request(self, page=1, category_id='', **kwargs):
+    def make_products_request(self, page=1, category_id="", **kwargs):
         t = int(time.time() * 1000)
         params = {"t": t, "sign": self.get_sign(self.product_url, t)}
         d = {
@@ -65,13 +76,11 @@ class PharmBlockSpider(BaseSpider):
                 "subgroup": [],
                 "similarity": 0,
                 "isNewProduct": -1,
-                "isFeatureProduct": -1
-            }
+                "isFeatureProduct": -1,
+            },
         }
         return JsonRequest(
-            url=f"{self.product_url}?{urlencode(params)}",
-            data=d,
-            **kwargs
+            url=f"{self.product_url}?{urlencode(params)}", data=d, **kwargs
         )
 
     def make_product_request(self, key: str, **kwargs):
@@ -82,10 +91,7 @@ class PharmBlockSpider(BaseSpider):
             "key": key,
             "from": "",
         }
-        return Request(
-            url=f"{self.product_url}?{urlencode(params)}",
-            **kwargs
-        )
+        return Request(url=f"{self.product_url}?{urlencode(params)}", **kwargs)
 
     def make_package_request(self, product_id, **kwargs):
         t = int(time.time() * 1000)
@@ -94,20 +100,20 @@ class PharmBlockSpider(BaseSpider):
             "sign": self.get_sign(self.package_url, t),
             "productId": product_id,
         }
-        return Request(
-            url=f"{self.package_url}?{urlencode(params)}",
-            **kwargs
-        )
+        return Request(url=f"{self.package_url}?{urlencode(params)}", **kwargs)
 
-    def decrypt(self, encrypted, key=None, mode=DES.MODE_CBC, padding='pkcs7'):
+    def decrypt(self, encrypted, key=None, mode=DES.MODE_CBC, padding="pkcs7"):
         if not key:
             key = self.encrypt_key
         des = DES.new(key, mode, key)
         dec_data = des.decrypt(b64decode(encrypted))
-        return unpad(dec_data, DES.block_size, style=padding).decode('u8')
+        return unpad(dec_data, DES.block_size, style=padding).decode("u8")
 
     @staticmethod
-    def get_sign(url, t, ):
+    def get_sign(
+        url,
+        t,
+    ):
         *_, e = str.split(urlsplit(url).path, "/", 2)
         return md5(f"/{e}{t}p(ha#rmab^@lo!ck@2023^%%*&(".encode()).hexdigest()
 
@@ -121,13 +127,13 @@ class PharmBlockSpider(BaseSpider):
             }
             yield Request(
                 url=f"{self.category_url}?{urlencode(d)}",
-                method='POST',
-                callback=self.parse
+                method="POST",
+                callback=self.parse,
             )
 
     def _iter_end_category(self, obj: List[dict]):
         for category in obj:
-            children = category.get('items', [])
+            children = category.get("items", [])
             if children:
                 yield from self._iter_end_category(children)
             else:
@@ -136,32 +142,40 @@ class PharmBlockSpider(BaseSpider):
     def parse(self, response, **kwargs):
         j_obj = json.loads(response.text)
         for category in self._iter_end_category(j_obj["data"]):
-            category_id = category.get('categoryId')
+            category_id = category.get("categoryId")
             yield self.make_products_request(
-                page=1, category_id=category_id, callback=self.parse_list,
-                meta={'cur_page': 1, 'category_id': category_id,
-                      'parent': category.get('categoryNameEn'), 'parent_cn': category.get('categoryNameCn')}
+                page=1,
+                category_id=category_id,
+                callback=self.parse_list,
+                meta={
+                    "cur_page": 1,
+                    "category_id": category_id,
+                    "parent": category.get("categoryNameEn"),
+                    "parent_cn": category.get("categoryNameCn"),
+                },
             )
 
     def parse_list(self, response):
         j_obj = json.loads(response.text)
-        page = (cur_page := response.meta.get('cur_page', 0)) + 1
-        category_id = response.meta.get('category_id')
-        if not (data := j_obj.get('data')):
+        page = (cur_page := response.meta.get("cur_page", 0)) + 1
+        category_id = response.meta.get("category_id")
+        if not (data := j_obj.get("data")):
             return
-        for row in data.get('list', []):
-            cat_no = row.get('productCode')
+        for row in data.get("list", []):
+            cat_no = row.get("productCode")
             yield Request(
                 url=f"https://product.pharmablock.com/cn/product/{cat_no}",
                 callback=self.parse_nothing,
-                meta={**response.meta, 'cat_no': cat_no},
+                meta={**response.meta, "cat_no": cat_no},
             )
-        total = data.get('total', 0)
+        total = data.get("total", 0)
         if total < cur_page * 50:
             return
         yield self.make_products_request(
-            page=page, category_id=category_id, callback=self.parse_list,
-            meta={**response.meta, 'cur_page': page, 'category_id': category_id}
+            page=page,
+            category_id=category_id,
+            callback=self.parse_list,
+            meta={**response.meta, "cur_page": page, "category_id": category_id},
         )
 
     def parse_nothing(self, response):
@@ -170,7 +184,7 @@ class PharmBlockSpider(BaseSpider):
         :param response:
         :return:
         """
-        cat_no = response.meta.get('cat_no')
+        cat_no = response.meta.get("cat_no")
         yield self.make_product_request(
             key=cat_no,
             callback=self.parse_detail,
@@ -179,7 +193,7 @@ class PharmBlockSpider(BaseSpider):
 
     def parse_detail(self, response):
         j_obj = json.loads(response.text)
-        prd = j_obj.get('data')
+        prd = j_obj.get("data")
         if not prd:
             return
         attrs = {
@@ -190,17 +204,26 @@ class PharmBlockSpider(BaseSpider):
             "nmr_url": prd.get("nmrUrl"),
             "density": prd.get("density"),
             "ghs_code": prd.get("ghsCode"),
-            "category": ';'.join(filter(lambda x: x, map(lambda x: x.get('categoryNameCN'), prd.get('bbCategoryList', [])))),
+            "category": ";".join(
+                filter(
+                    lambda x: x,
+                    map(
+                        lambda x: x.get("categoryNameCN"), prd.get("bbCategoryList", [])
+                    ),
+                )
+            ),
         }
         cas = prd.get("casNum")
         img_url = None
         if cas:
-            *_, t = cas.rsplit('-', 1)
+            *_, t = cas.rsplit("-", 1)
             img_url = f"https://productapi.pharmablock.com/doc/product/images/svg/{t}/{cas}.svg"
         d = {
             "brand": self.brand,
             "cat_no": prd.get("productCode"),
-            "parent": ';'.join(map(lambda x: x['categoryNameEN'], prd.get('bbCategoryList', []))),
+            "parent": ";".join(
+                map(lambda x: x["categoryNameEN"], prd.get("bbCategoryList", []))
+            ),
             "en_name": prd.get("nameEN"),
             "chs_name": prd.get("nameCN"),
             "cas": cas,
@@ -213,7 +236,7 @@ class PharmBlockSpider(BaseSpider):
             "stock_info": (m := prd.get("stockCN")) and self.decrypt(m),
             "prd_url": f"https://product.pharmablock.com/cn/product/{prd.get('productCode')}",
             "img_url": img_url,
-            "attrs": dumps(clean_dict(attrs, bool))
+            "attrs": dumps(clean_dict(attrs, bool)),
         }
         product_id = prd.get("productId")
         yield RawData(**d)
@@ -222,39 +245,43 @@ class PharmBlockSpider(BaseSpider):
         yield self.make_package_request(
             product_id=product_id,
             callback=self.parse_package,
-            meta={"product": d, **response.meta}
+            meta={"product": d, **response.meta},
         )
 
     def parse_package(self, response):
         j_obj = json.loads(response.text)
-        data = j_obj.get('data')
+        data = j_obj.get("data")
         if not data:
             return
-        rows = data.get('list')
-        prd = response.meta['product']
+        rows = data.get("list")
+        prd = response.meta["product"]
         try:
-            stock_num = float(prd['stock_info'])
+            stock_num = float(prd["stock_info"])
         except Exception:
             stock_num = 0
         for row in rows:
-            cn_price = row.get('listPriceCNAlias')
-            us_price = row.get('listPriceUSAlias')
+            cn_price = row.get("listPriceCNAlias")
+            us_price = row.get("listPriceUSAlias")
             attrs = {
                 "usd_price": us_price and self.decrypt(us_price),
             }
-            pkg_stock = row.get('package', 0) or 0
+            pkg_stock = row.get("package", 0) or 0
 
             dd = {
-                'brand': self.brand,
-                'cat_no': prd['cat_no'],
-                'package': f"{row.get('packSize')}{row.get('packUnit')}",
-                'cost': cn_price and self.decrypt(cn_price),
-                'price': cn_price and self.decrypt(cn_price),
-                'stock_num': pkg_stock and int(stock_num // pkg_stock),
-                'currency': 'RMB',
-                'attrs': dumps(clean_dict(attrs, bool)),
+                "brand": self.brand,
+                "cat_no": prd["cat_no"],
+                "package": f"{row.get('packSize')}{row.get('packUnit')}",
+                "cost": cn_price and self.decrypt(cn_price),
+                "price": cn_price and self.decrypt(cn_price),
+                "stock_num": pkg_stock and int(stock_num // pkg_stock),
+                "currency": "RMB",
+                "attrs": dumps(clean_dict(attrs, bool)),
             }
             yield ProductPackage(**dd)
-            if not dd['cost']:
+            if not dd["cost"]:
                 continue
-            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(prd, dd, self.name, self.name))
+            yield RawSupplierQuotation(
+                **product_package_to_raw_supplier_quotation(
+                    prd, dd, self.name, self.name
+                )
+            )
