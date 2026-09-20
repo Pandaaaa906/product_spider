@@ -2,14 +2,14 @@ import re
 
 
 def rawdata_to_supplier_product(
-        d: dict,
-        platform: str,
-        vendor: str,
+    d: dict,
+    platform: str,
+    vendor: str,
 ):
     ret = {
         "platform": platform,
         "vendor": vendor,
-        "source_id": f'{d["brand"]}_{d["cat_no"]}',
+        "source_id": f"{d['brand']}_{d['cat_no']}",
         "brand": d["brand"],
         "cat_no": d.get("cat_no"),
         "parent": d.get("parent"),
@@ -26,23 +26,23 @@ def rawdata_to_supplier_product(
 
 
 def product_package_to_raw_supplier_quotation(
-        d: dict,
-        dd: dict,
-        platform: str,
-        vendor: str,
+    d: dict,
+    dd: dict,
+    platform: str,
+    vendor: str,
 ):
-    stock_num = dd.get('stock_num')
-    if stock_num:
-        stock_num = (m := re.search(r'^>?(\d+)', stock_num)) and m.group(1)
+    stock_num = dd.get("stock_num")
+    if isinstance(stock_num, str):
+        stock_num = (m := re.search(r"^>?(\d+)", stock_num)) and m.group(1)
     ret = {
         "platform": platform,
         "vendor": vendor,
         "brand": dd["brand"],
-        "source_id": f'{dd["brand"]}_{dd["cat_no"]}',
+        "source_id": f"{dd['brand']}_{dd['cat_no']}",
         "cat_no": dd["cat_no"],
-        "package": dd.get('package'),
-        "discount_price": dd.get('cost'),
-        "price": dd.get('cost'),
+        "package": dd.get("package"),
+        "discount_price": dd.get("cost"),
+        "price": dd.get("cost"),
         "cas": d.get("cas"),
         "currency": dd["currency"],
         "delivery": dd.get("delivery_time"),
