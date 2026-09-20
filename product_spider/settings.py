@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from functools import partial
+
 # Scrapy settings for product_spider project
 #
 # For simplicity, this file contains only settings considered important or
@@ -14,47 +15,50 @@ import json
 _json_dumps = json.dumps
 json.dumps = partial(_json_dumps, ensure_ascii=False)
 
-LOG_LEVEL = 'INFO'
-if not getenv('PYTHONUNBUFFERED'):
-    LOG_FILE = 'scrapy.log'
-BOT_NAME = 'product_spider'
+LOG_LEVEL = "INFO"
+if not getenv("PYTHONUNBUFFERED"):
+    LOG_FILE = "scrapy.log"
+BOT_NAME = "product_spider"
 
-if name != 'nt':
-    TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
+if name != "nt":
+    TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     DOWNLOAD_HANDLERS = {
         "http": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
         "https": "product_spider.utils.handler.StealthScrapyPlaywrightDownloadHandler",
     }
 
-SPIDER_MODULES = ['product_spider.spiders']
-NEWSPIDER_MODULE = 'product_spider.spiders'
+SPIDER_MODULES = ["product_spider.spiders"]
+NEWSPIDER_MODULE = "product_spider.spiders"
 
-DATABASE_ENGINE = getenv('DATABASE_ENGINE', 'postgresql')
-DATABASE_NAME = getenv('DATABASE_NAME', 'chemhost')
-DATABASE_USER = getenv('DATABASE_USER', 'postgres')
-DATABASE_PWD = getenv('DATABASE_PWD', 'catochem')
-DATABASE_HOST = getenv('DATABASE_HOST', '192.168.5.249')
-DATABASE_PORT = int(getenv('DATABASE_PORT', '5432'))
+DATABASE_ENGINE = getenv("DATABASE_ENGINE", "postgresql")
+DATABASE_NAME = getenv("DATABASE_NAME", "chemhost")
+DATABASE_USER = getenv("DATABASE_USER", "postgres")
+DATABASE_PWD = getenv("DATABASE_PWD", "catochem")
+DATABASE_HOST = getenv("DATABASE_HOST", "192.168.5.249")
+DATABASE_PORT = int(getenv("DATABASE_PORT", "5432"))
 
-DATABASE = {"engine": DATABASE_ENGINE,
-            "params": {
-                "database": DATABASE_NAME,
-                "user": DATABASE_USER,
-                "password": DATABASE_PWD,
-                "host": DATABASE_HOST,
-                "port": DATABASE_PORT,
-                "application_name": BOT_NAME,
-            },
-            "cp_params": {
-                "cp_reconnect": True,
-            },
-            }
+DATABASE = {
+    "engine": DATABASE_ENGINE,
+    "params": {
+        "database": DATABASE_NAME,
+        "user": DATABASE_USER,
+        "password": DATABASE_PWD,
+        "host": DATABASE_HOST,
+        "port": DATABASE_PORT,
+        "application_name": BOT_NAME,
+    },
+    "cp_params": {
+        "cp_reconnect": True,
+    },
+}
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 # USER_AGENT = 'product_spider (+http://www.yourdomain.com)'
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
-             "AppleWebKit/537.36 (KHTML, like Gecko) " \
-             "Chrome/88.0.4324.146 Safari/537.36"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/147.0.0.0 Safari/537.36"
+)
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -105,13 +109,13 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'product_spider.pipelines.StripPipeline': 50,
-    'product_spider.pipelines.DropNullCatNoPipeline': 100,
-    'product_spider.pipelines.FilterNAValue': 200,
-    'product_spider.pipelines.ParseCostPipeline': 245,
-    'product_spider.pipelines.ParseRawSupplierQuotationPipeline': 250,
-    'product_spider.pipelines.redis_pipeline.KeywordSearchRedisPipeline': 290,  # 在AutoDBPipeline之前执行
-    'scrapyautodb.pipelines.AutoDBPipeline': 300,
+    "product_spider.pipelines.StripPipeline": 50,
+    "product_spider.pipelines.DropNullCatNoPipeline": 100,
+    "product_spider.pipelines.FilterNAValue": 200,
+    "product_spider.pipelines.ParseCostPipeline": 245,
+    "product_spider.pipelines.ParseRawSupplierQuotationPipeline": 250,
+    "product_spider.pipelines.redis_pipeline.KeywordSearchRedisPipeline": 290,  # 在AutoDBPipeline之前执行
+    "scrapyautodb.pipelines.AutoDBPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
