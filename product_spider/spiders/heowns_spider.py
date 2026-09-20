@@ -1,31 +1,56 @@
 import json
+from urllib.parse import urlencode
+
 import scrapy
-from product_spider.items import RawData, ProductPackage, SupplierProduct, RawSupplierQuotation
+from product_spider.items import (
+    RawData,
+    ProductPackage,
+    SupplierProduct,
+    RawSupplierQuotation,
+)
+from product_spider.utils.items_translate import (
+    product_package_to_raw_supplier_quotation,
+    rawdata_to_supplier_product,
+)
 from product_spider.utils.spider_mixin import BaseSpider
 
 
 def is_heowns(brand: str):
-    return brand == '希恩思'
+    return brand == "希恩思"
 
 
 class HeownsSpider(BaseSpider):
     """希恩思"""
+
     """其他品牌: {'TCI', 'Solarbio', '南京飞虎', '福来兹', '进口分装', 'CIL'}"""
     name = "heowns"
     start_urls = ["http://www.heowns.com/products/258.html"]
     other_brands = set()
 
+    def start_requests(self):
+        yield scrapy.Request(
+            "https://www.heowns.com/index.aspx?a=checkuserlogin",
+            callback=self.parse_cookies,
+        )
+
+    def parse_cookies(self, response):
+        yield from super().start_requests()
+
     def parse(self, response, **kwargs):
-        rows = response.xpath("//div[@class='kj-product-item']//div[@class='kj-proitembox']")
+        rows = response.xpath(
+            "//div[@class='kj-product-item']//div[@class='kj-proitembox']"
+        )
         for row in rows:
-            url = row.xpath(".//div[@class='col-lg-3  col-md-3  col-xs-4  col-sm-4 kj-product-list']/a/@href").get()
+            url = row.xpath(
+                ".//div[@class='col-lg-3  col-md-3  col-xs-4  col-sm-4 kj-product-list']/a/@href"
+            ).get()
             pd_id = row.xpath(".//input[@name='productitem']/@value").get()
             yield scrapy.Request(
                 url=url,
                 callback=self.parse_detail,
                 meta={
                     "pd_id": pd_id,
-                }
+                },
             )
         # 翻页
         next_page = response.xpath(
@@ -34,18 +59,30 @@ class HeownsSpider(BaseSpider):
         if next_page:
             yield scrapy.Request(
                 url=f"http://www.heowns.com/products/258.html?page={next_page}&prop_filter=%7b%7d",
-                callback=self.parse
+                callback=self.parse,
             )
 
     def parse_detail(self, response):
         pd_id = response.meta.get("pd_id")
-        chs_name = response.xpath("//th[contains(text(), '中文名称:')]/following-sibling::td/text()").get()
-        en_name = response.xpath("//th[contains(text(), '英文名称:')]/following-sibling::td/text()").get()
-        cas = response.xpath("//th[contains(text(), 'CAS.No:')]/following-sibling::td/text()").get()
-        mf = ''.join(response.xpath("//th[contains(text(), '分子式:')]/following-sibling::td//text()").getall())
-        mw = response.xpath("//th[contains(text(), '分子量:')]/following-sibling::td/text()").get()
+        chs_name = response.xpath(
+            "//th[contains(text(), '中文名称:')]/following-sibling::td/text()"
+        ).get()
+        en_name = response.xpath(
+            "//th[contains(text(), '英文名称:')]/following-sibling::td/text()"
+        ).get()
+        cas = response.xpath(
+            "//th[contains(text(), 'CAS.No:')]/following-sibling::td/text()"
+        ).get()
+        mf = "".join(
+            response.xpath(
+                "//th[contains(text(), '分子式:')]/following-sibling::td//text()"
+            ).getall()
+        )
+        mw = response.xpath(
+            "//th[contains(text(), '分子量:')]/following-sibling::td/text()"
+        ).get()
         parent = response.xpath("//ol[@class='breadcrumb']/li[last()]/a/text()").get()
-        if parent == '产品分类':
+        if parent == "产品分类":
             parent = None
         img_url = response.xpath("//div[@class='item active']/img/@src").get()
         d = {
@@ -58,19 +95,18 @@ class HeownsSpider(BaseSpider):
             "img_url": img_url,
             "prd_url": response.url,
         }
-
-        yield scrapy.FormRequest(
-            url="http://www.heowns.com/index.aspx",
+        query = {
+            "a": "loadgoodbyajax",
+            "pd_id": pd_id,
+        }
+        yield scrapy.Request(
+            url=f"http://www.heowns.com/index.aspx?{urlencode(query)}",
             callback=self.parse_package,
-            method='POST',
-            formdata={
-                "a": "loadgoodbyajax",
-                "pd_id": pd_id,
-            },
+            method="POST",
             meta={
                 "product": d,
                 "pd_id": pd_id,
-            }
+            },
         )
 
     def parse_package(self, response):
@@ -83,58 +119,48 @@ class HeownsSpider(BaseSpider):
             package = package_info.get("packaging")
             purity = package_info.get("purity")
             brand = package_info.get("brand")
-            if brand == '促销无折扣':
+            if brand == "促销无折扣":
                 brand = "heowns"
             for i in result.get("Inventores"):
                 cat_no = i.get("Goods_no")
+                cat_no, *_ = cat_no.split("+")
                 price = i.get("Price")
+
+                stock_num = i.get("Amount", 0)
+                delivery_time = None
+                if isinstance(stock_num, float):
+                    stock_num = int(stock_num)
+                if isinstance(stock_num, int) and stock_num > 0:
+                    delivery_time = "现货"
+
                 d["brand"] = brand
                 d["cat_no"] = cat_no
                 d["purity"] = purity
                 dd = {
+                    "brand": brand,
                     "cat_no": cat_no,
                     "cost": price,
-                    "currency": "RMB",
+                    "currency": "CNY",
                     "package": package,
-                    "brand": brand
+                    "stock_num": stock_num,
+                    "delivery_time": delivery_time,
                 }
 
-                ddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id": f'{self.name}_{d["cat_no"]}_{dd["package"]}',
-                    "parent": d["parent"],
-                    "en_name": d["en_name"],
-                    "cas": d["cas"],
-                    "mf": d["mf"],
-                    "mw": d["mw"],
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'cost': dd['cost'],
-                    "currency": dd["currency"],
-                    "img_url": d["img_url"],
-                    "prd_url": d["prd_url"],
-                }
-                dddd = {
-                    "platform": self.name,
-                    "vendor": self.name,
-                    "brand": self.name,
-                    "source_id":  f'{self.name}_{d["cat_no"]}',
-                    'cat_no': d["cat_no"],
-                    'package': dd['package'],
-                    'discount_price': dd['cost'],
-                    'price': dd['cost'],
-                    'currency': dd["currency"],
-                }
-                if not is_heowns(brand):
+                if is_heowns(brand):
+                    yield RawData(**d)
+                    yield ProductPackage(**dd)
+                else:
                     self.other_brands.add(brand)
-                    # TODO yield SupplierProduct
-                    return
-                yield RawData(**d)
-                yield ProductPackage(**dd)
-                yield SupplierProduct(**ddd)
-                yield RawSupplierQuotation(**dddd)
+                yield SupplierProduct(
+                    **rawdata_to_supplier_product(d, self.name, self.name)
+                )
+                if not dd["cost"]:
+                    continue
+                yield RawSupplierQuotation(
+                    **product_package_to_raw_supplier_quotation(
+                        d, dd, self.name, self.name
+                    )
+                )
 
     def closed(self, reason):
-        self.logger.info(f'其他品牌: {self.other_brands}')
+        self.logger.info(f"其他品牌: {self.other_brands}")
