@@ -6,9 +6,17 @@ from urllib.parse import urlencode, parse_qsl, urlparse
 
 from scrapy.http import JsonRequest
 
-from product_spider.items import RawData, ProductPackage, RawSupplierQuotation, SupplierProduct
+from product_spider.items import (
+    RawData,
+    ProductPackage,
+    RawSupplierQuotation,
+    SupplierProduct,
+)
 from product_spider.utils.functions import dumps, clean_dict
-from product_spider.utils.items_translate import product_package_to_raw_supplier_quotation, rawdata_to_supplier_product
+from product_spider.utils.items_translate import (
+    product_package_to_raw_supplier_quotation,
+    rawdata_to_supplier_product,
+)
 from product_spider.utils.spider_mixin import BaseSpider
 
 
@@ -21,14 +29,21 @@ class MacklinSpider(BaseSpider):
     package_url = "https://api.macklin.cn/api/product/list"
 
     custom_settings = {
-        'CONCURRENT_REQUESTS': 8,
+        "RETRY_HTTP_CODES": [503, 403, 504, 429],
+        "RETRY_TIMES": 5,
+        "CONCURRENT_REQUESTS": 2,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 2,
+        "CONCURRENT_REQUESTS_PER_IP": 2,
+        "DOWNLOAD_DELAY": 2,
     }
 
     @staticmethod
     def _get_sign(l, d):
         salt = "ndksyr9834@#$32ndsfu"
-        return md5(f"{urlencode(l)}&salt={salt}".lower().encode()).hexdigest() \
-               + md5(f"{urlencode(d)}&salt={salt}".lower().encode()).hexdigest()
+        return (
+            md5(f"{urlencode(l)}&salt={salt}".lower().encode()).hexdigest()
+            + md5(f"{urlencode(d)}&salt={salt}".lower().encode()).hexdigest()
+        )
 
     def make_request(self, url, params: dict = None, **kwargs):
         if params is None:
@@ -40,25 +55,18 @@ class MacklinSpider(BaseSpider):
             "x-language": "cn",
             "x-timestamp": int(t),
         }
-        d = dict(**params, timestamp=int(t * 10 ** 38))
-        headers = {
-            'sign': self._get_sign(l, d),
-            **l
-        }
-        return JsonRequest(
-            url=f"{url}?{urlencode(d)}",
-            headers=headers,
-            **kwargs
-        )
+        d = dict(**params, timestamp=int(t * 10**38))
+        headers = {"sign": self._get_sign(l, d), **l}
+        return JsonRequest(url=f"{url}?{urlencode(d)}", headers=headers, **kwargs)
 
     def _make_catalogs_request(self):
         return self.make_request(
-            url=self.catalog_url,
-            method='POST',
-            callback=self.parse
+            url=self.catalog_url, method="POST", callback=self.parse
         )
 
-    def _make_products_request(self, _id: int, page: int = 1, per_page: int = 50, meta=None, **kwargs):
+    def _make_products_request(
+        self, _id: int, page: int = 1, per_page: int = 50, meta=None, **kwargs
+    ):
         if meta is None:
             meta = {}
         params = {
@@ -71,7 +79,7 @@ class MacklinSpider(BaseSpider):
             params=params,
             callback=self.parse_list,
             meta={"catalog_id": _id, **meta},
-            **kwargs
+            **kwargs,
         )
 
     def _make_package_request(self, cat_no: str, meta: dict = None, **kwargs):
@@ -82,7 +90,7 @@ class MacklinSpider(BaseSpider):
             params={"code": cat_no},
             callback=self.parse_package,
             meta={"cat_no": cat_no, **meta},
-            **kwargs
+            **kwargs,
         )
 
     def _start_requests(self):
@@ -90,14 +98,14 @@ class MacklinSpider(BaseSpider):
 
     def _iter_category_id(self, category_tree):
         for c in category_tree:
-            if tree_id := c.get('tree_id'):
-                yield tree_id, c.get('tree_name'), c.get('tree_en_name')
-            if sub_tree := c.get('sub_category', []):
+            if tree_id := c.get("tree_id"):
+                yield tree_id, c.get("tree_name"), c.get("tree_en_name")
+            if sub_tree := c.get("sub_category", []):
                 yield from self._iter_category_id(sub_tree)
 
     def parse(self, response, **kwargs):
         j = json.loads(response.text)
-        if not (data := j.get('data', {}).get('category_nav_tree', [])):
+        if not (data := j.get("data", {}).get("category_nav_tree", [])):
             return
         for _id, cat_cn_name, cat_en_name in self._iter_category_id(data):
             yield self._make_products_request(
@@ -108,81 +116,91 @@ class MacklinSpider(BaseSpider):
         catalog_id = response.meta.get("catalog_id")
         parent = response.meta.get("parent")
         j = json.loads(response.text)
-        if j.get('code') != 200:
+        if j.get("code") != 200:
             query = urlparse(response.url).query
             params = dict(parse_qsl(query))
             yield self._make_products_request(
-                _id=params['id'],
-                per_page=params['offset'],
-                page=params['page'],
-                meta={**response.meta}
+                _id=params["id"],
+                per_page=params["offset"],
+                page=params["page"],
+                meta={**response.meta},
             )
             return
-        if isinstance(j.get('data'), list):
+        if isinstance(j.get("data"), list):
             return
-        if not (data := j.get('data', {}).get('goods_list')):
+        if not (data := j.get("data", {}).get("goods_list")):
             return
-        for product in (products := data.get('data', [])):
+        for product in (products := data.get("data", [])):
             attrs = {
-                "melting_point": product.get('item_melting'),
-                "boiling_point": product.get('item_boiling'),
-                "flash_point": product.get('item_flash'),
-                "density": product.get('item_density'),
+                "melting_point": product.get("item_melting"),
+                "boiling_point": product.get("item_boiling"),
+                "flash_point": product.get("item_flash"),
+                "density": product.get("item_density"),
             }
-            cat_no = product.get('item_code')
-            if mf := product.get('chem_mf'):
-                mf = re.sub(r'</?su[bp]>', '', mf)
-            cas = product.get('chem_cas')
-            img_url = product.get('up_img')
-            if not img_url and cas and len(tmp := cas.split('-')) == 3:
+            cat_no = product.get("item_code")
+            if mf := product.get("chem_mf"):
+                mf = re.sub(r"</?su[bp]>", "", mf)
+            cas = product.get("chem_cas")
+            img_url = product.get("up_img")
+            if not img_url and cas and len(tmp := cas.split("-")) == 3:
                 a, b, c = tmp
                 img_url = f"https://img.macklin.cn/pic_sml/{b}/{c}/{cas}.png"
             d = {
                 "brand": self.brand,
                 "cat_no": cat_no,
                 "parent": parent,
-                "en_name": product.get('item_en_name'),
-                "chs_name": product.get('item_name'),
+                "en_name": product.get("item_en_name"),
+                "chs_name": product.get("item_name"),
                 "cas": cas,
                 "mf": mf,
-                "info2": product.get('item_en_storage'),
-                "appearance": product.get('item_color'),
-                "purity": product.get('item_specification'),
+                "info2": product.get("item_en_storage"),
+                "appearance": product.get("item_color"),
+                "purity": product.get("item_specification"),
                 "img_url": img_url,
                 "prd_url": f"https://www.macklin.cn/products/{cat_no}",
                 "attrs": dumps(clean_dict(attrs, bool)),
             }
             yield RawData(**d)
-            yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
+            yield SupplierProduct(
+                **rawdata_to_supplier_product(d, self.name, self.name)
+            )
             yield self._make_package_request(cat_no=cat_no, meta={"prd": d})
         if not products:
             return
         yield self._make_products_request(
-            _id=catalog_id,
-            page=data.get('current_page') + 1,
-            meta={**response.meta}
+            _id=catalog_id, page=data.get("current_page") + 1, meta={**response.meta}
         )
 
     def parse_package(self, response):
         j = json.loads(response.text)
         d = response.meta.get("prd")
-        if not (data := j.get('data', {}).get('list', [])):
+        try:
+            data = j.get("data", {}).get("list", [])
+        except AttributeError:
+            # empty list
             return
-        cat_no = response.meta.get('cat_no')
+        except Exception as e:
+            self.logger.exception(e)
+            return
+        if not data:
+            return
+        cat_no = response.meta.get("cat_no")
         for pkg in data:
             dd = {
                 "brand": self.brand,
                 "cat_no": cat_no,
-                "package": f'{pkg.get("product_pack")}{pkg.get("product_unit")}',
+                "package": f"{pkg.get('product_pack')}{pkg.get('product_unit')}",
                 "cost": pkg.get("product_sales_price"),
                 "price": pkg.get("product_price"),
                 "delivery_time": f"{pkg.get('delivery_days')} days",
-                "stock_num": pkg.get('product_stock'),
-                "purity": pkg.get('item_en_specification'),
+                "stock_num": pkg.get("product_stock"),
+                "purity": pkg.get("item_en_specification"),
                 "currency": "RMB",
             }
             yield ProductPackage(**dd)
 
-            if not dd['cost']:
+            if not dd["cost"]:
                 continue
-            yield RawSupplierQuotation(**product_package_to_raw_supplier_quotation(d, dd, self.name, self.name))
+            yield RawSupplierQuotation(
+                **product_package_to_raw_supplier_quotation(d, dd, self.name, self.name)
+            )
