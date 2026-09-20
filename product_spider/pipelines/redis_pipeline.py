@@ -6,6 +6,7 @@ import orjson
 from scrapy import signals
 
 from product_spider.items import ProductPackage, RawData
+from product_spider.items.ichembio_items import IchembioData
 
 
 class KeywordSearchRedisPipeline:
@@ -52,7 +53,7 @@ class KeywordSearchRedisPipeline:
         # 如果没有task_id跳过
         if not self._is_spider_keyword_search(spider):
             return item
-        if not isinstance(item, (ProductPackage, RawData)):
+        if not isinstance(item, (ProductPackage, RawData, IchembioData)):
             return item
         # 如果是搜索请求且有task_id，存储到Redis
         try:
@@ -65,6 +66,8 @@ class KeywordSearchRedisPipeline:
                 key = f"{self.KEY_PREFIX}:{task_id}:results:product"
             elif isinstance(item, ProductPackage):
                 key = f"{self.KEY_PREFIX}:{task_id}:results:package"
+            elif isinstance(item, IchembioData):
+                key = f"{self.KEY_PREFIX}:{task_id}:results:ichembio"
             self.redis.zadd(key, {item_json: time.time()})
 
             # 记录第一个结果的到达时间
@@ -78,7 +81,7 @@ class KeywordSearchRedisPipeline:
             self.redis.expire(f"{self.KEY_PREFIX}:{task_id}:first_result", self.cache_ttl)
             self.redis.expire(f"{self.KEY_PREFIX}:{task_id}:last_result", self.cache_ttl)
 
-            spider.logger.info(f"Stored item to Redis: task_id={task_id}, item={item.get('cat_no', 'N/A')}")
+            spider.logger.info(f"Stored item to Redis: task_id={task_id}, item={item.get('cat_no') or item.get('cas', 'N/A')}")
 
         except Exception as e:
             spider.logger.error(f"Error storing item to Redis: {e}")
