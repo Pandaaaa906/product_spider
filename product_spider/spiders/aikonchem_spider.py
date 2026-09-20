@@ -1,4 +1,3 @@
-import itertools
 import math
 import time
 from hashlib import md5
@@ -84,36 +83,6 @@ class AikonchemSpider(BaseSpider):
                 },
             )
 
-    def handle_category_response(self, response):
-        j_obj: dict = response.json()
-        if j_obj.get("code") != 200:
-            self.logger.info(f"Error data code:{j_obj}")
-            return
-        items = j_obj.get("data")
-        items = [x.get("children", []) for x in items if type(x) is dict]
-        items = list(itertools.chain.from_iterable(items))
-
-        for item in items:
-            cate_id = item.get("id")
-            if not cate_id:
-                continue
-            form = {
-                "page": "1",
-                "pageSize": "20",
-                "cate_id": str(cate_id),
-            }
-            yield self.make_request(
-                self.list_url,
-                form,
-                callback=self.parse_list,
-                meta={
-                    "cur_page": 1,
-                    "page_size": 20,
-                    "cate_id": cate_id,
-                    "parent": item.get("name"),
-                },
-            )
-
     def parse_list(self, response):
         j_obj: dict = response.json()
         if j_obj.get("code") != 200:
@@ -191,7 +160,7 @@ class AikonchemSpider(BaseSpider):
                 "package": f"{row.get('num')}{row.get('unit')}",
                 "cost": row.get("price"),
                 "price": row.get("price"),
-                "currency": "RMB",
+                "currency": "CNY",
                 "purity": row.get("purity"),
                 "delivery_time": row.get("inventory"),
             }
