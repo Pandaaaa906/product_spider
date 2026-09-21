@@ -131,6 +131,8 @@ uv run scrapy crawl spider_name
   - `test_redis_connection.py`: Redis connectivity tests
   - `test_scrapyd_keyword_search.py`: Scrapyd integration tests
   - `test_allmpus_keyword.py`: Allmpus spider keyword search tests
+  - `test_jk_spider.py`: JK spider tests (fixture-based)
+  - `test_sunwaypharm_spider.py`: Sunwaypharm spider tests (fixture-based)
   - `test_api_service.py`: API Service deployment tests
   - `service_manager.py`: Service management utilities for tests
   - `test_api_service_integration.py`: API Service integration tests
@@ -311,6 +313,10 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1
 6. **Redis Pipeline TTL**: Cache expiration should be configurable via environment variable. Default changed from 30 days to 24 hours to prevent storage bloat.
 
 7. **Dynamic Spider Discovery**: Test scripts automatically detect spiders that implement `keyword_search` method, eliminating the need to manually maintain spider lists.
+
+8. **Kuujiasoft Web960 Platform Spiders**: heowns.com and sunwaypharm.cn share the same Web960 platform — list pages at `/products/{cat}.html?page=N&prop_filter=%7b%7d`, detail pages `/product/{id}.html`, and package/price/stock data via `POST /index.aspx?a=ajaxpro_ajax&method=LoadGoods` (form param `pd_id`). Note: heowns' older `a=loadgoodbyajax` endpoint returns empty on sunwaypharm; response key layout differs slightly (`Goods_Info` sits on each `Inventores` element, no `value` wrapper). `Goods_no` is `{cat_no}-{package}` (e.g. `CB40054-100mg`) — split with `rsplit("-", 1)`. Both sites are UTF-8 despite GBK-looking mojibake in some terminals. Verify encoding and category liveness against real responses before writing parsing code.
+
+9. **Research Scripts Location**: One-off download/analysis scripts from spider research go in `./scripts/`, never the project root. Final test fixtures belong in `tests/fixtures/`.
 
 ## API Service
 

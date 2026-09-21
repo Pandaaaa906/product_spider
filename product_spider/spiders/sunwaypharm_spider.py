@@ -17,17 +17,26 @@ from product_spider.utils.items_translate import (
 from product_spider.utils.spider_mixin import BaseSpider
 
 BASE_URL = "https://sunwaypharm.cn"
-CATEGORIES = list(range(570, 619))  # ponytail: 首页旧分类 437/446/449/468/471/480/483/548 均 404，已剔除
+CATEGORIES = list(
+    range(570, 619)
+)  # ponytail: 首页旧分类 437/446/449/468/471/480/483/548 均 404，已剔除
 
 
 def is_sunwaypharm(brand: str):
     return brand in {"相辉", "sunwaypharm"}
 
 
+def parse_brand(brand: str):
+    if brand in {"相辉", "sunwaypharm"}:
+        return "相辉"
+    return brand
+
+
 class SunwaypharmSpider(BaseSpider):
     """上海相辉医药 https://sunwaypharm.cn/"""
 
     name = "sunwaypharm"
+    brand = "相辉"
     allowed_domains = ["sunwaypharm.cn"]
     start_urls = [f"{BASE_URL}/products/{c}/" for c in CATEGORIES]
     other_brands = set()
@@ -47,7 +56,9 @@ class SunwaypharmSpider(BaseSpider):
             "/following-sibling::li[1]/a/text()"
         ).get()
         if next_page and next_page.strip().isdigit():
-            yield scrapy.Request(url=self._page_url(response.url, next_page.strip()), callback=self.parse)
+            yield scrapy.Request(
+                url=self._page_url(response.url, next_page.strip()), callback=self.parse
+            )
 
     @staticmethod
     def _page_url(url: str, page: str) -> str:
@@ -72,7 +83,9 @@ class SunwaypharmSpider(BaseSpider):
         parent = response.xpath("//ol[@class='breadcrumb']/li[last()]/a/text()").get()
         if parent == "产品分类":
             parent = None
-        style = response.xpath("//div[contains(@class, 'image')]//div[@class='img']/@style").get("")
+        style = response.xpath(
+            "//div[contains(@class, 'image')]//div[@class='img']/@style"
+        ).get("")
         m = re.search(r"url\((//[^)]+)\)", style)
         img_url = f"https:{m.group(1)}" if m and "noimage" not in m.group(1) else None
         d = {
@@ -104,10 +117,13 @@ class SunwaypharmSpider(BaseSpider):
             return
         for result in obj.get(f"p_{pd_id}") or []:
             for inv in result.get("Inventores") or []:
-                goods_info = json.loads(inv.get("Goods_Info") or "{}").get("goodsinfo", {})
+                goods_info = json.loads(inv.get("Goods_Info") or "{}").get(
+                    "goodsinfo", {}
+                )
                 brand = goods_info.get("brand")
                 if brand == "促销无折扣":
-                    brand = self.name
+                    brand = self.brand
+                brand = parse_brand(brand)
                 cat_no = (inv.get("Goods_no") or "").rsplit("-", 1)[0] or None
                 price = inv.get("Price")
                 stock_num = inv.get("Amount", 0)
@@ -129,7 +145,9 @@ class SunwaypharmSpider(BaseSpider):
                     "stock_num": stock_num,
                     "delivery_time": delivery_time,
                 }
-                yield SupplierProduct(**rawdata_to_supplier_product(d, self.name, self.name))
+                yield SupplierProduct(
+                    **rawdata_to_supplier_product(d, self.name, self.name)
+                )
                 if is_sunwaypharm(brand):
                     yield RawData(**d)
                     yield ProductPackage(**dd)
@@ -137,7 +155,9 @@ class SunwaypharmSpider(BaseSpider):
                     self.other_brands.add(brand)
                 if dd["cost"]:
                     yield RawSupplierQuotation(
-                        **product_package_to_raw_supplier_quotation(d, dd, self.name, self.name)
+                        **product_package_to_raw_supplier_quotation(
+                            d, dd, self.name, self.name
+                        )
                     )
 
     def closed(self, reason):
