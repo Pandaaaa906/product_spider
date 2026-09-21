@@ -125,7 +125,7 @@ class AikonchemSpider(BaseSpider):
     def parse_detail(self, response):
         j_obj: dict = response.json()
         if j_obj.get("code") != 200:
-            self.logger.info(f"Error data code:{j_obj.get('code')}")
+            self.logger.info(f"Error data code:{j_obj}")
             return
         product_info: dict = (j_obj.get("data") or {}).get("prod_info")
         if not product_info:
