@@ -1,5 +1,5 @@
 # 使用多阶段构建优化镜像大小和构建速度
-FROM python:3.12-bookworm AS builder
+FROM ghcr.io/astral-sh/uv:python3.12-trixie AS builder
 
 VOLUME /ms-playwright
 
@@ -7,6 +7,7 @@ VOLUME /ms-playwright
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     UV_CACHE_DIR=/tmp/.uv/ \
+    UV_TOOL_BIN_DIR=/usr/local/bin \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PLAYWRIGHT_SKIP_BROWSER_GC=1 \
     UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple" \
@@ -27,7 +28,6 @@ RUN apt-get update \
     && mkdir -p ~/.pip \
     && echo "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple" | tee ~/.pip/pip.conf \
     && git config --global http.sslverify false \
-    && pip install uv \
     && rm -rf /root/.cache/pip
 
 # 创建工作目录
@@ -38,9 +38,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/tmp/.uv/ \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv venv \
-    && . .venv/bin/activate \
-    && uv sync --frozen --no-install-project
+    uv sync --frozen --no-install-project
 
 # 激活虚拟环境
 ENV PATH="/app/.venv/bin:$PATH"
